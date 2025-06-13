@@ -1,0 +1,8 @@
+qiskit
+qiskit_ibm_runtime
+qiskit_qasm3_import
+
+# Style and Lint: Following Qiskit 1.2
+black[jupyter]~=24.1
+ruff==0.0.267
+pylint==3.2.3
