@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace qiskitcpp {
+namespace Qiskit {
 
 // Numeric Types
 using int_t = int_fast64_t;
@@ -35,6 +35,7 @@ using cvectorf_t = std::vector<complexf_t>;
 using rvector_t = std::vector<double>;
 using reg_t = std::vector<uint_t>;
 
-} // namespace qiskitcpp
+} // namespace Qiskit
+
 #endif
 

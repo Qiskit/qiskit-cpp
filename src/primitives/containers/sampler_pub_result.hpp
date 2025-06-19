@@ -19,7 +19,7 @@
 
 #include "primitives/containers/bit_array.hpp"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
 /// @class SamplerPubResult
@@ -44,7 +44,7 @@ public:
 };
 
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_sampler_pub_result_hpp__

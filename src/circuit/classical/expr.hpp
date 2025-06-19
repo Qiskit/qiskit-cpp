@@ -20,7 +20,7 @@
 #include "circuit/classicalregister.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 // operation types
@@ -510,7 +510,7 @@ Binary ClassicalRegister::operator>=(Expr& right)
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_classical_expr_hpp__
 

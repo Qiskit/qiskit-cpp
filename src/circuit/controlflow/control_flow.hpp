@@ -19,7 +19,7 @@
 
 #include "circuit/quantumcircuit_def.hpp"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 
@@ -46,11 +46,11 @@ public:
   /// @param (expr) expression
   ControlFlowOp(Expr expr) : expr_(expr) {}
 
-  virtual void add_control_flow_op(qiskitcpp::circuit::QuantumCircuit& circ) = 0;
+  virtual void add_control_flow_op(QuantumCircuit& circ) = 0;
 };
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_control_flow_hpp__
 

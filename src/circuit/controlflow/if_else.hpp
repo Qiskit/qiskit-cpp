@@ -20,7 +20,7 @@
 
 #include "circuit/controlflow/control_flow.hpp"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 
@@ -29,38 +29,38 @@ namespace circuit {
 class IfElseOp : public ControlFlowOp
 {
 protected:
-  qiskitcpp::circuit::QuantumCircuit true_body_;
-  qiskitcpp::circuit::QuantumCircuit false_body_;
+  QuantumCircuit true_body_;
+  QuantumCircuit false_body_;
   bool test_else_ = false;
 public:
   /// @brief Create a new IfElseOp circuit operator
   /// @param (circ)
   /// @param (clbit)
   /// @param (value)
-  IfElseOp(qiskitcpp::circuit::QuantumCircuit& circ, uint32_t clbit, uint32_t value) : ControlFlowOp(clbit, value), true_body_(circ), false_body_(circ) {}
+  IfElseOp(QuantumCircuit& circ, uint32_t clbit, uint32_t value) : ControlFlowOp(clbit, value), true_body_(circ), false_body_(circ) {}
 
   /// @brief Return true body available in this operator
   /// @return true body
-  qiskitcpp::circuit::QuantumCircuit& true_body() { return true_body_; }
+  QuantumCircuit& true_body() { return true_body_; }
 
   /// @brief Return false body available in this operator
   /// @return false body
-  qiskitcpp::circuit::QuantumCircuit& false_body() { return false_body_; }
+  QuantumCircuit& false_body() { return false_body_; }
 
   // add false body
   /// @brief add false body
-  void else_(std::function<void(qiskitcpp::circuit::QuantumCircuit&)> body);
+  void else_(std::function<void(QuantumCircuit&)> body);
 
-  void add_control_flow_op(qiskitcpp::circuit::QuantumCircuit& circ) override;
+  void add_control_flow_op(QuantumCircuit& circ) override;
 };
 
-void IfElseOp::else_(std::function<void(qiskitcpp::circuit::QuantumCircuit&)> body)
+void IfElseOp::else_(std::function<void(QuantumCircuit&)> body)
 {
   body(false_body_);
   test_else_ = true;
 }
 
-void IfElseOp::add_control_flow_op(qiskitcpp::circuit::QuantumCircuit& circ)
+void IfElseOp::add_control_flow_op(QuantumCircuit& circ)
 {
   if(test_else_){
     // if_else
@@ -82,7 +82,7 @@ void IfElseOp::add_control_flow_op(qiskitcpp::circuit::QuantumCircuit& circ)
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_if_else_hpp__
 

@@ -20,7 +20,7 @@
 #include "circuit/register.hpp"
 #include "qiskit.h"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 // ==================================
@@ -84,7 +84,7 @@ public:
 uint_t QuantumRegister::instances_counter_ = 0;
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_quantum_register_hpp__
 

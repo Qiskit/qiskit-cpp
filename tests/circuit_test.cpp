@@ -21,12 +21,13 @@
 #include "circuit/library/quantum_volume.hpp"
 #include "primitives/statevector_sampler.hpp"
 
+using namespace Qiskit::circuit;
 
 int main()
 {
-  qiskitcpp::circuit::QuantumRegister qr(4);
-  qiskitcpp::circuit::ClassicalRegister cr(4);
-  qiskitcpp::circuit::QuantumCircuit circ(qr, cr);
+  QuantumRegister qr(4);
+  ClassicalRegister cr(4);
+  QuantumCircuit circ(qr, cr);
 
   double theta_A = 3.1;
   double theta_B = 2.5;
@@ -56,14 +57,7 @@ int main()
 
   circ.xx_plus_yy(0.5, 0.0, 0, 1);
 
-  std::vector<std::complex<double>> u(4);
-  u[0] = 1.0;
-  u[1] = 0.0;
-  u[2] = 0.0;
-  u[3] = 1.0;
-  circ.unitary(u, {0});
-
-  qiskitcpp::circuit::QuantumCircuit sub_circ(2, 2);
+  QuantumCircuit sub_circ(2, 2);
   sub_circ.cz(0, 1);
   sub_circ.rxx(-3.1, 1, 0);
   sub_circ.cz(0, 1);
@@ -76,11 +70,8 @@ int main()
   circ.measure(qr, cr);
 
   circ.print();
-
-  qiskitcpp::circuit::QuantumVolume qv(10, 10);
-  qv.print();
+  std::cout << circ.to_qasm3();
 
   return 0;
 }
-
 

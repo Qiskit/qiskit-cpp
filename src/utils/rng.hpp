@@ -22,7 +22,7 @@
 
 #include "utils/types.hpp"
 
-namespace qiskitcpp {
+namespace Qiskit {
 
 //============================================================================
 // RngEngine Class
@@ -126,7 +126,7 @@ public:
   // Generate a uniformly distributed pseudo random integer in the closed
   // interval [a,b]
   template <typename Integer,
-            typename = std::enable_if_t<std::is_integral<Integer>::value>>
+            typename = std::enable_if_t<::std::is_integral<Integer>::value>>
   Integer rand_int(Integer a, Integer b) {
     return std::uniform_int_distribution<Integer>(a, b)(rng);
   }
@@ -147,5 +147,5 @@ private:
 };
 
 //------------------------------------------------------------------------------
-} // End namespace qiskitcpp
+} // namespace Qiskit
 #endif

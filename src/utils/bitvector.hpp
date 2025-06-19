@@ -19,7 +19,7 @@
 
 #include "utils/types.hpp"
 
-namespace qiskitcpp {
+namespace Qiskit {
 
 class BitVector {
 protected:
@@ -209,6 +209,6 @@ reg_t BitVector::to_vector(void) {
 }
 
 //------------------------------------------------------------------------------
-} // end namespace qiskitcpp
+} // namespace Qiskit
 //------------------------------------------------------------------------------
 #endif // __qiskitcpp_utils_bit_vector_hpp__

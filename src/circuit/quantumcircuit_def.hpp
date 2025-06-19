@@ -36,7 +36,7 @@
 // qiskit C-API circuit data
 using rust_circuit = ::QkCircuit;
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 
@@ -564,7 +564,7 @@ public:
   /// @param (clbit)
   /// @param (value)
   /// @param (body) The circuit body to be run if condition is true.
-  IfElseOp& if_test(const uint32_t clbit, const uint32_t value, const std::function<void(qiskitcpp::circuit::QuantumCircuit&)> body);
+  IfElseOp& if_test(const uint32_t clbit, const uint32_t value, const std::function<void(QuantumCircuit&)> body);
 //  IfElseOp& if_test(Expr expr, std::function<void(qiskitcpp::circuit::QuantumCircuit&)> body);
 
   // parameter binding
@@ -674,7 +674,7 @@ std::unordered_map<std::string, QkGate> QuantumCircuit::gate_map_{
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif  // __qiskitcpp_circuit_quantum_circuit_def_hpp__

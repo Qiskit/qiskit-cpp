@@ -24,7 +24,7 @@
 #include "utils/rng.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 /// @class QuantumVolume
@@ -127,7 +127,6 @@ void QuantumVolume::make_random_unitary_matrix(std::vector<complex_t>& matrix, u
     }
   }
 }
-
 
 } // namespace circuit
 } // namespace qiskitcpp

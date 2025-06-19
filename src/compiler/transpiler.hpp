@@ -22,7 +22,7 @@
 #include "qc_transpile.h"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 /// @brief Return the transpiled circuit
@@ -59,7 +59,7 @@ qiskitcpp::circuit::QuantumCircuit transpile(qiskitcpp::circuit::QuantumCircuit&
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_compiler_transpiler_def_hpp__

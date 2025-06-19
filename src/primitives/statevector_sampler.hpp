@@ -23,7 +23,7 @@
 #include "utils/rng.hpp"
 //#include "qc_statevector.h"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
 /*
@@ -92,7 +92,7 @@ public:
 */
 
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_statevector_sampler_def_hpp__

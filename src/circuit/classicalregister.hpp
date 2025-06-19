@@ -20,7 +20,7 @@
 #include "circuit/register.hpp"
 #include "qiskit.h"
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 class Expr;
@@ -114,7 +114,7 @@ public:
 uint_t ClassicalRegister::instances_counter_ = 0;
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_classical_register_hpp__
 

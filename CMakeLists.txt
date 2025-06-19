@@ -61,3 +61,4 @@ function(add_application_test TEST_NAME APP_NAME CPP_FILE)
 endfunction()
 
 add_application(circuit_test tests/circuit_test.cpp)
+add_application(observable_test tests/observable_test.cpp)

@@ -20,7 +20,7 @@
 #include "primitives/containers/sampler_pub_result.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
 /// @class PrimitiveResult
@@ -58,7 +58,7 @@ public:
 };
 
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_result_hpp__

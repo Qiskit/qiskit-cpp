@@ -22,7 +22,7 @@
 #include "utils/bitvector.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
 /// @class BitArray
@@ -129,7 +129,7 @@ std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
 
 
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_bit_array_hpp__

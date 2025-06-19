@@ -20,16 +20,16 @@
 #include "circuit/quantumcircuit.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
-static qiskitcpp::circuit::QuantumCircuit default_circ;
+static circuit::QuantumCircuit default_circ;
 
 /// @class SamplerPub
 /// @brief Sampler Pub(Primitive Unified Bloc)
 class SamplerPub {
 protected:
-    qiskitcpp::circuit::QuantumCircuit& circuit_;
+    circuit::QuantumCircuit& circuit_;
     std::vector<std::string> params_;
     std::vector<double> values_;
     uint_t shots_ = 0;
@@ -42,7 +42,7 @@ public:
     /// @param params parameter names
     /// @param values parameter values
     /// @param shots The total number of shots to sample for this sampler pub
-    SamplerPub(qiskitcpp::circuit::QuantumCircuit& circ, std::vector<std::string> params, std::vector<double> values, uint_t shots) : circuit_(circ)
+    SamplerPub(circuit::QuantumCircuit& circ, std::vector<std::string> params, std::vector<double> values, uint_t shots) : circuit_(circ)
     {
         params_ = params;
         values_ = values;
@@ -52,7 +52,7 @@ public:
     /// @brief Create a new SamplerPub
     /// @param circ a QuantumCircuit
     /// @param shots The total number of shots to sample for this sampler pub
-    SamplerPub(qiskitcpp::circuit::QuantumCircuit& circ, uint_t shots) : circuit_(circ)
+    SamplerPub(circuit::QuantumCircuit& circ, uint_t shots) : circuit_(circ)
     {
         shots_ = shots;
     }
@@ -69,7 +69,7 @@ public:
 
     /// @brief Return a QuantumCircuit for this sampler pub
     /// @return a QuantumCircuit
-    qiskitcpp::circuit::QuantumCircuit& circuit(void)
+    circuit::QuantumCircuit& circuit(void)
     {
         return circuit_;
     }
@@ -93,12 +93,8 @@ public:
     }
 };
 
-
-
-
-
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_sampler_pub_def_hpp__

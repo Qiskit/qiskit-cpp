@@ -20,7 +20,7 @@
 #include "primitives/containers/primitive_result.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace primitives {
 
 /// @class BasePrimitiveJob
@@ -67,7 +67,7 @@ public:
 };
 
 } // namespace primitives
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 
 #endif //__qiskitcpp_primitives_base_primitive_job_def_hpp__

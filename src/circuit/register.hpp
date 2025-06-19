@@ -20,7 +20,7 @@
 #include "utils/types.hpp"
 
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 class Register;
@@ -212,7 +212,7 @@ void Register::allocate_bits(void)
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
 #endif  // __qiskitcpp_circuit_register_hpp__
 

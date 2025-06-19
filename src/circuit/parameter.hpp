@@ -28,7 +28,7 @@ using rust_parameter = ::QkParameterExpression;
 using rust_parameter = void*;
 #endif
 
-namespace qiskitcpp {
+namespace Qiskit {
 namespace circuit {
 
 
@@ -288,7 +288,7 @@ public:
 
   /// @brief Create a new symbol
   /// @param (expr)
-  Parameter(std::string name)
+  Parameter(::std::string name)
   {
   }
 
@@ -366,8 +366,8 @@ public:
 
 
 } // namespace circuit
-} // namespace qiskitcpp
+} // namespace Qiskit
 
-#endif  // __qiskitcpp_circuit_parameter_expression_hpp__
+#endif  // __qiskitcpp_circuit_parameter_hpp__
 
 
