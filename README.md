@@ -1,3 +1,6 @@
+> [!WARNING]  
+> This code is experimental and its API may change without prior warning. Use it at your own risk.
+
 # Qiskit C++
 
 Qiskit C++ provides a modern C++ (version C++ 11 or later) interface of Qiskit for circuit building, (transpilation and returning samples of quantum circuit outputs ... to be added in the future release), as same as Qiskit Python interfaces.
