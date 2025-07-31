@@ -595,8 +595,9 @@ public:
   // qasm3
 
   /// @brief Serialize a QuantumCircuit object as an OpenQASM 3 string.
+  /// @param (return_as_ctrl) if true insert '\\n' instead of return codes
   /// @return An OpenQASM 3 string.
-  std::string to_qasm3(void);
+  std::string to_qasm3(bool return_as_ctrl = false);
 
 
   // print circuit

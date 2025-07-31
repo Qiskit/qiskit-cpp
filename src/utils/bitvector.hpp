@@ -31,6 +31,7 @@ protected:
   uint_t vec_shift_bits_;
   uint_t vec_mask_;
   const static size_t REG_SIZE = 64;
+  const static size_t REG_BITS = 6;
 
 public:
   BitVector() {
@@ -97,20 +98,22 @@ public:
   // convert from other data
   void from_uint(const uint_t src, const uint_t n, const uint_t base = 2);
   void from_string(const std::string &src, const uint_t base = 2);
+  void from_hex_string(const std::string &src, const uint_t base = 2);
   void from_vector(const reg_t &src, const uint_t base = 2);
   void from_vector_with_map(const reg_t &src, const reg_t &map,
                             const uint_t base = 2);
 
   // convert to other data types
   std::string to_string();
+  std::string to_hex_string();
   reg_t to_vector();
 };
 
 void BitVector::allocate(uint_t n, uint_t base) {
-  vec_shift_bits_ = 6;
+  vec_shift_bits_ = REG_BITS;
   uint_t t = 1;
   elem_shift_bits_ = 0;
-  for (uint_t i = 0; i < 6; i++) {
+  for (uint_t i = 0; i < REG_BITS; i++) {
     t <<= 1;
     if (t >= base) {
       break;
@@ -158,6 +161,31 @@ void BitVector::from_string(const std::string &src, const uint_t base) {
   }
 }
 
+void BitVector::from_hex_string(const std::string &src, const uint_t base) {
+  uint_t size;
+  if (src.size() > 2 && src[0] == '0' && src[1] == 'x') {
+    size = src.size() - 2;
+  } else {
+    size = src.size();
+  }
+  allocate(size*4, base);
+
+  for (int_t i = 0; i < src.size(); i++) {
+    char c = src[src.size() - 1 - i];
+    uint_t h = 0;
+    if (c >= '0' && c <= '9') {
+      h = (uint_t)(c - '0');
+    } else if(c >= 'a' && c <= 'f') {
+      h = (uint_t)(c - 'a') + 10;
+    } else if(c >= 'A' && c <= 'F') {
+      h = (uint_t)(c - 'A') + 10;
+    }
+    uint_t pos = i % (REG_SIZE >> 4);
+    bits_[i / (REG_SIZE >> 4)] |= (h << (pos << 4));
+  }
+}
+
+
 void BitVector::from_vector(const reg_t &src, const uint_t base) {
   allocate(src.size(), base);
 
@@ -199,6 +227,21 @@ std::string BitVector::to_string(void) {
   }
   return str;
 }
+
+std::string BitVector::to_hex_string(void) {
+  std::string str = "0x";
+  for (uint_t i = 0; i < size_/4; i++) {
+    uint_t pos = i % (REG_SIZE >> 4);
+    uint_t val = (bits_[(size_/4 - 1 - i) / (REG_SIZE >> 4)] >> (pos << 4)) & 0xf;
+    if (val < 10) {
+      str += ('0' + val);
+    } else {
+      str += ('a' + (val - 10));
+    }
+  }
+  return str;
+}
+
 
 reg_t BitVector::to_vector(void) {
   reg_t ret(size_);

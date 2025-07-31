@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 17)
 
 project("qiskit-cpp" LANGUAGES CXX C)
@@ -21,6 +21,12 @@ set(QISKIT_CPP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+
 function(add_application APP_NAME CPP_FILE)
   # source files for the client app
   set(SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${CPP_FILE})
@@ -34,12 +40,13 @@ function(add_application APP_NAME CPP_FILE)
     target_link_directories(${APP_NAME}
       PUBLIC
         ${QISKIT_ROOT}/target/release
+        ${QRMI_ROOT}/qrmi/target/release
     )
-    target_link_libraries(${APP_NAME} qiskit_cext.dll.lib)
+    target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
   else()
     target_link_libraries(${APP_NAME}
       PUBLIC
-        "-L${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib" qiskit
+        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/qrmi/target -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/qrmi/target" qiskit qrmi nlohmann_json::nlohmann_json
     )
   endif()
 
@@ -47,8 +54,10 @@ function(add_application APP_NAME CPP_FILE)
   target_include_directories(${APP_NAME}
     PRIVATE
       ${QISKIT_ROOT}/dist/c/include
+      ${QRMI_ROOT}/qrmi
       ${SAMPLES_PATH}
       ${CMAKE_CURRENT_SOURCE_DIR}/src
+      nlohmann_json::nlohmann_json
   )
 
   install (TARGETS ${APP_NAME} DESTINATION .)
@@ -62,3 +71,4 @@ endfunction()
 
 add_application(circuit_test tests/circuit_test.cpp)
 add_application(observable_test tests/observable_test.cpp)
+add_application(sampler_test tests/sampler_test.cpp)

@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <functional>
+#include <iomanip>
 
 #include "controlflow/__init__.hpp"
 
@@ -965,11 +966,12 @@ void QuantumCircuit::print(void) const
 }
 
 
-std::string QuantumCircuit::to_qasm3(void)
+std::string QuantumCircuit::to_qasm3(bool return_as_ctrl)
 {
   add_pending_control_flow_op();
 
   std::stringstream qasm3;
+  qasm3 << std::setprecision(18);
   qasm3 << "OPENQASM 3.0;" << std::endl;
   qasm3 << "include \"stdgates.inc\";" << std::endl;
 
@@ -1049,7 +1051,7 @@ std::string QuantumCircuit::to_qasm3(void)
         case QkGate_DCX:
           qasm3 << "gate dcx _gate_q_0, _gate_q_1 {" << std::endl;
           qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
-          qasm3 << "  cx _gate_q_1, _gate_q_0;" <<std::endl;
+          qasm3 << "  cx _gate_q_1, _gate_q_0;" << std::endl;
           qasm3 << "}" << std::endl;
           break;
         case QkGate_ECR:
