@@ -19,6 +19,9 @@
 
 #ifdef _MSC_VER
 #include <windows.h>
+#else
+#include <thread>
+#include <chrono>
 #endif
 
 
@@ -123,11 +126,19 @@ public:
         std::string envAPIKey = backend_name_ + header + "IAM_APIKEY=" + api_key;
         std::string envCRN = backend_name_ + header + "SERVICE_CRN=" + crn;
         std::string envSession = backend_name_ + header + "SESSION_MODE=batch";
+#ifdef _MSC_VER
         _putenv(envEndPoint.c_str());
         _putenv(envIAMEndPoint.c_str());
         _putenv(envAPIKey.c_str());
         _putenv(envCRN.c_str());
         _putenv(envSession.c_str());
+#else
+        putenv((char*)envEndPoint.c_str());
+        putenv((char*)envIAMEndPoint.c_str());
+        putenv((char*)envAPIKey.c_str());
+        putenv((char*)envCRN.c_str());
+        putenv((char*)envSession.c_str());
+#endif
 
         qrmi_ = qrmi_resource_new(backend_name_.c_str(), QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE);
 
@@ -155,7 +166,7 @@ public:
     /// @brief submit a job
     /// @param json a job data in JSON format.
     /// @return false if connection failed.
-    bool submit(std::string& input)
+    bool submit(std::string input)
     {
         QrmiPayload payload;
         payload.tag = QRMI_PAYLOAD_QISKIT_PRIMITIVE;
@@ -273,7 +284,7 @@ public:
 #ifdef _MSC_VER
             Sleep(1);
 #else
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
 #endif
         }
         std::shared_ptr<PrimitiveResult> ret = nullptr;

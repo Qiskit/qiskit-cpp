@@ -45,10 +45,10 @@ public:
     /// @return PrimitiveJob
     std::shared_ptr<Job> run(std::vector<SamplerPub> pubs) override
     {
-        pubs_ = pubs;
+        this->pubs_ = pubs;
 
         if (backend_.job()->connect()) {
-            backend_.job()->submit(to_json().dump(2));
+            backend_.job()->submit(this->to_json().dump(2));
         }
         return backend_.job();
     }

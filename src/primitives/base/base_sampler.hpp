@@ -51,7 +51,7 @@ public:
     nlohmann::ordered_json to_json(void)
     {
         nlohmann::ordered_json sampler;
-        json pubs = json::array();
+        nlohmann::ordered_json pubs = nlohmann::ordered_json::array();
         for (int i = 0; i < pubs_.size(); i++) {
             pubs += pubs_[i].to_json();
         }

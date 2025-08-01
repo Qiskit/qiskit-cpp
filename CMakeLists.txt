@@ -46,7 +46,7 @@ function(add_application APP_NAME CPP_FILE)
   else()
     target_link_libraries(${APP_NAME}
       PUBLIC
-        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/qrmi/target -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/qrmi/target" qiskit qrmi nlohmann_json::nlohmann_json
+        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/qrmi/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/qrmi/target/release" qiskit qrmi nlohmann_json::nlohmann_json
     )
   endif()
 

@@ -29,7 +29,8 @@ int main()
   std::cout << a.to_string() <<std::endl;
 
 
-  auto c = SparseObservable::from_label(std::string("-III+IZIXXYXI"));
+  std::string label = "-III+IZIXXYXI";
+  auto c = SparseObservable::from_label(label);
   std::cout << c.to_string() <<std::endl;
 
   std::vector<std::pair<std::string, std::complex<double>>> list;

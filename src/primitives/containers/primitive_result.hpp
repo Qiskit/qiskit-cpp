@@ -18,7 +18,6 @@
 #define __qiskitcpp_primitives_result_hpp__
 
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #include "primitives/containers/sampler_pub_result.hpp"
 
@@ -32,7 +31,7 @@ class PrimitiveResult {
 protected:
     std::vector<SamplerPubResult> pub_results_;
     std::vector<bool> pub_allocated_;
-    json json_;
+    nlohmann::json json_;
 public:
     /// @brief Create a new PrimitiveResult
     PrimitiveResult() {}
@@ -62,7 +61,7 @@ public:
 
     /// @brief Return json object containing results
     /// @return The reference to json object
-    json& json(void)
+    nlohmann::json& json(void)
     {
         return json_;
     }

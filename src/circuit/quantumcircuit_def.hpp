@@ -52,7 +52,7 @@ protected:
   uint_t num_qubits_;
   uint_t num_clbits_;
   // global phase will be used in the future release of Qiskit C-API
-  double global_phase_;
+  double global_phase_ = 0.0;
 
   std::vector<QuantumRegister> qregs_;
   std::vector<ClassicalRegister> cregs_;
