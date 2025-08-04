@@ -279,7 +279,7 @@ public:
             rc = qrmi_resource_task_status(qrmi_, job_id_.c_str(), &status);
             if (rc != QRMI_RETURN_CODE_SUCCESS)
                 return nullptr;
-            if (status == QRMI_TASK_STATUS_COMPLETED || status == QRMI_TASK_STATUS_FAILED)
+            if (status == QRMI_TASK_STATUS_COMPLETED || status == QRMI_TASK_STATUS_FAILED || status == QRMI_TASK_STATUS_CANCELLED)
                 break;
 #ifdef _MSC_VER
             Sleep(1);
@@ -290,7 +290,6 @@ public:
         std::shared_ptr<PrimitiveResult> ret = nullptr;
         if (status == QRMI_TASK_STATUS_COMPLETED) {
             ret = std::make_shared<PrimitiveResult>();
-            std::shared_ptr<PrimitiveResult> ret = std::make_shared<PrimitiveResult>();
             char *result = nullptr;
             rc = qrmi_resource_task_result(qrmi_, job_id_.c_str(), &result);
             if (rc == QRMI_RETURN_CODE_SUCCESS) {
@@ -308,7 +307,6 @@ public:
 
         return ret;
     }
-
 };
 
 } // namespace providers
