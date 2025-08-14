@@ -47,11 +47,9 @@ public:
     {
         this->pubs_ = pubs;
 
-        /*
         if (backend_.job()->connect()) {
             backend_.job()->submit(this->to_json().dump(2));
         }
-        */
 
         return backend_.job();
     }

@@ -40,13 +40,13 @@ function(add_application APP_NAME CPP_FILE)
     target_link_directories(${APP_NAME}
       PUBLIC
         ${QISKIT_ROOT}/target/release
-        ${QRMI_ROOT}/qrmi/target/release
+        ${QRMI_ROOT}/target/release
     )
     target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
   else()
     target_link_libraries(${APP_NAME}
       PUBLIC
-        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/qrmi/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/qrmi/target/release" qiskit qrmi nlohmann_json::nlohmann_json
+        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/target/release" qiskit qrmi nlohmann_json::nlohmann_json
     )
   endif()
 
@@ -54,7 +54,7 @@ function(add_application APP_NAME CPP_FILE)
   target_include_directories(${APP_NAME}
     PRIVATE
       ${QISKIT_ROOT}/dist/c/include
-      ${QRMI_ROOT}/qrmi
+      ${QRMI_ROOT}
       ${SAMPLES_PATH}
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       nlohmann_json::nlohmann_json
