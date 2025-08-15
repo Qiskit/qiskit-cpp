@@ -17,6 +17,9 @@
 #ifndef __qiskitcpp_primitives_sampler_pub_result_hpp__
 #define __qiskitcpp_primitives_sampler_pub_result_hpp__
 
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 #include "primitives/containers/bit_array.hpp"
 
 namespace Qiskit {
@@ -41,6 +44,10 @@ public:
         return data_;
     }
 
+    /// @brief Set pub reuslt from json
+    void from_json(json& input) {
+        data_.from_json(input);
+    }
 };
 
 } // namespace primitives

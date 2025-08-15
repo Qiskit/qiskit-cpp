@@ -19,7 +19,6 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "circuit/library/quantum_volume.hpp"
-#include "primitives/statevector_sampler.hpp"
 
 using namespace Qiskit::circuit;
 

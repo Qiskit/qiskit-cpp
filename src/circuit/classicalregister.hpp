@@ -35,7 +35,7 @@ class Binary;
 class ClassicalRegister : public Register
 {
 protected:
-  QkClassicalRegister* rust_register_ = nullptr;
+  std::shared_ptr<QkClassicalRegister> rust_register_ = nullptr;
   static uint_t instances_counter_;
 public:
   /// @brief Create a new ClassicalRegister
@@ -50,20 +50,22 @@ public:
   ClassicalRegister(uint_t size) : Register(size)
   {
     name_ = prefix();
-    rust_register_ = qk_classical_register_new((std::uint32_t)size, (const char*)name_.c_str());
+    std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char*)name_.c_str()), qk_classical_register_free);
+    rust_register_ = reg;
   }
 
   /// @brief Create a new ClassicalRegister
   /// @param (size) The number of bits to include in the register
   /// @param (name) The name of the register. If not provided, a unique name will be auto-generated from the register type.
   ClassicalRegister(uint_t size, std::string name) : Register(size, name) {
-    rust_register_ = qk_classical_register_new((std::uint32_t)size, (const char*)name.c_str());
+    std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char*)name.c_str()), qk_classical_register_free);
+    rust_register_ = reg;
   }
 
   /// @brief Create a new ClassicalRegister as a copy of reg.
   /// @param (reg) copy source
   ClassicalRegister(const ClassicalRegister& reg) : Register(reg) {
-    rust_register_ = qk_classical_register_new((std::uint32_t)reg.size_, (const char*)reg.name_.c_str());
+    rust_register_ = reg.rust_register_;
   }
 
   /// @brief Prefix of the register name
@@ -77,11 +79,11 @@ public:
 
   ~ClassicalRegister() {
     if (rust_register_) {
-      qk_classical_register_free(rust_register_);
+      rust_register_.reset();
     }
   }
 
-  const QkClassicalRegister* get_register() const {
+  const std::shared_ptr<QkClassicalRegister>& get_register() const {
     return rust_register_;
   }
 

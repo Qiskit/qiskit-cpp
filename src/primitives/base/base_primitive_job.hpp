@@ -18,7 +18,7 @@
 #define __qiskitcpp_primitives_base_primitive_job_def_hpp__
 
 #include "primitives/containers/primitive_result.hpp"
-
+#include "providers/jobstatus.hpp"
 
 namespace Qiskit {
 namespace primitives {
@@ -44,7 +44,12 @@ public:
     }
 
     /// @brief Return the results of the job.
-    virtual PrimitiveResult& result(void) = 0;
+    /// @return shared pointer to PrimitiveResult class.
+    virtual std::shared_ptr<PrimitiveResult> result(void) = 0;
+
+    /// @brief Return the status of the job.
+    /// @return JobStatus enum.
+    virtual providers::JobStatus status(void) = 0;
 
     /// @brief Return whether the job has successfully run.
     /// @return true if successfully run, otherwise false.
@@ -63,7 +68,7 @@ public:
     virtual bool in_final_state(void) = 0;
 
     /// @brief Attempt to cancel the job.
-    virtual void cancel(void) = 0;
+    virtual bool cancel(void) = 0;
 };
 
 } // namespace primitives

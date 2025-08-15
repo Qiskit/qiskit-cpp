@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 17)
 
 project("qiskit-cpp" LANGUAGES CXX C)
@@ -21,6 +21,12 @@ set(QISKIT_CPP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+
 function(add_application APP_NAME CPP_FILE)
   # source files for the client app
   set(SRC_FILE ${CMAKE_CURRENT_SOURCE_DIR}/${CPP_FILE})
@@ -34,21 +40,35 @@ function(add_application APP_NAME CPP_FILE)
     target_link_directories(${APP_NAME}
       PUBLIC
         ${QISKIT_ROOT}/target/release
+        ${QRMI_ROOT}/target/release
     )
-    target_link_libraries(${APP_NAME} qiskit_cext.dll.lib)
+    if(QRMI_ROOT)
+      target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
+    else()
+      target_link_libraries(${APP_NAME} qiskit_cext.dll.lib nlohmann_json::nlohmann_json)
+    endif()
   else()
-    target_link_libraries(${APP_NAME}
-      PUBLIC
-        "-L${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib" qiskit
-    )
+    if(QRMI_ROOT)
+      target_link_libraries(${APP_NAME}
+        PUBLIC
+          "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/target/release" qiskit qrmi nlohmann_json::nlohmann_json
+      )
+    else()
+      target_link_libraries(${APP_NAME}
+        PUBLIC
+          "-L${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib" qiskit nlohmann_json::nlohmann_json
+      )
+    endif()
   endif()
 
   # path to headerfile
   target_include_directories(${APP_NAME}
     PRIVATE
       ${QISKIT_ROOT}/dist/c/include
+      ${QRMI_ROOT}
       ${SAMPLES_PATH}
       ${CMAKE_CURRENT_SOURCE_DIR}/src
+      nlohmann_json::nlohmann_json
   )
 
   install (TARGETS ${APP_NAME} DESTINATION .)
@@ -62,3 +82,6 @@ endfunction()
 
 add_application(circuit_test tests/circuit_test.cpp)
 add_application(observable_test tests/observable_test.cpp)
+if(QRMI_ROOT)
+  add_application(sampler_test tests/sampler_test.cpp)
+endif()

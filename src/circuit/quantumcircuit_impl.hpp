@@ -20,6 +20,8 @@
 
 #include <memory>
 #include <functional>
+#include <iomanip>
+#include <cstring>
 
 #include "controlflow/__init__.hpp"
 
@@ -42,8 +44,8 @@ QuantumCircuit::QuantumCircuit(const uint_t num_qubits, const uint_t num_clbits,
   cregs_[0] = cr;
 
   rust_circuit_ = qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_);
-  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register());
-  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register());
+  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register().get());
+  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register().get());
 
   if (global_phase != 0.0) {
     qk_circuit_gate(rust_circuit_, QkGate_GlobalPhase, nullptr, &global_phase_);
@@ -64,8 +66,8 @@ QuantumCircuit::QuantumCircuit(QuantumRegister& qreg, ClassicalRegister& creg, c
 
   rust_circuit_ = qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_);
 
-  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register());
-  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register());
+  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register().get());
+  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register().get());
 
   if (global_phase != 0.0) {
     qk_circuit_gate(rust_circuit_, QkGate_GlobalPhase, nullptr, &global_phase_);
@@ -98,10 +100,10 @@ QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister>& qregs, std::vector<
   rust_circuit_ = qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_);
 
   for(int_t i=0;i<qregs_.size();i++){
-    qk_circuit_add_quantum_register(rust_circuit_, qregs_[i].get_register());
+    qk_circuit_add_quantum_register(rust_circuit_, qregs_[i].get_register().get());
   }
   for(int_t i=0;i<cregs_.size();i++){
-    qk_circuit_add_classical_register(rust_circuit_, cregs_[i].get_register());
+    qk_circuit_add_classical_register(rust_circuit_, cregs_[i].get_register().get());
   }
 
   if (global_phase != 0.0) {
@@ -121,10 +123,10 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit& circ)
 
   rust_circuit_ = qk_circuit_copy(circ.rust_circuit_);
   for(int_t i=0;i<qregs_.size();i++){
-    qk_circuit_add_quantum_register(rust_circuit_, qregs_[i].get_register());
+    qk_circuit_add_quantum_register(rust_circuit_, qregs_[i].get_register().get());
   }
   for(int_t i=0;i<cregs_.size();i++){
-    qk_circuit_add_classical_register(rust_circuit_, cregs_[i].get_register());
+    qk_circuit_add_classical_register(rust_circuit_, cregs_[i].get_register().get());
   }
 }
 
@@ -141,8 +143,8 @@ void QuantumCircuit::from_rust_circuit(rust_circuit* circ)
 
   qregs_[0].resize(num_qubits_);
   cregs_[0].resize(num_clbits_);
-  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register());
-  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register());
+  qk_circuit_add_quantum_register(rust_circuit_, qregs_[0].get_register().get());
+  qk_circuit_add_classical_register(rust_circuit_, cregs_[0].get_register().get());
 }
 
 QuantumCircuit::~QuantumCircuit()
@@ -965,11 +967,12 @@ void QuantumCircuit::print(void) const
 }
 
 
-std::string QuantumCircuit::to_qasm3(void)
+std::string QuantumCircuit::to_qasm3(bool return_as_ctrl)
 {
   add_pending_control_flow_op();
 
   std::stringstream qasm3;
+  qasm3 << std::setprecision(18);
   qasm3 << "OPENQASM 3.0;" << std::endl;
   qasm3 << "include \"stdgates.inc\";" << std::endl;
 
@@ -1049,7 +1052,7 @@ std::string QuantumCircuit::to_qasm3(void)
         case QkGate_DCX:
           qasm3 << "gate dcx _gate_q_0, _gate_q_1 {" << std::endl;
           qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
-          qasm3 << "  cx _gate_q_1, _gate_q_0;" <<std::endl;
+          qasm3 << "  cx _gate_q_1, _gate_q_0;" << std::endl;
           qasm3 << "}" << std::endl;
           break;
         case QkGate_ECR:

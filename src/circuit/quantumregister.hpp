@@ -31,7 +31,7 @@ namespace circuit {
 class QuantumRegister : public Register
 {
 protected:
-  QkQuantumRegister* rust_register_ = nullptr;
+  std::shared_ptr<QkQuantumRegister> rust_register_ = nullptr;
   static uint_t instances_counter_;
 public:
   /// @brief Create a new generic register
@@ -46,29 +46,31 @@ public:
   QuantumRegister(uint_t size) : Register(size)
   {
     name_ = prefix();
-    rust_register_ = qk_quantum_register_new((std::uint32_t)size, (const char*)name_.c_str());
+    std::shared_ptr<QkQuantumRegister> reg(qk_quantum_register_new((std::uint32_t)size, (const char*)name_.c_str()), qk_quantum_register_free);
+    rust_register_ = reg;
   }
 
   /// @brief Create a new QuantumRegister
   /// @param (size) The number of bits to include in the register
   /// @param (name) The name of the register. If not provided, a unique name will be auto-generated from the register type
   QuantumRegister(uint_t size, std::string name) : Register(size, name) {
-    rust_register_ = qk_quantum_register_new((std::uint32_t)size, (const char*)name.c_str());
+    std::shared_ptr<QkQuantumRegister> reg(qk_quantum_register_new((std::uint32_t)size, (const char*)name.c_str()), qk_quantum_register_free);
+    rust_register_ = reg;
   }
 
   /// @brief Create a new QuantumRegister as a copy of reg.
   /// @param (reg) copy source
   QuantumRegister(const QuantumRegister& reg) : Register(reg) {
-    rust_register_ = qk_quantum_register_new((std::uint32_t)reg.size_, (const char*)reg.name_.c_str());
+    rust_register_ = reg.rust_register_;
   }
 
   ~QuantumRegister() {
     if (rust_register_) {
-      qk_quantum_register_free(rust_register_);
+      rust_register_.reset();
     }
   }
 
-  const QkQuantumRegister* get_register() const {
+  const std::shared_ptr<QkQuantumRegister>& get_register() const {
     return rust_register_;
   }
 

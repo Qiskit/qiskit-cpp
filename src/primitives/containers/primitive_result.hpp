@@ -17,6 +17,8 @@
 #ifndef __qiskitcpp_primitives_result_hpp__
 #define __qiskitcpp_primitives_result_hpp__
 
+#include <nlohmann/json.hpp>
+
 #include "primitives/containers/sampler_pub_result.hpp"
 
 
@@ -28,20 +30,18 @@ namespace primitives {
 class PrimitiveResult {
 protected:
     std::vector<SamplerPubResult> pub_results_;
+    std::vector<bool> pub_allocated_;
+    nlohmann::json json_;
 public:
     /// @brief Create a new PrimitiveResult
     PrimitiveResult() {}
 
-    /// @brief Create a new PrimitiveResult
-    /// @param num_pubs The number of PUBs
-    PrimitiveResult(uint_t num_pubs)
+    /// @brief Create a new PrimitiveResult from string
+    /// @param str input string
+    PrimitiveResult(std::string str)
     {
-        pub_results_.resize(num_pubs);
+        from_string(str);
     }
-
-    /// @brief Create a new PrimitiveResult
-    /// @param pub_results Pub results.
-    PrimitiveResult(std::vector<SamplerPubResult> pub_results) : pub_results_(pub_results) {}
 
     /// @brief Return the number of PUBs in this result
     /// @return The number of PUBs.
@@ -52,9 +52,34 @@ public:
 
     SamplerPubResult& operator[](uint_t i)
     {
+        if (!pub_allocated_[i]) {
+            pub_results_[i].from_json(json_["results"][i]);
+            pub_allocated_[i] = true;
+        }
         return pub_results_[i];
     }
 
+    /// @brief Return json object containing results
+    /// @return The reference to json object
+    nlohmann::json& json(void)
+    {
+        return json_;
+    }
+
+    /// @brief Create a new PrimitiveResult from string
+    /// @param str input string
+    void from_string(std::string str)
+    {
+        json_ = json::parse(str);
+
+        auto num_results = json_["results"].size();
+        pub_results_.resize(num_results);
+        pub_allocated_.resize(num_results);
+        // allocating pub on demand to save memory
+        for (int i = 0; i < num_results; i++) {
+            pub_allocated_[i] = false;
+        }
+    }
 };
 
 } // namespace primitives

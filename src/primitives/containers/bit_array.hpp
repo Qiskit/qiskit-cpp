@@ -75,9 +75,16 @@ public:
     /// @return A list of bitstrings.
     std::vector<std::string> get_bitstring(void);
 
+    /// @brief Return a list of hex string
+    /// @return A list of hex string.
+    std::vector<std::string> get_hexstring(void);
+
     /// @brief Return a counts dictionary with bitstring keys.
     /// @return A counts dictionary with bitstring keys.
     std::unordered_map<std::string, uint_t> get_counts(void);
+
+    /// @brief Set pub samples from json
+    void from_json(json& input);
 };
 
 void BitArray::from_samples(const reg_t& samples, uint_t num_bits)
@@ -116,15 +123,34 @@ std::vector<std::string> BitArray::get_bitstring(void)
     return ret;
 }
 
-std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
+std::vector<std::string> BitArray::get_hexstring(void)
 {
-    std::unordered_map<std::string, uint_t> ret;
+    std::vector<std::string> ret(array_.size());
     for (int_t i = 0; i < array_.size(); i++) {
-        ret[array_[i].to_string()]++;
+        ret[i] = array_[i].to_hex_string();
     }
     return ret;
 }
 
+std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
+{
+    std::unordered_map<std::string, uint_t> ret;
+    for (int_t i = 0; i < array_.size(); i++) {
+        ret[array_[i].to_hex_string()]++;
+    }
+    return ret;
+}
+
+void BitArray::from_json(json& input)
+{
+    auto samples = input["data"]["c"]["samples"];
+    auto num_bits = input["data"]["c"]["num_bits"];
+    auto num_shots = samples.size();
+    allocate(num_shots, num_bits);
+    for (int i = 0; i < num_shots; i++) {
+        array_[i].from_hex_string(samples[i]);
+    }
+}
 
 
 
