@@ -1,4 +1,4 @@
-> [!WARNING]  
+> [!WARNING]
 > This code is experimental and its API may change without prior warning. Use it at your own risk.
 
 # Qiskit C++
@@ -48,7 +48,7 @@ Qiskit C++ only has C++ header files. There is nothing to do to build the SDK.
 
 ### Running examples
 
-Examples are available in [this directory](./test).
+Examples are available in [this directory](./tests).
 
 #### Building examples
 
@@ -58,9 +58,34 @@ See ./CMakeLists.txt for example to make test program.
 ```shell-session
 $ mkdir build
 $ cd build
-$ cmake -DPath_to_qiskit ..
+$ cmake -DQISKIT_ROOT=Path_to_qiskit ..
 $ make
 ```
+
+If you want to build sampler example, you will need QRMI C-API.
+
+```shell-session
+$ git clone git@github.com:qiskit-community/qrmi.git
+$ cd qrmi
+$ cargo build --release
+```
+
+Then example can be built by setting `QRMI_ROOT`,
+
+```shell-session
+$ mkdir build
+$ cd build
+$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQRMI_ROOT=Path_to_QRMI ..
+$ make
+```
+
+To run sampler example, set following environment variables to access Quantum hardware.
+
+```
+QISKIT_IBM_TOKEN=<your API key>
+QISKIT_IBM_INSTANCE=<your CRN>
+```
+
 
 ## Contributing
 

@@ -40,6 +40,13 @@ public:
         backend_ = backend;
     }
 
+    /// @brief return reference to backend object
+    /// @return backendV2 object
+    const providers::BackendV2<Job>& backend(void) const
+    {
+        return backend_;
+    }
+
     /// @brief Run and collect samples from each pub.
     /// @pubs An iterable of pub-like objects.
     /// @return PrimitiveJob
@@ -53,6 +60,7 @@ public:
 
         return backend_.job();
     }
+
 };
 
 } // namespace primitives

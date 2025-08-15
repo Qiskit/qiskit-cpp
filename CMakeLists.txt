@@ -42,12 +42,23 @@ function(add_application APP_NAME CPP_FILE)
         ${QISKIT_ROOT}/target/release
         ${QRMI_ROOT}/target/release
     )
-    target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
+    if(QRMI_ROOT)
+      target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
+    else()
+      target_link_libraries(${APP_NAME} qiskit_cext.dll.lib nlohmann_json::nlohmann_json)
+    endif()
   else()
-    target_link_libraries(${APP_NAME}
-      PUBLIC
-        "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/target/release" qiskit qrmi nlohmann_json::nlohmann_json
-    )
+    if(QRMI_ROOT)
+      target_link_libraries(${APP_NAME}
+        PUBLIC
+          "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/target/release" qiskit qrmi nlohmann_json::nlohmann_json
+      )
+    else()
+      target_link_libraries(${APP_NAME}
+        PUBLIC
+          "-L${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib" qiskit nlohmann_json::nlohmann_json
+      )
+    endif()
   endif()
 
   # path to headerfile
@@ -71,4 +82,6 @@ endfunction()
 
 add_application(circuit_test tests/circuit_test.cpp)
 add_application(observable_test tests/observable_test.cpp)
-add_application(sampler_test tests/sampler_test.cpp)
+if(QRMI_ROOT)
+  add_application(sampler_test tests/sampler_test.cpp)
+endif()
