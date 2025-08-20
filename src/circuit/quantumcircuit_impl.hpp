@@ -25,6 +25,11 @@
 
 #include "controlflow/__init__.hpp"
 
+#include "circuit/barrier.hpp"
+#include "circuit/measure.hpp"
+#include "circuit/reset.hpp"
+
+
 namespace Qiskit {
 namespace circuit {
 
@@ -890,6 +895,7 @@ void QuantumCircuit::compose(QuantumCircuit& circ, const reg_t& qubits, const re
   uint_t nops;
   nops = qk_circuit_num_instructions(circ.rust_circuit_);
 
+  auto name_map = get_standard_gate_name_mapping();
   for (uint_t i=0;i<nops;i++) {
     QkCircuitInstruction* op = new QkCircuitInstruction;
     qk_circuit_get_instruction(circ.rust_circuit_, i, op);
@@ -913,16 +919,104 @@ void QuantumCircuit::compose(QuantumCircuit& circ, const reg_t& qubits, const re
     } else if (std::string("measure") == op->name) {
       qk_circuit_measure(rust_circuit_, vqubits[0], vclbits[0]);
     } else {
-      qk_circuit_gate(rust_circuit_, gate_map_[op->name], vqubits.data(), op->params);
+      qk_circuit_gate(rust_circuit_, name_map[op->name].gate_map(), vqubits.data(), op->params);
     }
     qk_circuit_instruction_clear(op);
   }
 }
 
-template<typename Operator>
-void QuantumCircuit::append(const Operator& op, const reg_t& qubits) {
-  op.append(*this, qubits);
+void QuantumCircuit::append(const Instruction& op, const reg_t& qubits, const std::vector<double> params)
+{
+  if (op.num_qubits() == qubits.size() && op.num_params() == params.size()) {
+    std::vector<std::uint32_t> vqubits(qubits.size());
+    for (int_t i = 0; i< qubits.size(); i++) {
+      vqubits[i] = (std::uint32_t)qubits[i];
+    }
+    pre_add_gate();
+    if (op.is_standard_gate()) {
+      if (params.size() > 0)
+        qk_circuit_gate(rust_circuit_, op.gate_map(), vqubits.data(), params.data());
+      else
+        qk_circuit_gate(rust_circuit_, op.gate_map(), vqubits.data(), nullptr);
+    } else {
+      if (std::string("reset") == op.name()) {
+        qk_circuit_reset(rust_circuit_, vqubits[0]);
+      } else if (std::string("barrier") == op.name()) {
+        qk_circuit_barrier(rust_circuit_, vqubits.data(), vqubits.size());
+      } else if (std::string("measure") == op.name()) {
+        qk_circuit_measure(rust_circuit_, vqubits[0], vqubits[0]);
+      }
+    }
+  }
 }
+
+void QuantumCircuit::append(const CircuitInstruction& inst)
+{
+  std::vector<std::uint32_t> vqubits(inst.qubits().size());
+  for (int_t i = 0; i< inst.qubits().size(); i++) {
+    vqubits[i] = (std::uint32_t)inst.qubits()[i];
+  }
+  pre_add_gate();
+  if (inst.instruction().is_standard_gate()) {
+    if (inst.instruction().num_params() > 0)
+      qk_circuit_gate(rust_circuit_, inst.instruction().gate_map(), vqubits.data(), inst.instruction().params().data());
+    else
+      qk_circuit_gate(rust_circuit_, inst.instruction().gate_map(), vqubits.data(), nullptr);
+  } else {
+    if (std::string("reset") == inst.instruction().name()) {
+      qk_circuit_reset(rust_circuit_, vqubits[0]);
+    } else if (std::string("barrier") == inst.instruction().name()) {
+      qk_circuit_barrier(rust_circuit_, vqubits.data(), vqubits.size());
+    } else if (std::string("measure") == inst.instruction().name()) {
+      qk_circuit_measure(rust_circuit_, vqubits[0], (std::uint32_t)inst.clbits()[0]);
+    }
+  }
+}
+
+
+uint_t QuantumCircuit::num_instructions(void)
+{
+  return qk_circuit_num_instructions(rust_circuit_);
+}
+
+CircuitInstruction QuantumCircuit::operator[] (uint_t i)
+{
+  if (i < qk_circuit_num_instructions(rust_circuit_)) {
+    auto name_map = get_standard_gate_name_mapping();
+    QkCircuitInstruction* op = new QkCircuitInstruction;
+    qk_circuit_get_instruction(rust_circuit_, i, op);
+    reg_t qubits(op->qubits, op->qubits + op->num_qubits);
+    reg_t clbits(op->clbits, op->qubits + op->num_clbits);
+    std::vector<double> params(op->params, op->params + op->num_params);
+    auto gate = name_map.find(op->name);
+    if (gate == name_map.end()) {
+      if (strcmp(op->name, "measure") == 0) {
+        qk_circuit_instruction_clear(op);
+        auto inst = Measure();
+        return CircuitInstruction(inst, qubits, clbits);
+      } else if (strcmp(op->name, "reset") == 0) {
+        qk_circuit_instruction_clear(op);
+        auto inst = Reset();
+        return CircuitInstruction(inst, qubits, clbits);
+      } else if (strcmp(op->name, "barrier") == 0) {
+        qk_circuit_instruction_clear(op);
+        auto inst = Barrier();
+        return CircuitInstruction(inst, qubits, clbits);
+      }
+    } else {
+      // standard gates
+      auto inst = gate->second;
+      if (params.size() > 0) {
+        inst.set_params(params);
+      }
+      qk_circuit_instruction_clear(op);
+      return CircuitInstruction(inst, qubits);
+    }
+    qk_circuit_instruction_clear(op);
+  }
+  return CircuitInstruction();
+}
+
 
 // print circuit
 void QuantumCircuit::print(void) const
@@ -976,13 +1070,14 @@ std::string QuantumCircuit::to_qasm3(bool return_as_ctrl)
   qasm3 << "OPENQASM 3.0;" << std::endl;
   qasm3 << "include \"stdgates.inc\";" << std::endl;
 
+  auto name_map = get_standard_gate_name_mapping();
   // add header for non-standard gates
   bool cs = false;
   bool sxdg = false;
   QkOpCounts opcounts = qk_circuit_count_ops(rust_circuit_);
   for (int i = 0; i < opcounts.len; i++) {
     if (opcounts.data[i].count != 0) {
-      auto op = gate_map_[opcounts.data[i].name];
+      auto op = name_map[opcounts.data[i].name].gate_map();
       switch (op) {
         case QkGate_R:
           qasm3 << "gate r(p0, p1) _gate_q_0 {" << std::endl;
