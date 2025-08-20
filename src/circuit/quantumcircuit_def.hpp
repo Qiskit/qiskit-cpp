@@ -26,6 +26,8 @@
 #include "circuit/classical/expr.hpp"
 #include "circuit/classicalregister.hpp"
 #include "circuit/quantumregister.hpp"
+#include "circuit/library/standard_gates/standard_gates.hpp"
+#include "circuit/circuitinstruction.hpp"
 
 #include <complex>
 #include "qiskit.h"
@@ -61,9 +63,6 @@ protected:
 
   std::shared_ptr<ControlFlowOp> pending_control_flow_op_ = nullptr;
 public:
-  static std::unordered_map<std::string, QkGate> gate_map_;
-
-
   /// @brief Create a new QuantumCircuit
   QuantumCircuit() {}
 
@@ -583,14 +582,46 @@ public:
   /// @param (value) value
   void assign_parameter(const std::string key, const double val);
 
-  // compose
+  /// @brief Add other circuit at the end of this circuit
+  /// @param (rhs) circuit to be added
+  /// @param (qubits) a list of qubits to be mapped
+  /// @param (clits) a list of clbits to be mapped
   QuantumCircuit& operator+=(QuantumCircuit& rhs);
   QuantumCircuit operator+(QuantumCircuit& rhs);
   void compose(QuantumCircuit& circ);
   void compose(QuantumCircuit& circ, const reg_t& qubits, const reg_t& clbits);
 
-  template<typename Operator>
-  void append(const Operator& op, const reg_t& qubits);
+  /// @brief append a gate at the end of the circuit
+  /// @param (op) a gate to be added
+  /// @param (qubits) a list of qubits to be mapped
+  /// @param (params) a list of parameters
+  void append(const Instruction& op, const reg_t& qubits, const std::vector<double> params);
+
+  /// @brief append a gate at the end of the circuit
+  /// @param (inst) an instruction to be added
+  void append(const CircuitInstruction& inst);
+
+  void append(const Instruction& op, const uint_t qubit)
+  {
+    reg_t qubits({qubit});
+    std::vector<double> params;
+    append(op, qubits, params);
+  }
+  void append(const Instruction& op, const reg_t& qubits)
+  {
+    std::vector<double> params;
+    append(op, qubits, params);
+  }
+
+
+  /// @brief get number og instructions
+  /// @return number of instructions in the circuit
+  uint_t num_instructions(void);
+
+  /// @brief get instruction
+  /// @param (i) an index to the instruction
+  /// @return the instruction at index i
+  CircuitInstruction operator[] (uint_t i);
 
   // qasm3
 
@@ -603,6 +634,10 @@ public:
   // print circuit
   void print(void) const;
 
+
+
+
+
 protected:
   void add_pending_control_flow_op(void);
 
@@ -614,65 +649,6 @@ protected:
   void get_qubits(reg_t& bits);
   void get_clbits(reg_t& bits);
 };
-
-
-
-// mapping of gate string and QkGate
-std::unordered_map<std::string, QkGate> QuantumCircuit::gate_map_{
-  {"global_phase", QkGate_GlobalPhase},
-  {"h", QkGate_H},
-  {"i", QkGate_I},
-  {"x", QkGate_X},
-  {"y", QkGate_Y},
-  {"z", QkGate_Z},
-  {"p", QkGate_Phase},
-  {"r", QkGate_R},
-  {"rx", QkGate_RX},
-  {"ry", QkGate_RY},
-  {"rz", QkGate_RZ},
-  {"s", QkGate_S},
-  {"sdg", QkGate_Sdg},
-  {"sx", QkGate_SX},
-  {"sxdg", QkGate_SXdg},
-  {"t", QkGate_T},
-  {"tdg", QkGate_Tdg},
-  {"u", QkGate_U},
-  {"u1", QkGate_U1},
-  {"u2", QkGate_U2},
-  {"u3", QkGate_U3},
-  {"ch", QkGate_CH},
-  {"cx", QkGate_CX},
-  {"cy", QkGate_CY},
-  {"cz", QkGate_CZ},
-  {"dcx", QkGate_DCX},
-  {"ecr", QkGate_ECR},
-  {"swap",QkGate_Swap},
-  {"iswap", QkGate_ISwap},
-  {"cp", QkGate_CPhase},
-  {"crx", QkGate_CRX},
-  {"cry", QkGate_CRY},
-  {"crz", QkGate_CRZ},
-  {"cs", QkGate_CS},
-  {"csdg", QkGate_CSdg},
-  {"csx", QkGate_CSX},
-  {"cu", QkGate_CU},
-  {"cu1", QkGate_CU1},
-  {"cu3", QkGate_CU3},
-  {"rxx", QkGate_RXX},
-  {"ryy", QkGate_RYY},
-  {"rzz", QkGate_RZZ},
-  {"rzx", QkGate_RZX},
-  {"xx_minus_yy", QkGate_XXMinusYY},
-  {"xx_plus_yy", QkGate_XXPlusYY},
-  {"ccx", QkGate_CCX},
-  {"ccz", QkGate_CCZ},
-  {"cswap", QkGate_CSwap},
-  {"rccx", QkGate_RCCX},
-  {"mcx", QkGate_C3X},
-  {"c3sx", QkGate_C3SX},
-  {"rcccx", QkGate_RC3X},
-};
-
 
 } // namespace circuit
 } // namespace Qiskit

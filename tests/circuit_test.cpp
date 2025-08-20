@@ -65,6 +65,8 @@ int main()
 
   circ.compose(sub_circ, {3, 1}, {3, 1});
 
+  circ.append(TGate(), 2);
+
   circ.barrier(0);
   circ.measure(qr, cr);
 
