@@ -32,7 +32,7 @@ static circuit::QuantumCircuit default_circ;
 /// @brief Sampler Pub(Primitive Unified Bloc)
 class SamplerPub {
 protected:
-    std::string qasm3_circuit_;
+    circuit::QuantumCircuit circuit_;
     //std::vector<std::string> params_;     //Parameter will be supported Qiskit 2.2 or higher
     //std::vector<double> values_;
     uint_t shots_ = 0;
@@ -59,16 +59,7 @@ public:
     /// @param shots The total number of shots to sample for this sampler pub
     SamplerPub(circuit::QuantumCircuit& circ, uint_t shots = 0)
     {
-        qasm3_circuit_ = circ.to_qasm3(true);
-        shots_ = shots;
-    }
-
-    /// @brief Create a new SamplerPub
-    /// @param circ a QuantumCircuit in QASM3
-    /// @param shots The total number of shots to sample for this sampler pub
-    SamplerPub(std::string& circ, uint_t shots = 0)
-    {
-        qasm3_circuit_ = circ;
+        circuit_ = circ;
         shots_ = shots;
     }
 
@@ -76,16 +67,16 @@ public:
     /// @param src a SamplerPub
     SamplerPub(const SamplerPub& src)
     {
-        qasm3_circuit_ = src.qasm3_circuit_;
+        circuit_ = src.circuit_;
         shots_ = src.shots_;
     }
     ~SamplerPub(){}
 
     /// @brief Return a QuantumCircuit for this sampler pub
-    /// @return a quantum circuit in QASM3 string
-    std::string& circuit(void)
+    /// @return a quantum circuit
+    circuit::QuantumCircuit& circuit(void)
     {
-        return qasm3_circuit_;
+        return circuit_;
     }
 
     /*
@@ -116,9 +107,9 @@ public:
         nlohmann::ordered_json params = json::array();
 
         if (shots_ > 0) {
-            return json::array({qasm3_circuit_, params, shots_});
+            return json::array({circuit_.to_qasm3(), params, shots_});
         }
-        return json::array({qasm3_circuit_, params});
+        return json::array({circuit_.to_qasm3(), params});
     }
 
 };

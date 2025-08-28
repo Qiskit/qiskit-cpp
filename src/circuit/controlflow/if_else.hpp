@@ -64,15 +64,15 @@ void IfElseOp::add_control_flow_op(QuantumCircuit& circ)
 {
   if(test_else_){
     // if_else
-    rust_circuit* true_circ = true_body_.get_rust_circuit();
-    rust_circuit* false_circ = false_body_.get_rust_circuit();
+    std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
+    std::shared_ptr<rust_circuit> false_circ = false_body_.get_rust_circuit();
 
     // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
 //    qc_if_else(circ.get_rust_circuit(false), clbit_, value_, true_circ, false_circ);
   }
   else{
     // if_test
-    rust_circuit* true_circ = true_body_.get_rust_circuit();
+    std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
 
     // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
     //qc_if_test(circ.get_rust_circuit(false), clbit_, value_, true_circ);
