@@ -40,13 +40,14 @@ protected:
     uint_t num_clbits_;
     std::vector<double> params_;
     std::string label_;
+    QkGate map_ = QkGate_I;
+    bool is_standard_gate_ = false;
 public:
     /// @brief Create a new instruction
     Instruction()
     {
         num_qubits_ = 1;
         num_clbits_ = 0;
-
     }
 
     /// @brief Create a new instruction
@@ -141,14 +142,14 @@ public:
     /// @return QkGate enum for this instruciton
     virtual const QkGate gate_map(void) const
     {
-        return QkGate_I;
+        return map_;
     }
 
     /// @brief check if this isntruction is a standard gate
     /// @return true if the instruction is a standard gate
     virtual const bool is_standard_gate(void) const
     {
-        return false;
+        return is_standard_gate_;
     }
 
 };

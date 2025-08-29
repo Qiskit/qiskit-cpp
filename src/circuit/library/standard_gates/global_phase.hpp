@@ -32,13 +32,8 @@ public:
         name_ = "global_phase";
         num_qubits_ = 0;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_GlobalPhase;
+        map_ = QkGate_GlobalPhase;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of parameters for this instruction
@@ -47,13 +42,6 @@ public:
     {
         return 1;
     }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
-    }
-
 };
 
 

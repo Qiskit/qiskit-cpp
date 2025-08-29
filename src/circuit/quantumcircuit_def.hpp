@@ -110,8 +110,8 @@ public:
   }
 
   /// @brief Copy Quantum Circuit
-  /// @param circ a circuit to be copied
-  void copy(QuantumCircuit& circ);
+  /// @return copied circuit
+  QuantumCircuit copy(void);
 
   /// @brief set circuit reference of Rust's circuit
   /// @param circ smart pointer to RUst circuit

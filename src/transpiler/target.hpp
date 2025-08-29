@@ -40,6 +40,7 @@ protected:
   uint_t max_experiments_;
   uint_t max_shots_;
   uint_t num_qubits_ = 0;
+  bool is_set_ = false;
 public:
   /// @brief Create a new target
   Target() {}
@@ -49,6 +50,14 @@ public:
     if (target_) {
       qk_target_free(target_);
     }
+  }
+  const bool is_set(void) const
+  {
+    return is_set_;
+  }
+  const QkTarget* rust_target(void) const
+  {
+    return target_;
   }
 
   /// @brief name of the target
@@ -135,12 +144,22 @@ bool Target::from_json(nlohmann::ordered_json& input)
       target_entry = entry->second;
     }
     if (target_entry) {
-      qk_target_entry_add_property(target_entry, qubits.data(), qubits.size(), duration, error);
+      QkExitCode ret = qk_target_entry_add_property(target_entry, qubits.data(), qubits.size(), duration, error);
+      if (ret != QkExitCode_Success) {
+        std::cerr << " target qk_target_entry_add_property error (" << ret << ") : " << gate << " [";
+        for (int i = 0; i < qubits.size(); i++) {
+          std::cerr << qubits[i] << ", ";
+        }
+        std::cerr << "]" << std::endl;
+      }
     }
   }
 
   for (auto& entry : property_map) {
-    qk_target_add_instruction(target_, entry.second);
+    QkExitCode ret = qk_target_add_instruction(target_, entry.second);
+    if (ret != QkExitCode_Success) {
+      std::cerr << " target qk_target_add_instruction error (" << ret << ")" << std::endl;
+    }
 //    qk_target_entry_free(entry.second);
   }
 
@@ -161,6 +180,7 @@ bool Target::from_json(nlohmann::ordered_json& input)
   }
   qk_target_add_instruction(target_, measure);
 
+  is_set_ = true;
   return true;
 }
 

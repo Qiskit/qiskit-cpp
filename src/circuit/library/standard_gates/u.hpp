@@ -32,13 +32,8 @@ public:
         name_ = "u";
         num_qubits_ = 1;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_U;
+        map_ = QkGate_U;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of parameters for this instruction
@@ -46,12 +41,6 @@ public:
     const uint_t num_params(void) const override
     {
         return 3;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -65,13 +54,8 @@ public:
         name_ = "cu";
         num_qubits_ = 2;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CU;
+        map_ = QkGate_CU;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -86,12 +70,6 @@ public:
     const uint_t num_params(void) const override
     {
         return 3;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 

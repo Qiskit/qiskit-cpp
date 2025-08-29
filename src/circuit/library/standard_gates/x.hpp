@@ -32,19 +32,8 @@ public:
         name_ = "x";
         num_qubits_ = 1;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_X;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
+        map_ = QkGate_X;
+        is_standard_gate_ = true;
     }
 };
 
@@ -58,13 +47,8 @@ public:
         name_ = "cx";
         num_qubits_ = 2;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CX;
+        map_ = QkGate_CX;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -72,12 +56,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 1;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -91,13 +69,8 @@ public:
         name_ = "ccx";
         num_qubits_ = 3;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CCX;
+        map_ = QkGate_CCX;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -105,12 +78,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 2;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -124,13 +91,8 @@ public:
         name_ = "c3x";
         num_qubits_ = 4;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_C3X;
+        map_ = QkGate_C3X;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -138,12 +100,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 3;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -157,13 +113,8 @@ public:
         name_ = "c3sx";
         num_qubits_ = 4;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_C3SX;
+        map_ = QkGate_C3SX;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -171,12 +122,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 3;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -191,13 +136,8 @@ public:
         name_ = "rccx";
         num_qubits_ = 3;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_RCCX;
+        map_ = QkGate_RCCX;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -205,12 +145,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 2;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -224,13 +158,8 @@ public:
         name_ = "rcccx";
         num_qubits_ = 4;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_RC3X;
+        map_ = QkGate_RC3X;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -238,12 +167,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 3;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -259,6 +182,8 @@ public:
         name_ = "mcx";
         num_qubits_ = 3;
         num_clbits_ = 0;
+        map_ = QkGate_RC3X;
+        is_standard_gate_ = true;
     }
 
     MCXGate(uint_t num_qubits)
@@ -266,13 +191,8 @@ public:
         name_ = "mcx";
         num_qubits_ = num_qubits;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_RC3X;
+        map_ = QkGate_RC3X;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -280,12 +200,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return num_qubits_ - 1;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 

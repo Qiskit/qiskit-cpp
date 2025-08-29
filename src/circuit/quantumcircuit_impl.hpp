@@ -129,16 +129,19 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit& circ)
   rust_circuit_ = circ.rust_circuit_;
 }
 
-void QuantumCircuit::copy(QuantumCircuit& circ)
+QuantumCircuit QuantumCircuit::copy(void)
 {
-  num_qubits_ = circ.num_qubits_;
-  num_clbits_ = circ.num_clbits_;
-  global_phase_ = circ.global_phase_;
+  QuantumCircuit copied;
+  copied.rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_copy(rust_circuit_.get()), qk_circuit_free);
 
-  qregs_ = circ.qregs_;
-  cregs_ = circ.cregs_;
+  copied.num_qubits_ = num_qubits_;
+  copied.num_clbits_ = num_clbits_;
+  copied.global_phase_ = global_phase_;
 
-  rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_copy(circ.rust_circuit_.get()), qk_circuit_free);
+  copied.qregs_ = qregs_;
+  copied.cregs_ = cregs_;
+
+  return copied;
 }
 
 
@@ -1367,7 +1370,7 @@ std::string QuantumCircuit::to_qasm3(void)
       }
     }
   }
-  qk_opcounts_free(opcounts);
+  qk_opcounts_clear(&opcounts);
 
   // registers
   std::string creg_name = "c";

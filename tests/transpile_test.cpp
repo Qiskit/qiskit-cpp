@@ -24,18 +24,37 @@
 #include "primitives/backend_sampler_v2.hpp"
 
 #include "service/qiskit_runtime_service.hpp"
+#include "compiler/transpiler.hpp"
 
 using namespace Qiskit::circuit;
 using namespace Qiskit::providers;
 using namespace Qiskit::primitives;
+using namespace Qiskit::compiler;
 
 int main()
 {
   auto service = Qiskit::service::QiskitRuntimeService();
   auto backend = service.backend("ibm_torino");
 
-  auto target = backend.target();
+  QuantumRegister qr(10);
+  ClassicalRegister cr(10);
+  QuantumCircuit circ(qr, cr);
 
+  circ.h(0);
+  for (int i=0;i<9;i++) {
+    circ.cx(i, i+1);
+  }
+  for (int i=0;i<10;i++) {
+    circ.measure(i,i);
+  }
+
+  std::cout << "input circuit" << std::endl;
+  circ.print();
+
+  auto transpiled = transpile(circ, backend);
+
+  std::cout << "transpiled circuit" << std::endl;
+  transpiled.print();
 
   return 0;
 }

@@ -23,35 +23,29 @@
 #include "circuit/quantumcircuit.hpp"
 #include "primitives/backend_sampler_v2.hpp"
 #include "service/qiskit_runtime_service.hpp"
-
+#include "compiler/transpiler.hpp"
 
 using namespace Qiskit::circuit;
 using namespace Qiskit::providers;
 using namespace Qiskit::primitives;
 using namespace Qiskit::service;
+using namespace Qiskit::compiler;
 
 using Sampler = BackendSamplerV2;
 
 int main()
 {
-  QuantumCircuit circ(2, 2);
+  int num_qubits = 10;
+  QuantumCircuit circ(num_qubits, num_qubits);
 
-  // transpiled CHZ circuit
-  circ.rz(M_PI/2, 0);
-  circ.sx(0);
-  circ.rz(M_PI/2, 0);
-
-  circ.rz(M_PI/2, 1);
-  circ.sx(1);
-  circ.rz(M_PI, 1);
-
-  circ.cz(0, 1);
-
-  circ.sx(1);
-  circ.rz(M_PI/2, 1);
-
-  circ.measure(0, 0);
-  circ.measure(1, 1);
+  // GHZ circuit
+  circ.h(0);
+  for (int i = 0; i < num_qubits - 1; i++) {
+    circ.cx(i, i + 1);
+  }
+  for (int i = 0; i < num_qubits; i++) {
+    circ.measure(i,i);
+  }
 
   // set 2 environment variables before executing
   // QISKIT_IBM_TOKEN = "your API key"
@@ -60,7 +54,9 @@ int main()
   auto backend = service.backend("ibm_torino");
   auto sampler = Sampler(backend, 100);
 
-  auto job = sampler.run({SamplerPub(circ)});
+  auto transpiled_circ = transpile(circ, backend);
+
+  auto job = sampler.run({SamplerPub(transpiled_circ)});
   if (job == nullptr)
     return -1;
   auto result = job->result();
