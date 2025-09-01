@@ -45,7 +45,7 @@ public:
 
     /// @brief Return the results of the job.
     /// @return shared pointer to PrimitiveResult class.
-    virtual std::shared_ptr<PrimitiveResult> result(void) = 0;
+    virtual PrimitiveResult result(void) = 0;
 
     /// @brief Return the status of the job.
     /// @return JobStatus enum.

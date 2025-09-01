@@ -32,13 +32,8 @@ public:
         name_ = "ryy";
         num_qubits_ = 2;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_RYY;
+        map_ = QkGate_RYY;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of parameters for this instruction

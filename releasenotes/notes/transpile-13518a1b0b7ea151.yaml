@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Qiskit C++ supports transpiling quantum circuits through Qiskit C-API.
+    Before running a quantum circuit with Qiskit C++'s sampler, a circuit
+    should be transpiled with the backend object.
+    The backend can be obtained by `QiskitRuntimeService::backend` function
+    with the name of the backend.
+    See `test/sampler_test.cpp`

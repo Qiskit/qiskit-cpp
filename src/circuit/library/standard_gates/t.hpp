@@ -32,19 +32,8 @@ public:
         name_ = "t";
         num_qubits_ = 1;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_T;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
+        map_ = QkGate_T;
+        is_standard_gate_ = true;
     }
 };
 
@@ -58,19 +47,8 @@ public:
         name_ = "tdg";
         num_qubits_ = 1;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_Tdg;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
+        map_ = QkGate_Tdg;
+        is_standard_gate_ = true;
     }
 };
 

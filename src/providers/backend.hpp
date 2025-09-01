@@ -18,17 +18,19 @@
 #define __qiskitcpp_providers_backend_def_hpp__
 
 #include "utils/types.hpp"
+#include "transpiler/target.hpp"
+#include "primitives/containers/sampler_pub.hpp"
+#include "primitives/base/base_primitive_job.hpp"
+#include "primitives/containers/primitive_result.hpp"
 
 namespace Qiskit {
 namespace providers {
 
 /// @class BackendV2
 /// @brief BackendV2 base class.
-template <typename Job>
 class BackendV2 {
 protected:
     std::string name_;
-    std::shared_ptr<Job> job_ = nullptr;
 public:
     /// @brief Create a new BackendV2
     BackendV2() {}
@@ -38,21 +40,16 @@ public:
     BackendV2(std::string name)
     {
         name_ = name;
-        job_ = std::make_shared<Job>(name);
     }
 
     /// @brief Create a new BackendV2
     BackendV2(BackendV2& other)
     {
         name_ = other.name_;
-        job_ = other.job_;
     }
 
     ~BackendV2()
     {
-        if (job_) {
-            job_.reset();
-        }
     }
 
     /// @brief Return a name of backend resource.
@@ -62,12 +59,30 @@ public:
         return name_;
     }
 
-    /// @brief Return a job resource interface.
-    /// @return a smart pointer to job interface.
-    std::shared_ptr<Job> job(void)
-    {
-        return job_;
-    }
+    /// @brief Return a target properties for this backend
+    /// @return a target class
+    virtual transpiler::Target target(void) = 0;
+
+    /// @brief Run and collect samples from each pub.
+    /// @param pubs An iterable of pub-like objects.
+    /// @return PrimitiveJob
+    virtual std::shared_ptr<primitives::BasePrimitiveJob> run(std::vector<primitives::SamplerPub>& circuits, uint_t shots) = 0;
+
+    /// @brief Return the status of the job.
+    /// @param job_id job id to get status
+    /// @return JobStatus enum.
+    virtual providers::JobStatus status(std::string& job_id) = 0;
+
+    /// @brief Attempt to cancel the job.
+    /// @param job_id job id to be cancelled
+    /// @return true if the job is cancelled
+    virtual bool stop_job(std::string& job_id) = 0;
+
+    /// @brief get results of the job, this will wait until job is in final state
+    /// @param job_id job id to get results
+    /// @return the results of the job
+    virtual primitives::PrimitiveResult result(std::string& job_id) = 0;
+
 };
 
 } // namespace providers

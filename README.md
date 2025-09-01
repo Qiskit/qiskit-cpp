@@ -86,6 +86,11 @@ QISKIT_IBM_TOKEN=<your API key>
 QISKIT_IBM_INSTANCE=<your CRN>
 ```
 
+### Making your own interface to Quantum hardware
+
+By default, Qiskit C++ uses QRMI (https://github.com/qiskit-community/qrmi) to access Quantum computers through IBM Qiskit Runtime Service.
+To use other services of interfaces, prepare your own backend interface from the BackendV2 base class (./src/providers/backend.hpp)
+Refer to ./src/providers/qrmi_backend.hpp for details.
 
 ## Contributing
 

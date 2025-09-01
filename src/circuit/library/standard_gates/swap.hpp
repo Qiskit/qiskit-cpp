@@ -32,19 +32,8 @@ public:
         name_ = "swap";
         num_qubits_ = 2;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_Swap;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
+        map_ = QkGate_Swap;
+        is_standard_gate_ = true;
     }
 };
 
@@ -58,13 +47,8 @@ public:
         name_ = "cswap";
         num_qubits_ = 3;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CSwap;
+        map_ = QkGate_CSwap;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -72,12 +56,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 1;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 

@@ -22,53 +22,50 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "primitives/backend_sampler_v2.hpp"
-#include "primitives/qrmi_primitive_job.hpp"
+#include "service/qiskit_runtime_service.hpp"
+#include "compiler/transpiler.hpp"
 
 using namespace Qiskit::circuit;
 using namespace Qiskit::providers;
 using namespace Qiskit::primitives;
+using namespace Qiskit::service;
+using namespace Qiskit::compiler;
 
-using Backend = BackendV2<QRMIPrimitiveJob>;
-using Sampler = BackendSamplerV2<QRMIPrimitiveJob>;
+using Sampler = BackendSamplerV2;
 
 int main()
 {
-  QuantumCircuit circ(2, 2);
+  int num_qubits = 10;
+  QuantumCircuit circ(num_qubits, num_qubits);
 
-  // transpiled CHZ circuit
-  circ.rz(M_PI/2, 0);
-  circ.sx(0);
-  circ.rz(M_PI/2, 0);
-
-  circ.rz(M_PI/2, 1);
-  circ.sx(1);
-  circ.rz(M_PI, 1);
-
-  circ.cz(0, 1);
-
-  circ.sx(1);
-  circ.rz(M_PI/2, 1);
-
-  circ.measure(0, 0);
-  circ.measure(1, 1);
+  // GHZ circuit
+  circ.h(0);
+  for (int i = 0; i < num_qubits - 1; i++) {
+    circ.cx(i, i + 1);
+  }
+  for (int i = 0; i < num_qubits; i++) {
+    circ.measure(i,i);
+  }
 
   // set 2 environment variables before executing
   // QISKIT_IBM_TOKEN = "your API key"
   // QISKIT_IBM_INSTANCE = "your CRN"
-  auto backend = Backend("ibm_torino");
+  auto service = QiskitRuntimeService();
+  auto backend = service.backend("ibm_torino");
   auto sampler = Sampler(backend, 100);
 
-  auto job = sampler.run({SamplerPub(circ)});
+  auto transpiled_circ = transpile(circ, backend);
+
+  auto job = sampler.run({SamplerPub(transpiled_circ)});
+  if (job == nullptr)
+    return -1;
   auto result = job->result();
-  if (result == nullptr) {
-    return 1;
-  }
 
   std::cout << " ===== results in JSON =====" << std::endl;
-  std::cout << result->json() << std::endl;
+  std::cout << result.json() << std::endl;
   std::cout << " ===== results[0] in JSON =====" << std::endl;
-  std::cout << result->json()["results"][0]["data"]["c"] << std::endl;
-  auto pub_result = (*result)[0];
+  std::cout << result.json()["results"][0]["data"]["c"] << std::endl;
+  auto pub_result = result[0];
   auto hex = pub_result.data().get_hexstring();
   std::cout << " ===== samples for pub[0] =====" << std::endl;
   for (auto h : hex) {

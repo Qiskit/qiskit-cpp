@@ -17,48 +17,50 @@
 #ifndef __qiskitcpp_compiler_transpiler_def_hpp__
 #define __qiskitcpp_compiler_transpiler_def_hpp__
 
+#include "qiskit.h"
 #include "circuit/quantumcircuit.hpp"
-
-#include "qc_transpile.h"
-
+#include "providers/backend.hpp"
 
 namespace Qiskit {
-namespace circuit {
+namespace compiler {
 
 /// @brief Return the transpiled circuit
-/// @param (circ) QuantumCircuit
-/// @param (coupling_map) Coupling map
+/// @param circ QuantumCircuit
+/// @param backend a backend used for transpiling
+/// @param optimization_level level of optimization 0, 1, 2 or 3 (default = 2)
+/// @param seed_transpiler The seed for the transpiler (default = -1)
+/// @param approximation_degree The approximation degree a heurstic dial (default = 1.0)
 /// @return transpiled QuantumCircuit
-/*
-qiskitcpp::circuit::QuantumCircuit transpile(qiskitcpp::circuit::QuantumCircuit& circ, std::vector<std::pair<uint_t, uint_t>> &coupling_map)
+circuit::QuantumCircuit transpile(circuit::QuantumCircuit& circ, providers::BackendV2& backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
-  // to dag circuit
-  auto src_dag = qc_to_dag_circuit(circ.get_rust_circuit());
-
-  // physical layout
-  auto dag_out = qc_trivial_layout(src_dag);
-  // routing
-  if (coupling_map.size() > 0) {
-    dag_out = qc_basic_swap(dag_out, (uint_t*)coupling_map.data(), coupling_map.size());
+  auto target = backend.target();
+  if (!target.is_set()) {
+    return circ;
   }
-  // basis translation
-  dag_out = qc_basis_translation(dag_out);
-  // unitary synthesis
-  dag_out = qc_unitary_synthesis(dag_out);
 
-  // convert to QuantumCircuit
-  auto rust_circ = qc_from_dag_circuit(dag_out);
+  QkTranspileOptions options = qk_transpiler_default_options();
+  options.optimization_level = (std::uint8_t)optimization_level;
+  options.seed = seed_transpiler;
+  options.approximation_degree = approximation_degree;
 
-  // new circuit, attributes are copied from original
-  qiskitcpp::circuit::QuantumCircuit trans_circ(circ);
-  trans_circ.from_rust_circuit(rust_circ);
-  return trans_circ;
+  QkTranspileResult result;
+  char* error;
+
+  QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target.rust_target(), &options, &result, &error);
+  if (ret != QkExitCode_Success) {
+    std::cerr << "transpile error (" << ret << ") : "<< error << std::endl;
+    return circ;
+  }
+  circuit::QuantumCircuit transpiled;
+  transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free));
+
+  qk_transpile_layout_free(result.layout);
+
+  return transpiled;
 }
-*/
 
 
-
-} // namespace circuit
+} // namespace compiler
 } // namespace Qiskit
 
 

@@ -32,19 +32,8 @@ public:
         name_ = "z";
         num_qubits_ = 1;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_Z;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
+        map_ = QkGate_Z;
+        is_standard_gate_ = true;
     }
 };
 
@@ -58,13 +47,8 @@ public:
         name_ = "cz";
         num_qubits_ = 2;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CZ;
+        map_ = QkGate_CZ;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -72,12 +56,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 1;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
@@ -91,13 +69,8 @@ public:
         name_ = "ccz";
         num_qubits_ = 3;
         num_clbits_ = 0;
-    }
-
-    /// @brief Return gate enum for Qiskit C-API
-    /// @return QkGate enum for this instruciton
-    const QkGate gate_map(void) const override
-    {
-        return QkGate_CCZ;
+        map_ = QkGate_CCZ;
+        is_standard_gate_ = true;
     }
 
     /// @brief Return number of control bits for this instruction
@@ -105,12 +78,6 @@ public:
     const uint_t num_controll_bits(void) const override
     {
         return 2;
-    }
-    /// @brief check if this isntruction is a standard gate
-    /// @return true if the instruction is a standard gate
-    const bool is_standard_gate(void) const override
-    {
-        return true;
     }
 };
 
