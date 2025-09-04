@@ -605,8 +605,8 @@ public:
   /// @param op a gate to be added
   /// @param qubits a list of qubits to be mapped
   /// @param params a list of parameters
-  void append(const Instruction& op, const reg_t& qubits, const std::vector<double> params);
-  void append(const Instruction& op, const std::vector<std::uint32_t>& qubits, const std::vector<double> params);
+  void append(const Instruction& op, const reg_t& qubits);
+  void append(const Instruction& op, const std::vector<std::uint32_t>& qubits);
 
   /// @brief append a gate at the end of the circuit
   /// @param inst an instruction to be added
@@ -615,13 +615,7 @@ public:
   void append(const Instruction& op, const uint_t qubit)
   {
     reg_t qubits({qubit});
-    std::vector<double> params;
-    append(op, qubits, params);
-  }
-  void append(const Instruction& op, const reg_t& qubits)
-  {
-    std::vector<double> params;
-    append(op, qubits, params);
+    append(op, qubits);
   }
 
 

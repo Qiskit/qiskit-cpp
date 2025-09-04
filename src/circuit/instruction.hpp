@@ -70,6 +70,8 @@ public:
         num_clbits_ = other.num_clbits_;
         params_ = other.params_;
         label_ = other.label_;
+        map_ = other.map_;
+        is_standard_gate_ = other.is_standard_gate_;
     }
 
     /// @brief Return name of the instruction
@@ -135,12 +137,12 @@ public:
     /// @return number of parameters
     virtual uint_t num_params(void) const
     {
-        return 0;
+        return params_.size();
     }
 
     /// @brief Return gate enum for Qiskit C-API
     /// @return QkGate enum for this instruciton
-    virtual QkGate gate_map(void) const
+    QkGate gate_map(void) const
     {
         return map_;
     }

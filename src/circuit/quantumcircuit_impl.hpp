@@ -933,17 +933,17 @@ void QuantumCircuit::compose(QuantumCircuit& circ, const reg_t& qubits, const re
   }
 }
 
-void QuantumCircuit::append(const Instruction& op, const reg_t& qubits, const std::vector<double> params)
+void QuantumCircuit::append(const Instruction& op, const reg_t& qubits)
 {
-  if (op.num_qubits() == qubits.size() && op.num_params() == params.size()) {
+  if (op.num_qubits() == qubits.size()) {
     std::vector<std::uint32_t> vqubits(qubits.size());
     for (int_t i = 0; i< qubits.size(); i++) {
       vqubits[i] = (std::uint32_t)qubits[i];
     }
     pre_add_gate();
     if (op.is_standard_gate()) {
-      if (params.size() > 0)
-        qk_circuit_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), params.data());
+      if (op.num_params() > 0)
+        qk_circuit_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), op.params().data());
       else
         qk_circuit_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), nullptr);
     } else {
@@ -958,13 +958,13 @@ void QuantumCircuit::append(const Instruction& op, const reg_t& qubits, const st
   }
 }
 
-void QuantumCircuit::append(const Instruction& op, const std::vector<std::uint32_t>& qubits, const std::vector<double> params)
+void QuantumCircuit::append(const Instruction& op, const std::vector<std::uint32_t>& qubits)
 {
-  if (op.num_qubits() == qubits.size() && op.num_params() == params.size()) {
+  if (op.num_qubits() == qubits.size()) {
     pre_add_gate();
     if (op.is_standard_gate()) {
-      if (params.size() > 0)
-        qk_circuit_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), params.data());
+      if (op.num_params() > 0)
+        qk_circuit_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), op.params().data());
       else
         qk_circuit_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), nullptr);
     } else {
