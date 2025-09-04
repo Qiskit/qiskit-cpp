@@ -157,7 +157,7 @@ public:
     /// @brief Attempt to cancel the job.
     /// @param job_id job id to be cancelled
     /// @return true if the job is cancelled
-    primitives::PrimitiveResult result(std::string& job_id)
+    primitives::PrimitiveResult result(std::string& job_id) override
     {
         primitives::PrimitiveResult ret;
         QrmiTaskStatus status;

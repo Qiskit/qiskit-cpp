@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Qiskit C++ compilation failed on older compilers.
+    With this fix, at least C++11 is required to compile.

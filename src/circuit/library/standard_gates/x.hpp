@@ -53,7 +53,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 1;
     }
@@ -75,7 +75,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 2;
     }
@@ -97,7 +97,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 3;
     }
@@ -119,7 +119,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 3;
     }
@@ -142,7 +142,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 2;
     }
@@ -164,7 +164,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 3;
     }
@@ -197,7 +197,7 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return num_qubits_ - 1;
     }
