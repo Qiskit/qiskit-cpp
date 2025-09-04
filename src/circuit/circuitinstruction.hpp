@@ -45,7 +45,7 @@ public:
     /// @param inst The instruction
     /// @param qubits The list of qubits for the instruction
     /// @param clbits The list of clbits for the instruction
-    CircuitInstruction(Instruction& inst, reg_t qubits, reg_t clbits = reg_t())
+    CircuitInstruction(const Instruction& inst, reg_t qubits, reg_t clbits = reg_t())
     {
         inst_ = inst;
         qubits_ = qubits;
@@ -54,7 +54,7 @@ public:
 
     /// @brief Create a new instruction
     /// @param other The instruction to be copoed
-    CircuitInstruction(CircuitInstruction& other)
+    CircuitInstruction(const CircuitInstruction& other)
     {
         inst_ = other.inst_;
         qubits_ = other.qubits_;
@@ -83,13 +83,13 @@ public:
 
     /// @brief Return number of qubits
     /// @return number of qubits
-    const uint_t num_qubits(void) const
+    uint_t num_qubits(void) const
     {
         return qubits_.size();
     }
     /// @brief Return number of clbits
     /// @return number of clbits
-    const uint_t num_clbits(void) const
+    uint_t num_clbits(void) const
     {
         return clbits_.size();
     }
@@ -99,16 +99,9 @@ public:
     {
         return label_;
     }
-
 };
-
-
-
-
-
 
 } // namespace circuit
 } // namespace Qiskit
-
 
 #endif  // __qiskitcpp_circuit_circuit_instruction_def_hpp__

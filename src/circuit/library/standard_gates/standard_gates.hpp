@@ -17,6 +17,8 @@
 #ifndef __qiskitcpp_circuit_library_standard_gates_def_hpp__
 #define __qiskitcpp_circuit_library_standard_gates_def_hpp__
 
+#include <unordered_map>
+
 #include "circuit/library/standard_gates/dcx.hpp"
 #include "circuit/library/standard_gates/ecr.hpp"
 #include "circuit/library/standard_gates/global_phase.hpp"

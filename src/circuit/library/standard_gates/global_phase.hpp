@@ -38,7 +38,7 @@ public:
 
     /// @brief Return number of parameters for this instruction
     /// @return number of parameters
-    const uint_t num_params(void) const override
+    uint_t num_params(void) const override
     {
         return 1;
     }

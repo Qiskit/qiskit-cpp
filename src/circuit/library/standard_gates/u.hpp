@@ -38,7 +38,7 @@ public:
 
     /// @brief Return number of parameters for this instruction
     /// @return number of parameters
-    const uint_t num_params(void) const override
+    uint_t num_params(void) const override
     {
         return 3;
     }
@@ -60,14 +60,14 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    const uint_t num_controll_bits(void) const override
+    uint_t num_controll_bits(void) const override
     {
         return 1;
     }
 
     /// @brief Return number of parameters for this instruction
     /// @return number of parameters
-    const uint_t num_params(void) const override
+    uint_t num_params(void) const override
     {
         return 3;
     }

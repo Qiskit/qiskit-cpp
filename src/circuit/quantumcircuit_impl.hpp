@@ -243,7 +243,7 @@ void QuantumCircuit::p(const double phase, const uint_t qubit)
 
 void QuantumCircuit::p(const Parameter &phase, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
@@ -259,7 +259,7 @@ void QuantumCircuit::r(const double theta, const double phi, const uint_t qubit)
 
 void QuantumCircuit::r(const Parameter &theta, const Parameter &phi, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_r(rust_circuit_.get(), theta.expr_, phi.expr_, qubit);
@@ -274,7 +274,7 @@ void QuantumCircuit::rx(const double theta, const uint_t qubit)
 
 void QuantumCircuit::rx(const Parameter &theta, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rx(rust_circuit_.get(), theta.expr_, qubit);
@@ -289,7 +289,7 @@ void QuantumCircuit::ry(const double theta, const uint_t qubit)
 
 void QuantumCircuit::ry(const Parameter &theta, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_ry(rust_circuit_.get(), theta.expr_, qubit);
@@ -304,7 +304,7 @@ void QuantumCircuit::rz(const double theta, const uint_t qubit)
 
 void QuantumCircuit::rz(const Parameter &theta, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rz(rust_circuit_.get(), theta.expr_, qubit);
@@ -362,7 +362,7 @@ void QuantumCircuit::u(const double theta, const double phi, const double lam, c
 
 void QuantumCircuit::u(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -378,7 +378,7 @@ void QuantumCircuit::u1(const double theta, const uint_t qubit)
 
 void QuantumCircuit::u1(const Parameter &theta, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -394,7 +394,7 @@ void QuantumCircuit::u2(const double phi, const double lam, const uint_t qubit)
 
 void QuantumCircuit::u2(const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -410,7 +410,7 @@ void QuantumCircuit::u3(const double theta, const double phi, const double lam, 
 
 void QuantumCircuit::u3(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -491,7 +491,7 @@ void QuantumCircuit::cp(const double phase, const uint_t cqubit, const uint_t tq
 
 void QuantumCircuit::cp(const Parameter &phase, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
@@ -506,7 +506,7 @@ void QuantumCircuit::crx(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::crx(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
@@ -521,7 +521,7 @@ void QuantumCircuit::cry(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::cry(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
@@ -536,7 +536,7 @@ void QuantumCircuit::crz(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::crz(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
 //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
@@ -573,7 +573,7 @@ void QuantumCircuit::cu(const double theta, const double phi, const double lam, 
 
 void QuantumCircuit::cu(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -589,7 +589,7 @@ void QuantumCircuit::cu1(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::cu1(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -605,7 +605,7 @@ void QuantumCircuit::cu3(const double theta, const double phi, const double lam,
 
 void QuantumCircuit::cu3(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t cqubit, const uint_t tqubit)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+  //std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
@@ -620,7 +620,7 @@ void QuantumCircuit::rxx(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rxx(const Parameter& theta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
@@ -635,7 +635,7 @@ void QuantumCircuit::ryy(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::ryy(const Parameter& theta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
@@ -650,7 +650,7 @@ void QuantumCircuit::rzz(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rzz(const Parameter& theta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
@@ -665,7 +665,7 @@ void QuantumCircuit::rzx(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rzx(const Parameter& theta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
   //qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
@@ -681,7 +681,7 @@ void QuantumCircuit::xx_minus_yy(const double theta, const double beta, const ui
 
 void QuantumCircuit::xx_minus_yy(const Parameter &theta, const Parameter &beta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
 }
@@ -696,7 +696,7 @@ void QuantumCircuit::xx_plus_yy(const double theta, const double beta, const uin
 
 void QuantumCircuit::xx_plus_yy(const Parameter &theta, const Parameter &beta, const uint_t qubit1, const uint_t qubit2)
 {
-  std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+  //std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
   pre_add_gate();
   //TO DO support parameter expression
 }
@@ -813,7 +813,7 @@ IfElseOp& QuantumCircuit::if_test(const std::uint32_t clbit, const std::uint32_t
 {
   pre_add_gate();
 
-  auto op = std::make_shared<IfElseOp>(*this, clbit, value);
+  auto op = std::shared_ptr<IfElseOp>(new IfElseOp(*this, clbit, value));
   pending_control_flow_op_ = op;
 
   body(op->true_body());

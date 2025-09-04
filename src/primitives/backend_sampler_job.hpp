@@ -100,7 +100,7 @@ public:
         return backend_.stop_job(job_id_);
     }
 
-    PrimitiveResult result(void)
+    PrimitiveResult result(void) override
     {
         return backend_.result(job_id_);
     }

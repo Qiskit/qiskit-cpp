@@ -37,7 +37,7 @@ public:
   /// @param (circ)
   /// @param (clbit)
   /// @param (value)
-  IfElseOp(QuantumCircuit& circ, uint32_t clbit, uint32_t value) : ControlFlowOp(clbit, value), true_body_(circ), false_body_(circ) {}
+  IfElseOp(const QuantumCircuit& circ, uint32_t clbit, uint32_t value) : ControlFlowOp(clbit, value), true_body_(circ), false_body_(circ) {}
 
   /// @brief Return true body available in this operator
   /// @return true body

@@ -63,7 +63,7 @@ public:
 
     /// @brief Create a new instruction
     /// @param other The instruction to be copoed
-    Instruction(Instruction& other)
+    Instruction(const Instruction& other)
     {
         name_ = other.name_;
         num_qubits_ = other.num_qubits_;
@@ -80,13 +80,13 @@ public:
     }
     /// @brief Return number of qubits
     /// @return number of qubits
-    const uint_t num_qubits(void) const
+    uint_t num_qubits(void) const
     {
         return num_qubits_;
     }
     /// @brief Return number of clbits
     /// @return number of clbits
-    const uint_t num_clbits(void) const
+    uint_t num_clbits(void) const
     {
         return num_clbits_;
     }
@@ -126,28 +126,28 @@ public:
 
     /// @brief Return number of control bits for this instruction
     /// @return number of control bits
-    virtual const uint_t num_controll_bits(void) const
+    virtual uint_t num_controll_bits(void) const
     {
         return 0;
     }
 
     /// @brief Return number of parameters for this instruction
     /// @return number of parameters
-    virtual const uint_t num_params(void) const
+    virtual uint_t num_params(void) const
     {
         return 0;
     }
 
     /// @brief Return gate enum for Qiskit C-API
     /// @return QkGate enum for this instruciton
-    virtual const QkGate gate_map(void) const
+    virtual QkGate gate_map(void) const
     {
         return map_;
     }
 
     /// @brief check if this isntruction is a standard gate
     /// @return true if the instruction is a standard gate
-    virtual const bool is_standard_gate(void) const
+    virtual bool is_standard_gate(void) const
     {
         return is_standard_gate_;
     }
