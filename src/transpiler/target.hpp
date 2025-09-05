@@ -67,6 +67,13 @@ public:
     return backend_name_;
   }
 
+  /// @brief number of qubits
+  /// @return number of qubits
+  uint_t num_qubits(void) const
+  {
+    return num_qubits_;
+  }
+
   /// @brief basis gates for this target
   /// @return a list of basis gates in string
   const std::vector<std::string>& basis_gates(void) const
