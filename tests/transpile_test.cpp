@@ -44,6 +44,7 @@ int main()
   for (int i=0;i<9;i++) {
     circ.cx(i, i+1);
   }
+  circ.rzz(0.1, 0, 1);
   for (int i=0;i<10;i++) {
     circ.measure(i,i);
   }
