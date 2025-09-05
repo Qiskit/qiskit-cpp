@@ -192,6 +192,7 @@ public:
         qrmi_resource_task_stop(qrmi_.get(), job_id.c_str());
         return ret;
     }
+
 };
 
 } // namespace providers

@@ -51,7 +51,7 @@ public:
       qk_target_free(target_);
     }
   }
-  const bool is_set(void) const
+  bool is_set(void) const
   {
     return is_set_;
   }
@@ -123,6 +123,11 @@ bool Target::from_json(nlohmann::ordered_json& input)
   std::unordered_map<std::string, QkTargetEntry*> property_map;
   for (auto& prop : backend_properties["gates"]) {
     std::string gate = prop["gate"];
+    if (gate == "rzz") {
+      // TODO: Add RZZ support when we have angle wrapping in
+      // Qiskit's target and C transpiler.
+      continue;
+    }
     std::vector<uint32_t> qubits = prop["qubits"];
     double duration = 0.0;
     double error = 0.0;
