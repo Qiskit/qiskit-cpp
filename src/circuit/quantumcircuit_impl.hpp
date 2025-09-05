@@ -1266,6 +1266,13 @@ std::string QuantumCircuit::to_qasm3(void)
           qasm3 << "  h _gate_q_1;" << std::endl;
           qasm3 << "}" << std::endl;
           break;
+        case QkGate_RZZ:
+          qasm3 << "gate rzz(p0) _gate_q_0, _gate_q_1 {" << std::endl;
+          qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
+          qasm3 << "  rz(p0) _gate_q_1;" << std::endl;
+          qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
+          qasm3 << "}" << std::endl;
+          break;
         case QkGate_RCCX:
           qasm3 << "gate rccx _gate_q_0, _gate_q_1, _gate_q_2 {" << std::endl;
           qasm3 << "  h _gate_q_2;" << std::endl;
