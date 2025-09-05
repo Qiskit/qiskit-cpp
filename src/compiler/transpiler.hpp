@@ -34,7 +34,7 @@ namespace compiler {
 circuit::QuantumCircuit transpile(circuit::QuantumCircuit& circ, providers::BackendV2& backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
   auto target = backend.target();
-  if (!target.is_set()) {
+  if (target == nullptr) {
     return circ;
   }
 
@@ -46,15 +46,18 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit& circ, providers::Back
   QkTranspileResult result;
   char* error;
 
-  QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target.rust_target(), &options, &result, &error);
+  QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target->rust_target(), &options, &result, &error);
   if (ret != QkExitCode_Success) {
     std::cerr << "transpile error (" << ret << ") : "<< error << std::endl;
+    target.reset();
     return circ;
   }
   circuit::QuantumCircuit transpiled;
   transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free));
+  transpiled.set_target(target);
 
   qk_transpile_layout_free(result.layout);
+  target.reset();
 
   return transpiled;
 }

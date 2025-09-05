@@ -28,6 +28,7 @@
 #include "circuit/quantumregister.hpp"
 #include "circuit/library/standard_gates/standard_gates.hpp"
 #include "circuit/circuitinstruction.hpp"
+#include "transpiler/target.hpp"
 
 #include <complex>
 #include "qiskit.h"
@@ -60,6 +61,7 @@ protected:
   std::vector<ClassicalRegister> cregs_;
 
   std::shared_ptr<rust_circuit> rust_circuit_ = nullptr;
+  std::shared_ptr<transpiler::Target> target_ = nullptr;
 
   std::shared_ptr<ControlFlowOp> pending_control_flow_op_ = nullptr;
 public:
@@ -96,11 +98,23 @@ public:
 
   /// @brief Return number of qubits
   /// @return number of qubits
-  uint_t num_qubits(void) const { return num_qubits_; }
+  uint_t num_qubits(void) const
+  {
+    if (target_) {
+      return target_->num_qubits();
+    }
+    return num_qubits_;
+  }
 
   /// @brief Return number of classical bits
   /// @return number of classical bits
-  uint_t num_clbits(void) const { return num_clbits_; }
+  uint_t num_clbits(void) const
+  {
+    if (target_) {
+      return target_->num_qubits();
+    }
+    return num_clbits_;
+  }
 
   std::shared_ptr<rust_circuit> get_rust_circuit(const bool update = true)
   {
@@ -116,6 +130,11 @@ public:
   /// @brief set circuit reference of Rust's circuit
   /// @param circ smart pointer to RUst circuit
   void from_rust_circuit(std::shared_ptr<rust_circuit> circ);
+
+  /// @brief set target to this circuit
+  /// @param target smart pointer to target
+  /// @details target is set for transpiled circuit
+  void set_target(std::shared_ptr<transpiler::Target> target);
 
   /// @brief set global phase
   /// @param phase global phase value

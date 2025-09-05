@@ -170,7 +170,7 @@ void BitVector::from_hex_string(const std::string &src, const uint_t base) {
   }
   allocate(size*4, base);
 
-  for (int_t i = 0; i < src.size(); i++) {
+  for (int_t i = 0; i < size; i++) {
     char c = src[src.size() - 1 - i];
     uint_t h = 0;
     if (c >= '0' && c <= '9') {
@@ -180,8 +180,8 @@ void BitVector::from_hex_string(const std::string &src, const uint_t base) {
     } else if(c >= 'A' && c <= 'F') {
       h = (uint_t)(c - 'A') + 10;
     }
-    uint_t pos = i % (REG_SIZE >> 4);
-    bits_[i / (REG_SIZE >> 4)] |= (h << (pos << 4));
+    uint_t pos = i % (REG_SIZE >> 2);
+    bits_[i / (REG_SIZE >> 2)] |= (h << (pos << 2));
   }
 }
 
@@ -229,14 +229,19 @@ std::string BitVector::to_string(void) {
 }
 
 std::string BitVector::to_hex_string(void) {
+  uint_t size = size_/4;
   std::string str = "0x";
-  for (uint_t i = 0; i < size_/4; i++) {
-    uint_t pos = i % (REG_SIZE >> 4);
-    uint_t val = (bits_[(size_/4 - 1 - i) / (REG_SIZE >> 4)] >> (pos << 4)) & 0xf;
+  for (uint_t i = 0; i < size; i++) {
+    str += '0';
+  }
+  for (uint_t i = 0; i < size; i++) {
+    uint_t pos = i % (REG_SIZE >> 2);
+    uint_t val = (bits_[i / (REG_SIZE >> 2)] >> (pos << 2)) & 15;
+
     if (val < 10) {
-      str += ('0' + val);
+      str[str.size() - 1 - i] = ('0' + val);
     } else {
-      str += ('a' + (val - 10));
+      str[str.size() - 1 - i] = ('a' + (val - 10));
     }
   }
   return str;

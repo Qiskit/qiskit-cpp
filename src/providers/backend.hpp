@@ -61,7 +61,7 @@ public:
 
     /// @brief Return a target properties for this backend
     /// @return a target class
-    virtual transpiler::Target target(void) = 0;
+    virtual std::shared_ptr<transpiler::Target> target(void) = 0;
 
     /// @brief Run and collect samples from each pub.
     /// @param pubs An iterable of pub-like objects.
