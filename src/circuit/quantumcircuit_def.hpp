@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <functional>
+#include <unordered_set>
 
 #include "utils/types.hpp"
 #include "circuit/parameter.hpp"
@@ -64,6 +65,8 @@ protected:
   std::shared_ptr<transpiler::Target> target_ = nullptr;
 
   std::shared_ptr<ControlFlowOp> pending_control_flow_op_ = nullptr;
+  reg_t qubit_map_;
+  std::unordered_set<uint_t> measure_qubits_;
 public:
   /// @brief Create a new QuantumCircuit
   QuantumCircuit() {}
@@ -129,12 +132,26 @@ public:
 
   /// @brief set circuit reference of Rust's circuit
   /// @param circ smart pointer to RUst circuit
-  void from_rust_circuit(std::shared_ptr<rust_circuit> circ);
+  void from_rust_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t>& map);
 
   /// @brief set target to this circuit
   /// @param target smart pointer to target
   /// @details target is set for transpiled circuit
   void set_target(std::shared_ptr<transpiler::Target> target);
+
+  /// @brief get qubit mapping
+  /// @return qubit mapping
+  const reg_t& get_qubit_map(void)
+  {
+    return qubit_map_;
+  }
+
+  /// @brief get qubits to be measured
+  /// @return a set of qubits
+  const std::unordered_set<uint_t>& get_measure_qubits(void)
+  {
+    return measure_qubits_;
+  }
 
   /// @brief set global phase
   /// @param phase global phase value

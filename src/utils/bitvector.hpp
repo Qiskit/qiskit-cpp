@@ -98,7 +98,7 @@ public:
   // convert from other data
   void from_uint(const uint_t src, const uint_t n, const uint_t base = 2);
   void from_string(const std::string &src, const uint_t base = 2);
-  void from_hex_string(const std::string &src, const uint_t base = 2);
+  void from_hex_string(const std::string &src, reg_t& map, const uint_t base = 2);
   void from_vector(const reg_t &src, const uint_t base = 2);
   void from_vector_with_map(const reg_t &src, const reg_t &map,
                             const uint_t base = 2);
@@ -161,14 +161,15 @@ void BitVector::from_string(const std::string &src, const uint_t base) {
   }
 }
 
-void BitVector::from_hex_string(const std::string &src, const uint_t base) {
+void BitVector::from_hex_string(const std::string &src, reg_t& map, const uint_t base) {
   uint_t size;
   if (src.size() > 2 && src[0] == '0' && src[1] == 'x') {
     size = src.size() - 2;
   } else {
     size = src.size();
   }
-  allocate(size*4, base);
+  if (size > size_)
+    allocate(size*4, base);
 
   for (int_t i = 0; i < size; i++) {
     char c = src[src.size() - 1 - i];
@@ -180,8 +181,9 @@ void BitVector::from_hex_string(const std::string &src, const uint_t base) {
     } else if(c >= 'A' && c <= 'F') {
       h = (uint_t)(c - 'A') + 10;
     }
-    uint_t pos = i % (REG_SIZE >> 2);
-    bits_[i / (REG_SIZE >> 2)] |= (h << (pos << 2));
+    uint_t imap = map[i];
+    uint_t pos = imap % (REG_SIZE >> 2);
+    bits_[imap / (REG_SIZE >> 2)] |= (h << (pos << 2));
   }
 }
 

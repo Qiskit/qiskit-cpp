@@ -30,13 +30,25 @@ namespace primitives {
 class SamplerPubResult {
 protected:
     BitArray data_;
+    SamplerPub pub_;
 public:
     /// @brief Create a new SamplerPubResult
     SamplerPubResult() {}
 
+    /// @brief Create a new SamplerPubResult
+    /// @param pub a pub for this result
+    SamplerPubResult(SamplerPub& pub)
+    {
+        pub_ = pub;
+    }
+
     /// @brief Create a new SamplerPubResult as a copy of src.
     /// @param src copy source.
-    SamplerPubResult(const SamplerPubResult& src) : data_(src.data_) {}
+    SamplerPubResult(const SamplerPubResult& src)
+    {
+        data_ = src.data_;
+        pub_ = src.pub_;
+    }
 
     /// @brief Result data for the pub.
     BitArray& data(void)
@@ -44,10 +56,27 @@ public:
         return data_;
     }
 
+    /// @brief get pub for this result
+    /// @return pub
+    const SamplerPub& pub(void) const
+    {
+        return pub_;
+    }
+
+    /// @brief set pub for this result
+    /// @param pub to be set
+    void set_pub(SamplerPub& pub)
+    {
+        pub_ = pub;
+    }
+
     /// @brief Set pub reuslt from json
     void from_json(json& input) {
+        data_.set_measure_mapping(pub_.circuit().get_measure_qubits(), pub_.circuit().get_qubit_map());
         data_.from_json(input);
     }
+
+
 };
 
 } // namespace primitives

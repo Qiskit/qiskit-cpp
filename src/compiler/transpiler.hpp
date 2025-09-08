@@ -53,7 +53,11 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit& circ, providers::Back
     return circ;
   }
   circuit::QuantumCircuit transpiled;
-  transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free));
+  std::vector<uint32_t> layout_map(qk_transpile_layout_num_output_qubits(result.layout));
+
+  qk_transpile_layout_output_permutation(result.layout, layout_map.data());
+
+  transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free), layout_map);
   transpiled.set_target(target);
 
   qk_transpile_layout_free(result.layout);

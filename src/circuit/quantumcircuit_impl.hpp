@@ -148,7 +148,7 @@ QuantumCircuit QuantumCircuit::copy(void)
 }
 
 
-void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ)
+void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t>& map)
 {
   if (rust_circuit_)
     rust_circuit_.reset();
@@ -161,6 +161,11 @@ void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ)
 
   qregs_[0].resize(num_qubits_);
   cregs_[0].resize(num_clbits_);
+
+  qubit_map_.resize(map.size());
+  for (int i = 0; i < map.size(); i++){
+    qubit_map_[i] = (uint_t)map[i];
+  }
 }
 
 QuantumCircuit::~QuantumCircuit()
@@ -766,6 +771,7 @@ void QuantumCircuit::measure(const uint_t qubit, const uint_t cbit)
 {
   pre_add_gate();
   qk_circuit_measure(rust_circuit_.get(), (std::uint32_t)qubit, (std::uint32_t)cbit);
+  measure_qubits_.insert(qubit);
 }
 
 void QuantumCircuit::measure(QuantumRegister& qreg, ClassicalRegister& creg)
@@ -777,6 +783,7 @@ void QuantumCircuit::measure(QuantumRegister& qreg, ClassicalRegister& creg)
   // TO DO implement multi-bits measure in C-API
   for (int_t i = 0; i< size; i++) {
     qk_circuit_measure(rust_circuit_.get(), (std::uint32_t)qreg[i], (std::uint32_t)creg[i]);
+    measure_qubits_.insert(qreg[i]);
   }
 }
 
@@ -943,6 +950,8 @@ void QuantumCircuit::compose(QuantumCircuit& circ, const reg_t& qubits, const re
     }
     qk_circuit_instruction_clear(op);
   }
+
+  measure_qubits_.merge(circ.measure_qubits_);
 }
 
 void QuantumCircuit::append(const Instruction& op, const reg_t& qubits)
@@ -965,6 +974,7 @@ void QuantumCircuit::append(const Instruction& op, const reg_t& qubits)
         qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
       } else if (std::string("measure") == op.name()) {
         qk_circuit_measure(rust_circuit_.get(), vqubits[0], vqubits[0]);
+        measure_qubits_.insert(qubits[0]);
       }
     }
   }
@@ -986,6 +996,7 @@ void QuantumCircuit::append(const Instruction& op, const std::vector<std::uint32
         qk_circuit_barrier(rust_circuit_.get(), qubits.data(), qubits.size());
       } else if (std::string("measure") == op.name()) {
         qk_circuit_measure(rust_circuit_.get(), qubits[0], qubits[0]);
+        measure_qubits_.insert((uint_t)qubits[0]);
       }
     }
   }
@@ -1011,6 +1022,7 @@ void QuantumCircuit::append(const CircuitInstruction& inst)
       qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
     } else if (std::string("measure") == inst.instruction().name()) {
       qk_circuit_measure(rust_circuit_.get(), vqubits[0], (std::uint32_t)inst.clbits()[0]);
+      measure_qubits_.insert(inst.qubits()[0]);
     }
   }
 }

@@ -45,7 +45,7 @@ public:
     /// @brief Create a new BasePrimitiveJob
     /// @param backend a backend to be used in this job
     /// @param id a unique id identifying the job.
-    BackendSamplerJob(providers::BackendV2& backend,std::string id) : BasePrimitiveJob(id), backend_(backend) {}
+    BackendSamplerJob(providers::BackendV2& backend, std::string id, std::vector<SamplerPub>& pubs) : BasePrimitiveJob(id, pubs), backend_(backend) {}
 
 
     /// @brief Return the status of the job.
@@ -102,7 +102,9 @@ public:
 
     PrimitiveResult result(void) override
     {
-        return backend_.result(job_id_);
+        auto result = backend_.result(job_id_);
+        result.set_pubs(pubs_);
+        return result;
     }
 };
 

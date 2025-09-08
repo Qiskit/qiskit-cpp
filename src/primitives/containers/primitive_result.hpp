@@ -80,6 +80,17 @@ public:
             pub_allocated_[i] = false;
         }
     }
+
+    /// @brief set pubs in the results
+    /// @param pubs a list of pubs to be set
+    void set_pubs(std::vector<SamplerPub>& pubs)
+    {
+        if (pubs.size() == pub_results_.size()) {
+            for (int i = 0; i < pub_results_.size(); i++) {
+                pub_results_[i].set_pub(pubs[i]);
+            }
+        }
+    }
 };
 
 } // namespace primitives

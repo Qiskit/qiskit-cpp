@@ -19,6 +19,7 @@
 
 
 #include <unordered_map>
+#include <unordered_set>
 #include "utils/bitvector.hpp"
 
 
@@ -30,6 +31,7 @@ namespace primitives {
 class BitArray {
 protected:
     std::vector<BitVector> array_;
+    reg_t measure_qubits_map_;
     uint_t num_bits_;
 public:
     /// @brief Create a new BitArray
@@ -38,11 +40,12 @@ public:
         num_bits_ = 0;
     }
 
-    /// @brief Create a new BitArray
-    /// @param num_samples The number of samples
-    /// @param num_bits The number of bits in each sample
-    BitArray(uint_t num_samples, uint_t num_bits) : array_(num_samples, BitVector(num_bits)), num_bits_(num_bits) {}
-    BitArray(const BitArray& src) : array_(src.array_), num_bits_(src.num_bits_) {}
+    BitArray(const BitArray& src)
+    {
+        array_ = src.array_;
+        measure_qubits_map_ = src.measure_qubits_map_;
+        num_bits_ = src.num_bits_;
+    }
 
     /// @brief Resize this BitArray with the specified num_samples and num_bits
     void allocate(uint_t num_samples, uint_t num_bits)
@@ -50,6 +53,12 @@ public:
         array_.resize(num_samples, BitVector(num_bits));
         num_bits_ = num_bits;
     }
+
+    /// @brief Make measure qubits mapping
+    /// @param measure_qubits qubits to be measured in the original circuit
+    /// @param qubits_map mapping of qubits caused by transpiler
+    void set_measure_mapping(const std::unordered_set<uint_t>& measure_qubits, const reg_t& qubits_map);
+
 
     /// @brief Return the number of bits
     /// @return the number of bits
@@ -146,12 +155,44 @@ void BitArray::from_json(json& input)
     auto samples = input["data"]["c"]["samples"];
     auto num_bits = input["data"]["c"]["num_bits"];
     auto num_shots = samples.size();
-    allocate(num_shots, num_bits);
+    if (num_bits_ == 0)
+        num_bits_ = num_bits;
+    allocate(num_shots, num_bits_);
     for (int i = 0; i < num_shots; i++) {
-        array_[i].from_hex_string(samples[i]);
+        array_[i].from_hex_string(samples[i], measure_qubits_map_);
     }
 }
 
+void BitArray::set_measure_mapping(const std::unordered_set<uint_t>& measure_qubits, const reg_t& qubits_map)
+{
+    num_bits_ = measure_qubits.size();
+    if (qubits_map.size() == 0) {
+        measure_qubits_map_.resize(num_bits_);
+        for (int i = 0; i< num_bits_; i++) {
+            measure_qubits_map_[i] = i;
+        }
+    } else {
+        reg_t orig_measure_map(qubits_map.size());
+        reg_t remap(qubits_map.size());
+        uint_t count = 0;
+        for (int i = 0; i< qubits_map.size(); i++) {
+            if (measure_qubits.find(i) != measure_qubits.end()) {
+
+                orig_measure_map[i] = count++;
+            }
+            // map to get original qubits
+            remap[qubits_map[i]] = i;
+        }
+
+        measure_qubits_map_.reserve(num_bits_);
+        for (int i = 0; i< remap.size(); i++) {
+            auto meas = measure_qubits.find(remap[i]);
+            if (meas != measure_qubits.end()) {
+                measure_qubits_map_.push_back(orig_measure_map[*meas]);
+            }
+        }
+    }
+}
 
 
 } // namespace primitives
