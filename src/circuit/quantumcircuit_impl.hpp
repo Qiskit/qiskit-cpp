@@ -129,7 +129,7 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit& circ)
   rust_circuit_ = circ.rust_circuit_;
   target_ = circ.target_;
 
-  measure_qubits_ = circ.measure_qubits_;
+  measure_map_ = circ.measure_map_;
   qubit_map_ = circ.qubit_map_;
 }
 
@@ -147,7 +147,7 @@ QuantumCircuit QuantumCircuit::copy(void)
 
   copied.target_ = target_;
 
-  copied.measure_qubits_ = measure_qubits_;
+  copied.measure_map_ = measure_map_;
   copied.qubit_map_ = qubit_map_;
   return copied;
 }
@@ -180,7 +180,7 @@ void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ, const
     QkCircuitInstruction* op = new QkCircuitInstruction;
     qk_circuit_get_instruction(rust_circuit_.get(), i, op);
     if (strcmp(op->name, "measure") == 0) {
-      measure_qubits_.insert(op->qubits[0]);
+      measure_map_.push_back(std::pair<uint_t, uint_t>((uint_t)op->qubits[0], (uint_t)op->clbits[0]));
     }
     qk_circuit_instruction_clear(op);
   }
@@ -790,7 +790,7 @@ void QuantumCircuit::measure(const uint_t qubit, const uint_t cbit)
 {
   pre_add_gate();
   qk_circuit_measure(rust_circuit_.get(), (std::uint32_t)qubit, (std::uint32_t)cbit);
-  measure_qubits_.insert(qubit);
+  measure_map_.push_back(std::pair<uint_t, uint_t>(qubit, cbit));
 }
 
 void QuantumCircuit::measure(QuantumRegister& qreg, ClassicalRegister& creg)
@@ -802,7 +802,7 @@ void QuantumCircuit::measure(QuantumRegister& qreg, ClassicalRegister& creg)
   // TO DO implement multi-bits measure in C-API
   for (int_t i = 0; i< size; i++) {
     qk_circuit_measure(rust_circuit_.get(), (std::uint32_t)qreg[i], (std::uint32_t)creg[i]);
-    measure_qubits_.insert(qreg[i]);
+    measure_map_.push_back(std::pair<uint_t, uint_t>(qreg[i], creg[i]));
   }
 }
 
@@ -970,7 +970,9 @@ void QuantumCircuit::compose(QuantumCircuit& circ, const reg_t& qubits, const re
     qk_circuit_instruction_clear(op);
   }
 
-  measure_qubits_.merge(circ.measure_qubits_);
+  for (auto m : circ.measure_map_) {
+    measure_map_.push_back(m);
+  }
 }
 
 void QuantumCircuit::append(const Instruction& op, const reg_t& qubits)
@@ -993,7 +995,7 @@ void QuantumCircuit::append(const Instruction& op, const reg_t& qubits)
         qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
       } else if (std::string("measure") == op.name()) {
         qk_circuit_measure(rust_circuit_.get(), vqubits[0], vqubits[0]);
-        measure_qubits_.insert(qubits[0]);
+        measure_map_.push_back(std::pair<uint_t, uint_t>(qubits[0], qubits[0]));
       }
     }
   }
@@ -1015,7 +1017,7 @@ void QuantumCircuit::append(const Instruction& op, const std::vector<std::uint32
         qk_circuit_barrier(rust_circuit_.get(), qubits.data(), qubits.size());
       } else if (std::string("measure") == op.name()) {
         qk_circuit_measure(rust_circuit_.get(), qubits[0], qubits[0]);
-        measure_qubits_.insert((uint_t)qubits[0]);
+        measure_map_.push_back(std::pair<uint_t, uint_t>((uint_t)qubits[0], (uint_t)qubits[0]));
       }
     }
   }
@@ -1041,7 +1043,7 @@ void QuantumCircuit::append(const CircuitInstruction& inst)
       qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
     } else if (std::string("measure") == inst.instruction().name()) {
       qk_circuit_measure(rust_circuit_.get(), vqubits[0], (std::uint32_t)inst.clbits()[0]);
-      measure_qubits_.insert(inst.qubits()[0]);
+      measure_map_.push_back(std::pair<uint_t, uint_t>(inst.qubits()[0], inst.clbits()[0]));
     }
   }
 }

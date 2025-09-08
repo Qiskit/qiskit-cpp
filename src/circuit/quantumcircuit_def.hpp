@@ -66,7 +66,7 @@ protected:
 
   std::shared_ptr<ControlFlowOp> pending_control_flow_op_ = nullptr;
   reg_t qubit_map_;
-  std::unordered_set<uint_t> measure_qubits_;
+  std::vector<std::pair<uint_t, uint_t>> measure_map_;
 public:
   /// @brief Create a new QuantumCircuit
   QuantumCircuit() {}
@@ -148,9 +148,9 @@ public:
 
   /// @brief get qubits to be measured
   /// @return a set of qubits
-  const std::unordered_set<uint_t>& get_measure_qubits(void)
+  std::vector<std::pair<uint_t, uint_t>>& get_measure_map(void)
   {
-    return measure_qubits_;
+    return measure_map_;
   }
 
   /// @brief set global phase

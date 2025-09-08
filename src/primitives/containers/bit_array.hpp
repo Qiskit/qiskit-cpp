@@ -31,7 +31,6 @@ namespace primitives {
 class BitArray {
 protected:
     std::vector<BitVector> array_;
-    reg_t measure_qubits_map_;
     uint_t num_bits_;
 public:
     /// @brief Create a new BitArray
@@ -43,7 +42,6 @@ public:
     BitArray(const BitArray& src)
     {
         array_ = src.array_;
-        measure_qubits_map_ = src.measure_qubits_map_;
         num_bits_ = src.num_bits_;
     }
 
@@ -54,17 +52,18 @@ public:
         num_bits_ = num_bits;
     }
 
-    /// @brief Make measure qubits mapping
-    /// @param measure_qubits qubits to be measured in the original circuit
-    /// @param qubits_map mapping of qubits caused by transpiler
-    void set_measure_mapping(const std::unordered_set<uint_t>& measure_qubits, const reg_t& qubits_map);
-
-
     /// @brief Return the number of bits
     /// @return the number of bits
     uint_t num_bits(void)
     {
         return num_bits_;
+    }
+
+    /// @brief set number of bits
+    /// @param bits
+    void set_bits(uint_t bits)
+    {
+        num_bits_ = bits;
     }
 
     /// @brief Return the number of shots sampled from the register in each configuration.
@@ -159,36 +158,7 @@ void BitArray::from_json(json& input)
         num_bits_ = num_bits;
     allocate(num_shots, num_bits_);
     for (int i = 0; i < num_shots; i++) {
-        array_[i].from_hex_string(samples[i], measure_qubits_map_);
-    }
-}
-
-void BitArray::set_measure_mapping(const std::unordered_set<uint_t>& measure_qubits, const reg_t& qubits_map)
-{
-    num_bits_ = measure_qubits.size();
-    if (qubits_map.size() == 0) {
-        measure_qubits_map_.resize(num_bits_);
-        for (int i = 0; i< num_bits_; i++) {
-            measure_qubits_map_[i] = i;
-        }
-    } else {
-        reg_t orig_measure_map(qubits_map.size());
-        reg_t remap(qubits_map.size());
-        uint_t count = 0;
-        for (int i = 0; i< qubits_map.size(); i++) {
-            if (measure_qubits.find(qubits_map[i]) != measure_qubits.end()) {
-                orig_measure_map[i] = count++;
-            }
-            // map to get original qubits
-            remap[qubits_map[i]] = i;
-        }
-
-        measure_qubits_map_.reserve(num_bits_);
-        for (int i = 0; i< remap.size(); i++) {
-            if (measure_qubits.find(i) != measure_qubits.end()) {
-                measure_qubits_map_.push_back(orig_measure_map[remap[i]]);
-            }
-        }
+        array_[i].from_hex_string(samples[i]);
     }
 }
 

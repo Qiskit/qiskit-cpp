@@ -72,7 +72,7 @@ public:
 
     /// @brief Set pub reuslt from json
     void from_json(json& input) {
-        data_.set_measure_mapping(pub_.circuit().get_measure_qubits(), pub_.circuit().get_qubit_map());
+        data_.set_bits(pub_.circuit().get_measure_map().size());
         data_.from_json(input);
     }
 
