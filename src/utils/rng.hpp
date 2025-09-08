@@ -17,6 +17,7 @@
 #ifndef __qiskitcpp_utils_rng_hpp__
 #define __qiskitcpp_utils_rng_hpp__
 
+#include <algorithm>
 #include <cstdint>
 #include <random>
 
