@@ -127,6 +127,7 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit& circ)
   cregs_ = circ.cregs_;
 
   rust_circuit_ = circ.rust_circuit_;
+  target_ = circ.target_;
 }
 
 QuantumCircuit QuantumCircuit::copy(void)
@@ -140,6 +141,8 @@ QuantumCircuit QuantumCircuit::copy(void)
 
   copied.qregs_ = qregs_;
   copied.cregs_ = cregs_;
+
+  copied.target_ = target_;
 
   return copied;
 }
@@ -169,7 +172,16 @@ QuantumCircuit::~QuantumCircuit()
   if (rust_circuit_){
     rust_circuit_.reset();
   }
+  if (target_) {
+    target_.reset();
+  }
 }
+
+void QuantumCircuit::set_target(std::shared_ptr<transpiler::Target> target)
+{
+  target_ = target;
+}
+
 
 void QuantumCircuit::get_qubits(reg_t& bits)
 {
@@ -1254,6 +1266,13 @@ std::string QuantumCircuit::to_qasm3(void)
           qasm3 << "  h _gate_q_1;" << std::endl;
           qasm3 << "}" << std::endl;
           break;
+        case QkGate_RZZ:
+          qasm3 << "gate rzz(p0) _gate_q_0, _gate_q_1 {" << std::endl;
+          qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
+          qasm3 << "  rz(p0) _gate_q_1;" << std::endl;
+          qasm3 << "  cx _gate_q_0, _gate_q_1;" << std::endl;
+          qasm3 << "}" << std::endl;
+          break;
         case QkGate_RCCX:
           qasm3 << "gate rccx _gate_q_0, _gate_q_1, _gate_q_2 {" << std::endl;
           qasm3 << "  h _gate_q_2;" << std::endl;
@@ -1375,8 +1394,8 @@ std::string QuantumCircuit::to_qasm3(void)
   // registers
   std::string creg_name = "c";
   std::string qreg_name = "q";
-  qasm3 << "bit[" << num_clbits_ << "] " << creg_name << ";" << std::endl;
-  qasm3 << "qubit[" << num_qubits_ << "] " << qreg_name << ";" << std::endl;
+  qasm3 << "bit[" << num_clbits() << "] " << creg_name << ";" << std::endl;
+  qasm3 << "qubit[" << num_qubits() << "] " << qreg_name << ";" << std::endl;
 
   // save ops
   uint_t nops;
