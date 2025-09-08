@@ -136,7 +136,7 @@ std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
 {
     std::unordered_map<std::string, uint_t> ret;
     for (int_t i = 0; i < array_.size(); i++) {
-        ret[array_[i].to_hex_string()]++;
+        ret[array_[i].to_string()]++;
     }
     return ret;
 }
