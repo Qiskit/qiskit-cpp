@@ -128,6 +128,9 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit& circ)
 
   rust_circuit_ = circ.rust_circuit_;
   target_ = circ.target_;
+
+  measure_qubits_ = circ.measure_qubits_;
+  qubit_map_ = circ.qubit_map_;
 }
 
 QuantumCircuit QuantumCircuit::copy(void)
@@ -144,6 +147,8 @@ QuantumCircuit QuantumCircuit::copy(void)
 
   copied.target_ = target_;
 
+  copied.measure_qubits_ = measure_qubits_;
+  copied.qubit_map_ = qubit_map_;
   return copied;
 }
 
@@ -166,6 +171,20 @@ void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ, const
   for (int i = 0; i < map.size(); i++){
     qubit_map_[i] = (uint_t)map[i];
   }
+
+  // get measured qubits
+  uint_t nops;
+  nops = qk_circuit_num_instructions(rust_circuit_.get());
+
+  for (uint_t i=0;i<nops;i++) {
+    QkCircuitInstruction* op = new QkCircuitInstruction;
+    qk_circuit_get_instruction(rust_circuit_.get(), i, op);
+    if (strcmp(op->name, "measure") == 0) {
+      measure_qubits_.insert(op->qubits[0]);
+    }
+    qk_circuit_instruction_clear(op);
+  }
+
 }
 
 QuantumCircuit::~QuantumCircuit()

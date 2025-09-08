@@ -168,7 +168,7 @@ void BitVector::from_hex_string(const std::string &src, reg_t& map, const uint_t
   } else {
     size = src.size();
   }
-  if (size > size_)
+  if (size*4 > ((size_ + 3) / 4) * 4)
     allocate(size*4, base);
 
   for (int_t i = 0; i < size; i++) {

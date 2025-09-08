@@ -176,8 +176,7 @@ void BitArray::set_measure_mapping(const std::unordered_set<uint_t>& measure_qub
         reg_t remap(qubits_map.size());
         uint_t count = 0;
         for (int i = 0; i< qubits_map.size(); i++) {
-            if (measure_qubits.find(i) != measure_qubits.end()) {
-
+            if (measure_qubits.find(qubits_map[i]) != measure_qubits.end()) {
                 orig_measure_map[i] = count++;
             }
             // map to get original qubits
@@ -186,9 +185,8 @@ void BitArray::set_measure_mapping(const std::unordered_set<uint_t>& measure_qub
 
         measure_qubits_map_.reserve(num_bits_);
         for (int i = 0; i< remap.size(); i++) {
-            auto meas = measure_qubits.find(remap[i]);
-            if (meas != measure_qubits.end()) {
-                measure_qubits_map_.push_back(orig_measure_map[*meas]);
+            if (measure_qubits.find(i) != measure_qubits.end()) {
+                measure_qubits_map_.push_back(orig_measure_map[remap[i]]);
             }
         }
     }
