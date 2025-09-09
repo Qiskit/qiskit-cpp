@@ -23,22 +23,22 @@ using namespace Qiskit::quantum_info;
 
 int main()
 {
-  auto a = SparseObservable::zero(10);
-  auto b = SparseObservable::identity(10);
-  a += b;
-  std::cout << a.to_string() <<std::endl;
+    auto a = SparseObservable::zero(10);
+    auto b = SparseObservable::identity(10);
+    a += b;
+    std::cout << a.to_string() <<std::endl;
 
 
-  std::string label = "-III+IZIXXYXI";
-  auto c = SparseObservable::from_label(label);
-  std::cout << c.to_string() <<std::endl;
+    std::string label = "-III+IZIXXYXI";
+    auto c = SparseObservable::from_label(label);
+    std::cout << c.to_string() <<std::endl;
 
-  std::vector<std::pair<std::string, std::complex<double>>> list;
-  list.push_back(std::make_pair(std::string("IIIXXIZYII"), std::complex(1.0)));
-  list.push_back(std::make_pair(std::string("I++IZIIXII"), std::complex(-1.0)));
-  auto d = SparseObservable::from_list(list);
-  std::cout << d.to_string() <<std::endl;
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("IIIXXIZYII"), std::complex<double>(1.0)));
+    list.push_back(std::make_pair(std::string("I++IZIIXII"), std::complex<double>(-1.0)));
+    auto d = SparseObservable::from_list(list);
+    std::cout << d.to_string() <<std::endl;
 
-  return 0;
+    return 0;
 }
 

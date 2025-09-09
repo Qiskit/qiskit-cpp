@@ -104,7 +104,7 @@ void BitArray::from_samples(const reg_t& samples, uint_t num_bits)
 {
     num_bits_ = num_bits;
     array_.resize(samples.size());
-    for (int_t i = 0; i < samples.size(); i++) {
+    for (uint_t i = 0; i < samples.size(); i++) {
         array_[i].from_uint(samples[i], num_bits);
     }
 }
@@ -113,7 +113,7 @@ void BitArray::from_samples(const uint_t* samples, uint_t num_samples, uint_t nu
 {
     num_bits_ = num_bits;
     array_.resize(num_samples);
-    for (int_t i = 0; i < num_samples; i++) {
+    for (uint_t i = 0; i < num_samples; i++) {
         array_[i].from_uint(samples[i], num_bits);
     }
 }
@@ -121,7 +121,7 @@ void BitArray::from_samples(const uint_t* samples, uint_t num_samples, uint_t nu
 void BitArray::from_bitstring(const std::vector<std::string>& samples)
 {
     array_.resize(samples.size());
-    for (int_t i = 0; i < samples.size(); i++) {
+    for (uint_t i = 0; i < samples.size(); i++) {
         array_[i].from_string(samples[i]);
     }
     num_bits_ = array_[0].size();
@@ -130,7 +130,7 @@ void BitArray::from_bitstring(const std::vector<std::string>& samples)
 std::vector<std::string> BitArray::get_bitstring(void)
 {
     std::vector<std::string> ret(array_.size());
-    for (int_t i = 0; i < array_.size(); i++) {
+    for (uint_t i = 0; i < array_.size(); i++) {
         ret[i] = array_[i].to_string();
     }
     return ret;
@@ -139,7 +139,7 @@ std::vector<std::string> BitArray::get_bitstring(void)
 std::vector<std::string> BitArray::get_hexstring(void)
 {
     std::vector<std::string> ret(array_.size());
-    for (int_t i = 0; i < array_.size(); i++) {
+    for (uint_t i = 0; i < array_.size(); i++) {
         ret[i] = array_[i].to_hex_string();
     }
     return ret;
@@ -148,7 +148,7 @@ std::vector<std::string> BitArray::get_hexstring(void)
 std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
 {
     std::unordered_map<std::string, uint_t> ret;
-    for (int_t i = 0; i < array_.size(); i++) {
+    for (uint_t i = 0; i < array_.size(); i++) {
         ret[array_[i].to_string()]++;
     }
     return ret;
@@ -162,7 +162,7 @@ void BitArray::from_json(nlohmann::ordered_json& input)
     if (num_bits_ == 0)
         num_bits_ = num_bits;
     allocate(num_shots, num_bits_);
-    for (int i = 0; i < num_shots; i++) {
+    for (uint_t i = 0; i < num_shots; i++) {
         array_[i].from_hex_string(samples[i]);
     }
 }

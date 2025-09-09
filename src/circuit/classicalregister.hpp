@@ -20,8 +20,10 @@
 #include "circuit/register.hpp"
 #include "qiskit.h"
 
-namespace Qiskit {
-namespace circuit {
+namespace Qiskit
+{
+namespace circuit
+{
 
 class Expr;
 class Unary;
@@ -35,82 +37,87 @@ class Binary;
 class ClassicalRegister : public Register
 {
 protected:
-  std::shared_ptr<QkClassicalRegister> rust_register_ = nullptr;
-  static uint_t instances_counter_;
+    std::shared_ptr<QkClassicalRegister> rust_register_ = nullptr;
+    static uint_t instances_counter_;
+
 public:
-  /// @brief Create a new ClassicalRegister
-  ClassicalRegister()
-  {
-    size_ = 0;
-    name_ = prefix();
-    rust_register_ = nullptr;
-  }
-  /// @brief Create a new ClassicalRegister
-  /// @param (size) The number of bits to include in the register
-  ClassicalRegister(uint_t size) : Register(size)
-  {
-    name_ = prefix();
-    std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char*)name_.c_str()), qk_classical_register_free);
-    rust_register_ = reg;
-  }
-
-  /// @brief Create a new ClassicalRegister
-  /// @param (size) The number of bits to include in the register
-  /// @param (name) The name of the register. If not provided, a unique name will be auto-generated from the register type.
-  ClassicalRegister(uint_t size, std::string name) : Register(size, name) {
-    std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char*)name.c_str()), qk_classical_register_free);
-    rust_register_ = reg;
-  }
-
-  /// @brief Create a new ClassicalRegister as a copy of reg.
-  /// @param (reg) copy source
-  ClassicalRegister(const ClassicalRegister& reg) : Register(reg) {
-    rust_register_ = reg.rust_register_;
-  }
-
-  /// @brief Prefix of the register name
-  /// @return prefix
-  std::string prefix(void) override
-  {
-    std::string ret = "c";
-    ret += std::to_string(instances_counter_++);
-    return ret;
-  }
-
-  ~ClassicalRegister() {
-    if (rust_register_) {
-      rust_register_.reset();
+    /// @brief Create a new ClassicalRegister
+    ClassicalRegister()
+    {
+        size_ = 0;
+        name_ = prefix();
+        rust_register_ = nullptr;
     }
-  }
+    /// @brief Create a new ClassicalRegister
+    /// @param (size) The number of bits to include in the register
+    ClassicalRegister(uint_t size) : Register(size)
+    {
+        name_ = prefix();
+        std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char *)name_.c_str()), qk_classical_register_free);
+        rust_register_ = reg;
+    }
 
-  const std::shared_ptr<QkClassicalRegister>& get_register() const {
-    return rust_register_;
-  }
+    /// @brief Create a new ClassicalRegister
+    /// @param (size) The number of bits to include in the register
+    /// @param (name) The name of the register. If not provided, a unique name will be auto-generated from the register type.
+    ClassicalRegister(uint_t size, std::string name) : Register(size, name)
+    {
+        std::shared_ptr<QkClassicalRegister> reg(qk_classical_register_new((std::uint32_t)size, (const char *)name.c_str()), qk_classical_register_free);
+        rust_register_ = reg;
+    }
 
-  // operator overloads for classical expressions
-  Unary operator!(void);
+    /// @brief Create a new ClassicalRegister as a copy of reg.
+    /// @param (reg) copy source
+    ClassicalRegister(const ClassicalRegister &reg) : Register(reg)
+    {
+        rust_register_ = reg.rust_register_;
+    }
 
-  Binary operator==(ClassicalRegister& right);
-  Binary operator!=(ClassicalRegister& right);
-  Binary operator<(ClassicalRegister& right);
-  Binary operator<=(ClassicalRegister& right);
-  Binary operator>(ClassicalRegister& right);
-  Binary operator>=(ClassicalRegister& right);
+    /// @brief Prefix of the register name
+    /// @return prefix
+    std::string prefix(void) override
+    {
+        std::string ret = "c";
+        ret += std::to_string(instances_counter_++);
+        return ret;
+    }
 
-  Binary operator==(uint_t right);
-  Binary operator!=(uint_t right);
-  Binary operator<(uint_t right);
-  Binary operator<=(uint_t right);
-  Binary operator>(uint_t right);
-  Binary operator>=(uint_t right);
+    ~ClassicalRegister()
+    {
+        if (rust_register_)
+        {
+            rust_register_.reset();
+        }
+    }
 
-  Binary operator==(Expr& right);
-  Binary operator!=(Expr& right);
-  Binary operator<(Expr& right);
-  Binary operator<=(Expr& right);
-  Binary operator>(Expr& right);
-  Binary operator>=(Expr& right);
+    const std::shared_ptr<QkClassicalRegister> &get_register() const
+    {
+        return rust_register_;
+    }
 
+    // operator overloads for classical expressions
+    Unary operator!(void);
+
+    Binary operator==(ClassicalRegister &right);
+    Binary operator!=(ClassicalRegister &right);
+    Binary operator<(ClassicalRegister &right);
+    Binary operator<=(ClassicalRegister &right);
+    Binary operator>(ClassicalRegister &right);
+    Binary operator>=(ClassicalRegister &right);
+
+    Binary operator==(uint_t right);
+    Binary operator!=(uint_t right);
+    Binary operator<(uint_t right);
+    Binary operator<=(uint_t right);
+    Binary operator>(uint_t right);
+    Binary operator>=(uint_t right);
+
+    Binary operator==(Expr &right);
+    Binary operator!=(Expr &right);
+    Binary operator<(Expr &right);
+    Binary operator<=(Expr &right);
+    Binary operator>(Expr &right);
+    Binary operator>=(Expr &right);
 };
 
 uint_t ClassicalRegister::instances_counter_ = 0;
@@ -118,5 +125,4 @@ uint_t ClassicalRegister::instances_counter_ = 0;
 } // namespace circuit
 } // namespace Qiskit
 
-#endif  // __qiskitcpp_circuit_classical_register_hpp__
-
+#endif // __qiskitcpp_circuit_classical_register_hpp__
