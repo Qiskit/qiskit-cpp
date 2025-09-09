@@ -35,50 +35,53 @@ using Sampler = BackendSamplerV2;
 
 int main()
 {
-  int num_qubits = 10;
-  QuantumCircuit circ(num_qubits, num_qubits);
+    int num_qubits = 10;
+    QuantumCircuit circ(num_qubits, num_qubits);
 
-  // GHZ circuit
-  circ.h(0);
-  for (int i = 0; i < num_qubits - 1; i++) {
-    circ.cx(i, i + 1);
-  }
-  for (int i = 0; i < num_qubits; i++) {
-    circ.measure(i,i);
-  }
+    // GHZ circuit
+    circ.h(0);
+    for (int i = 0; i < num_qubits - 1; i++)
+    {
+        circ.cx(i, i + 1);
+    }
+    for (int i = 0; i < num_qubits; i++)
+    {
+        circ.measure(i, i);
+    }
 
-  // set 2 environment variables before executing
-  // QISKIT_IBM_TOKEN = "your API key"
-  // QISKIT_IBM_INSTANCE = "your CRN"
-  auto service = QiskitRuntimeService();
-  auto backend = service.backend("ibm_torino");
-  auto sampler = Sampler(backend, 100);
+    // set 2 environment variables before executing
+    // QISKIT_IBM_TOKEN = "your API key"
+    // QISKIT_IBM_INSTANCE = "your CRN"
+    auto service = QiskitRuntimeService();
+    auto backend = service.backend("ibm_torino");
+    auto sampler = Sampler(backend, 100);
 
-  auto transpiled_circ = transpile(circ, backend);
+    auto transpiled_circ = transpile(circ, backend);
 
-  auto job = sampler.run({SamplerPub(transpiled_circ)});
-  if (job == nullptr)
-    return -1;
-  auto result = job->result();
+    auto job = sampler.run({SamplerPub(transpiled_circ)});
+    if (job == nullptr)
+        return -1;
+    auto result = job->result();
 
-  std::cout << " ===== results in JSON =====" << std::endl;
-  std::cout << result.json() << std::endl;
-  std::cout << " ===== results[0] in JSON =====" << std::endl;
-  std::cout << result.json()["results"][0]["data"]["c"] << std::endl;
-  auto pub_result = result[0];
-  auto hex = pub_result.data().get_hexstring();
-  std::cout << " ===== samples for pub[0] =====" << std::endl;
-  for (auto h : hex) {
-    std::cout << h << ", ";
-  }
-  std::cout << std::endl;
+    std::cout << " ===== results in JSON =====" << std::endl;
+    std::cout << result.json() << std::endl;
+    std::cout << " ===== results[0] in JSON =====" << std::endl;
+    std::cout << result.json()["results"][0]["data"]["c"] << std::endl;
+    auto pub_result = result[0];
+    auto hex = pub_result.data().get_hexstring();
+    std::cout << " ===== samples for pub[0] =====" << std::endl;
+    for (auto h : hex)
+    {
+        std::cout << h << ", ";
+    }
+    std::cout << std::endl;
 
-  std::cout << " ===== counts for pub[0] =====" << std::endl;
-  auto count = pub_result.data().get_counts();
-  for (auto c : count) {
-    std::cout << c.first << " : " << c.second << std::endl;
-  }
+    std::cout << " ===== counts for pub[0] =====" << std::endl;
+    auto count = pub_result.data().get_counts();
+    for (auto c : count)
+    {
+        std::cout << c.first << " : " << c.second << std::endl;
+    }
 
-  return 0;
+    return 0;
 }
-

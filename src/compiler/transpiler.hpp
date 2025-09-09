@@ -31,37 +31,43 @@ namespace compiler {
 /// @param seed_transpiler The seed for the transpiler (default = -1)
 /// @param approximation_degree The approximation degree a heurstic dial (default = 1.0)
 /// @return transpiled QuantumCircuit
-circuit::QuantumCircuit transpile(circuit::QuantumCircuit& circ, providers::BackendV2& backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
+circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::BackendV2 &backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
-  auto target = backend.target();
-  if (target == nullptr) {
-    return circ;
-  }
+    auto target = backend.target();
+    if (target == nullptr)
+    {
+        return circ;
+    }
 
-  QkTranspileOptions options = qk_transpiler_default_options();
-  options.optimization_level = (std::uint8_t)optimization_level;
-  options.seed = seed_transpiler;
-  options.approximation_degree = approximation_degree;
+    QkTranspileOptions options = qk_transpiler_default_options();
+    options.optimization_level = (std::uint8_t)optimization_level;
+    options.seed = seed_transpiler;
+    options.approximation_degree = approximation_degree;
 
-  QkTranspileResult result;
-  char* error;
+    QkTranspileResult result;
+    char *error;
 
-  QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target->rust_target(), &options, &result, &error);
-  if (ret != QkExitCode_Success) {
-    std::cerr << "transpile error (" << ret << ") : "<< error << std::endl;
+    QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target->rust_target(), &options, &result, &error);
+    if (ret != QkExitCode_Success)
+    {
+        std::cerr << "transpile error (" << ret << ") : " << error << std::endl;
+        target.reset();
+        return circ;
+    }
+
+    // save qubit map after transpile
+    std::vector<uint32_t> layout_map(qk_transpile_layout_num_output_qubits(result.layout));
+    qk_transpile_layout_final_layout(result.layout, false, layout_map.data());
+
+    circuit::QuantumCircuit transpiled;
+    transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free), layout_map);
+    transpiled.set_target(target);
+
+    qk_transpile_layout_free(result.layout);
     target.reset();
-    return circ;
-  }
-  circuit::QuantumCircuit transpiled;
-  transpiled.from_rust_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free));
-  transpiled.set_target(target);
 
-  qk_transpile_layout_free(result.layout);
-  target.reset();
-
-  return transpiled;
+    return transpiled;
 }
-
 
 } // namespace compiler
 } // namespace Qiskit

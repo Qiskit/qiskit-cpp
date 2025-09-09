@@ -22,7 +22,6 @@
 #include "primitives/backend_sampler_job.hpp"
 
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -121,7 +120,7 @@ public:
         qrmi_string_free((char *)id);
         std::cerr << " QRMI Job submitted to " << name_ << ", JOB ID = " << job_id << std::endl;
 
-        return std::make_shared<primitives::BackendSamplerJob>(*this, job_id);
+        return std::make_shared<primitives::BackendSamplerJob>(*this, job_id, input_pubs);
     }
 
 

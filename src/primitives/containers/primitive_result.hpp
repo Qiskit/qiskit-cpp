@@ -29,9 +29,9 @@ namespace primitives {
 /// @brief A container for multiple pub results and global metadata. Only SamplerPub is supported.
 class PrimitiveResult {
 protected:
-    std::vector<SamplerPubResult> pub_results_;
-    std::vector<bool> pub_allocated_;
-    nlohmann::json json_;
+    std::vector<SamplerPubResult> pub_results_;     // a list of pub results
+    std::vector<bool> pub_allocated_;               // set if data in pub result is allocated
+    nlohmann::ordered_json json_;                   // json formatted results (raw output from Quantum)
 public:
     /// @brief Create a new PrimitiveResult
     PrimitiveResult() {}
@@ -50,9 +50,13 @@ public:
         return pub_results_.size();
     }
 
+    /// @brief Return the pub result
+    /// @param i index of pub
+    /// @return The pub result
     SamplerPubResult& operator[](uint_t i)
     {
         if (!pub_allocated_[i]) {
+            // allocate bitstring data here for the first touch
             pub_results_[i].from_json(json_["results"][i]);
             pub_allocated_[i] = true;
         }
@@ -61,7 +65,7 @@ public:
 
     /// @brief Return json object containing results
     /// @return The reference to json object
-    nlohmann::json& json(void)
+    nlohmann::ordered_json& json(void)
     {
         return json_;
     }
@@ -70,14 +74,25 @@ public:
     /// @param str input string
     void from_string(std::string str)
     {
-        json_ = json::parse(str);
+        json_ = nlohmann::ordered_json::parse(str);
 
         auto num_results = json_["results"].size();
         pub_results_.resize(num_results);
         pub_allocated_.resize(num_results);
-        // allocating pub on demand to save memory
+        // allocating pub on demand in operator[] to save memory
         for (int i = 0; i < num_results; i++) {
             pub_allocated_[i] = false;
+        }
+    }
+
+    /// @brief set pubs in the results
+    /// @param pubs a list of pubs to be set
+    void set_pubs(const std::vector<SamplerPub>& pubs)
+    {
+        if (pubs.size() == pub_results_.size()) {
+            for (int i = 0; i < pub_results_.size(); i++) {
+                pub_results_[i].set_pub(pubs[i]);
+            }
         }
     }
 };
