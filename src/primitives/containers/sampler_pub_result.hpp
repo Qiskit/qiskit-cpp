@@ -18,7 +18,6 @@
 #define __qiskitcpp_primitives_sampler_pub_result_hpp__
 
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #include "primitives/containers/bit_array.hpp"
 
@@ -29,8 +28,8 @@ namespace primitives {
 /// @brief Result of Sampler Pub(Primitive Unified Bloc).
 class SamplerPubResult {
 protected:
-    BitArray data_;
-    SamplerPub pub_;
+    BitArray data_;     // array of bitstrings
+    SamplerPub pub_;    //
 public:
     /// @brief Create a new SamplerPubResult
     SamplerPubResult() {}
@@ -65,13 +64,14 @@ public:
 
     /// @brief set pub for this result
     /// @param pub to be set
-    void set_pub(SamplerPub& pub)
+    void set_pub(const SamplerPub& pub)
     {
         pub_ = pub;
     }
 
     /// @brief Set pub reuslt from json
-    void from_json(json& input) {
+    void from_json(nlohmann::ordered_json& input)
+    {
         data_.set_bits(pub_.circuit().get_measure_map().size());
         data_.from_json(input);
     }

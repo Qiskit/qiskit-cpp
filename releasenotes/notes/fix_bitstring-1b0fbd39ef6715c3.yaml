@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Fix the length of bitstring defined by the number of clbits measured in the circuit.

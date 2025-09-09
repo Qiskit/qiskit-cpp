@@ -17,9 +17,9 @@
 #ifndef __qiskitcpp_primitives_bit_array_hpp__
 #define __qiskitcpp_primitives_bit_array_hpp__
 
+#include <nlohmann/json.hpp>
 
 #include <unordered_map>
-#include <unordered_set>
 #include "utils/bitvector.hpp"
 
 
@@ -39,6 +39,8 @@ public:
         num_bits_ = 0;
     }
 
+    /// @brief Create a BitArray from other
+    /// @param src BitArrya to be copied
     BitArray(const BitArray& src)
     {
         array_ = src.array_;
@@ -46,6 +48,8 @@ public:
     }
 
     /// @brief Resize this BitArray with the specified num_samples and num_bits
+    /// @param num_samples number of samples (shots) saved in this array
+    /// @param num_bits number of bits for each bitstring
     void allocate(uint_t num_samples, uint_t num_bits)
     {
         array_.resize(num_samples, BitVector(num_bits));
@@ -92,7 +96,8 @@ public:
     std::unordered_map<std::string, uint_t> get_counts(void);
 
     /// @brief Set pub samples from json
-    void from_json(json& input);
+    /// @param input JSON input
+    void from_json(nlohmann::ordered_json& input);
 };
 
 void BitArray::from_samples(const reg_t& samples, uint_t num_bits)
@@ -149,7 +154,7 @@ std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
     return ret;
 }
 
-void BitArray::from_json(json& input)
+void BitArray::from_json(nlohmann::ordered_json& input)
 {
     auto samples = input["data"]["c"]["samples"];
     auto num_bits = input["data"]["c"]["num_bits"];

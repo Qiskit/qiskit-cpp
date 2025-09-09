@@ -22,7 +22,6 @@
 #include "primitives/backend_sampler_job.hpp"
 
 #include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #ifdef _MSC_VER
 #include <windows.h>

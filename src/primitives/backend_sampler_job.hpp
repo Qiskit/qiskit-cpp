@@ -30,9 +30,6 @@
 
 #include "qrmi.h"
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
-
 namespace Qiskit {
 namespace primitives {
 
