@@ -24,8 +24,8 @@
 namespace Qiskit {
 
 // Numeric Types
-using int_t = int_fast64_t;
-using uint_t = uint_fast64_t;
+using int_t = std::int64_t;
+using uint_t = std::uint64_t;
 using int32_t = std::int32_t;
 using uint32_t = std::uint32_t;
 using complex_t = std::complex<double>;

@@ -57,6 +57,15 @@ public:
         qrmi_ = qrmi;
     }
 
+    /// @brief Create a new QRMIBackend from other
+    QRMIBackend(const QRMIBackend& other)
+    {
+        name_ = other.name_;
+        primitive_name_ = other.primitive_name_;
+        qrmi_ = other.qrmi_;
+        target_ = other.target_;
+    }
+
     ~QRMIBackend()
     {
         if (qrmi_) {

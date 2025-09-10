@@ -89,7 +89,7 @@ QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<
     qregs_.resize(qregs.size());
     cregs_.resize(cregs.size());
 
-    for (int_t i = 0; i < qregs.size(); i++)
+    for (uint_t i = 0; i < qregs.size(); i++)
     {
         qregs_[i] = qregs[i];
         qregs[i][0].get_register()->set_base_index(num_qubits_);
@@ -97,7 +97,7 @@ QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<
         num_qubits_ += qregs[i].size();
     }
 
-    for (int_t i = 0; i < cregs.size(); i++)
+    for (uint_t i = 0; i < cregs.size(); i++)
     {
         cregs_[i] = cregs[i];
         cregs[i][0].get_register()->set_base_index(num_clbits_);
@@ -107,11 +107,11 @@ QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<
 
     rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_), qk_circuit_free);
 
-    for (int_t i = 0; i < qregs_.size(); i++)
+    for (uint_t i = 0; i < qregs_.size(); i++)
     {
         qk_circuit_add_quantum_register(rust_circuit_.get(), qregs_[i].get_register().get());
     }
-    for (int_t i = 0; i < cregs_.size(); i++)
+    for (uint_t i = 0; i < cregs_.size(); i++)
     {
         qk_circuit_add_classical_register(rust_circuit_.get(), cregs_[i].get_register().get());
     }
@@ -220,9 +220,9 @@ void QuantumCircuit::get_qubits(reg_t &bits)
 {
     bits.clear();
     bits.reserve(num_qubits_);
-    for (int_t i = 0; i < qregs_.size(); i++)
+    for (uint_t i = 0; i < qregs_.size(); i++)
     {
-        for (int_t j = 0; j < qregs_[i].size(); j++)
+        for (uint_t j = 0; j < qregs_[i].size(); j++)
         {
             bits.push_back(qregs_[i][j]);
         }
@@ -233,9 +233,9 @@ void QuantumCircuit::get_clbits(reg_t &bits)
 {
     bits.clear();
     bits.reserve(num_clbits_);
-    for (int_t i = 0; i < cregs_.size(); i++)
+    for (uint_t i = 0; i < cregs_.size(); i++)
     {
-        for (int_t j = 0; j < cregs_[i].size(); j++)
+        for (uint_t j = 0; j < cregs_[i].size(); j++)
         {
             bits.push_back(cregs_[i][j]);
         }
@@ -469,7 +469,7 @@ void QuantumCircuit::unitary(const std::vector<complex_t> &unitary, const reg_t 
 {
     pre_add_gate();
     std::vector<std::uint32_t> qubits32(qubits.size());
-    for (int_t i = 0; i < qubits.size(); i++)
+    for (uint_t i = 0; i < qubits.size(); i++)
         qubits32[i] = (std::uint32_t)qubits[i];
 
     qk_circuit_unitary(rust_circuit_.get(), (const QkComplex64 *)unitary.data(), qubits32.data(), (std::uint32_t)qubits.size(), true);
@@ -809,11 +809,11 @@ void QuantumCircuit::measure(const uint_t qubit, const uint_t cbit)
 void QuantumCircuit::measure(QuantumRegister &qreg, ClassicalRegister &creg)
 {
     pre_add_gate();
-    int size = qreg.size();
+    uint_t size = qreg.size();
     if (size > creg.size())
         size = creg.size();
     // TO DO implement multi-bits measure in C-API
-    for (int_t i = 0; i < size; i++)
+    for (uint_t i = 0; i < size; i++)
     {
         qk_circuit_measure(rust_circuit_.get(), (std::uint32_t)qreg[i], (std::uint32_t)creg[i]);
         measure_map_.push_back(std::pair<uint_t, uint_t>(qreg[i], creg[i]));
@@ -830,7 +830,7 @@ void QuantumCircuit::reset(QuantumRegister &qreg)
 {
     pre_add_gate();
     // TO DO implement multi-bits rest in C-API
-    for (int_t i = 0; i < qreg.size(); i++)
+    for (uint_t i = 0; i < qreg.size(); i++)
     {
         qk_circuit_reset(rust_circuit_.get(), (std::uint32_t)qreg[i]);
     }
@@ -847,11 +847,11 @@ void QuantumCircuit::barrier(const reg_t &qubits)
 {
     pre_add_gate();
     std::vector<std::uint32_t> qubits32(qubits.size());
-    for (int_t i = 0; i < qubits.size(); i++)
+    for (uint_t i = 0; i < qubits.size(); i++)
     {
         qubits32[i] = (std::uint32_t)qubits[i];
     }
-    qk_circuit_barrier(rust_circuit_.get(), qubits32.data(), qubits32.size());
+    qk_circuit_barrier(rust_circuit_.get(), qubits32.data(), (uint32_t)qubits32.size());
 }
 
 void QuantumCircuit::add_pending_control_flow_op(void)
@@ -885,7 +885,7 @@ uint_t QuantumCircuit::num_parameters(void) const
 void QuantumCircuit::assign_parameters(const std::vector<std::string> keys, const std::vector<double> values)
 {
     std::vector<char *> c_keys;
-    for (int_t i = 0; i < keys.size(); i++)
+    for (uint_t i = 0; i < keys.size(); i++)
     {
         c_keys.push_back((char *)keys[i].c_str());
     }
@@ -920,12 +920,12 @@ QuantumCircuit QuantumCircuit::operator+(QuantumCircuit &rhs)
         rhs.get_clbits(clbits);
         uint_t size = std::min(qubits.size(), clbits.size());
         std::vector<std::uint32_t> vqubits(size);
-        for (int_t i = 0; i < size; i++)
+        for (uint_t i = 0; i < size; i++)
         {
             vqubits[i] = (std::uint32_t)qubits[i];
         }
         std::vector<std::uint32_t> vclbits(size);
-        for (int_t i = 0; i < size; i++)
+        for (uint_t i = 0; i < size; i++)
         {
             vclbits[i] = (std::uint32_t)clbits[i];
         }
@@ -951,12 +951,12 @@ void QuantumCircuit::compose(QuantumCircuit &circ, const reg_t &qubits, const re
     pre_add_gate();
     uint_t size = std::min(qubits.size(), clbits.size());
     std::vector<std::uint32_t> vqubits(size);
-    for (int_t i = 0; i < size; i++)
+    for (uint_t i = 0; i < size; i++)
     {
         vqubits[i] = (std::uint32_t)qubits[i];
     }
     std::vector<std::uint32_t> vclbits(size);
-    for (int_t i = 0; i < size; i++)
+    for (uint_t i = 0; i < size; i++)
     {
         vclbits[i] = (std::uint32_t)clbits[i];
     }
@@ -972,14 +972,14 @@ void QuantumCircuit::compose(QuantumCircuit &circ, const reg_t &qubits, const re
 
         std::vector<std::uint32_t> vqubits(op->num_qubits);
         std::vector<std::uint32_t> vclbits;
-        for (int j = 0; j < op->num_qubits; j++)
+        for (uint_t j = 0; j < op->num_qubits; j++)
         {
             vqubits[j] = (std::uint32_t)qubits[op->qubits[j]];
         }
         if (op->num_clbits > 0)
         {
             vclbits.resize(op->num_clbits);
-            for (int j = 0; j < op->num_clbits; j++)
+            for (uint_t j = 0; j < op->num_clbits; j++)
             {
                 vclbits[j] = (std::uint32_t)clbits[op->clbits[j]];
             }
@@ -991,7 +991,7 @@ void QuantumCircuit::compose(QuantumCircuit &circ, const reg_t &qubits, const re
         }
         else if (std::string("barrier") == op->name)
         {
-            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
+            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
         }
         else if (std::string("measure") == op->name)
         {
@@ -1015,7 +1015,7 @@ void QuantumCircuit::append(const Instruction &op, const reg_t &qubits)
     if (op.num_qubits() == qubits.size())
     {
         std::vector<std::uint32_t> vqubits(qubits.size());
-        for (int_t i = 0; i < qubits.size(); i++)
+        for (uint_t i = 0; i < qubits.size(); i++)
         {
             vqubits[i] = (std::uint32_t)qubits[i];
         }
@@ -1035,7 +1035,7 @@ void QuantumCircuit::append(const Instruction &op, const reg_t &qubits)
             }
             else if (std::string("barrier") == op.name())
             {
-                qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
+                qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
             }
             else if (std::string("measure") == op.name())
             {
@@ -1066,7 +1066,7 @@ void QuantumCircuit::append(const Instruction &op, const std::vector<std::uint32
             }
             else if (std::string("barrier") == op.name())
             {
-                qk_circuit_barrier(rust_circuit_.get(), qubits.data(), qubits.size());
+                qk_circuit_barrier(rust_circuit_.get(), qubits.data(), (uint32_t)qubits.size());
             }
             else if (std::string("measure") == op.name())
             {
@@ -1080,7 +1080,7 @@ void QuantumCircuit::append(const Instruction &op, const std::vector<std::uint32
 void QuantumCircuit::append(const CircuitInstruction &inst)
 {
     std::vector<std::uint32_t> vqubits(inst.qubits().size());
-    for (int_t i = 0; i < inst.qubits().size(); i++)
+    for (uint_t i = 0; i < inst.qubits().size(); i++)
     {
         vqubits[i] = (std::uint32_t)inst.qubits()[i];
     }
@@ -1100,7 +1100,7 @@ void QuantumCircuit::append(const CircuitInstruction &inst)
         }
         else if (std::string("barrier") == inst.instruction().name())
         {
-            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), vqubits.size());
+            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
         }
         else if (std::string("measure") == inst.instruction().name())
         {
@@ -1177,7 +1177,7 @@ void QuantumCircuit::print(void) const
         if (op->num_qubits > 0)
         {
             std::cout << "(";
-            for (int j = 0; j < op->num_qubits; j++)
+            for (uint_t j = 0; j < op->num_qubits; j++)
             {
                 std::cout << op->qubits[j];
                 if (j != op->num_qubits - 1)
@@ -1188,7 +1188,7 @@ void QuantumCircuit::print(void) const
         if (op->num_clbits > 0)
         {
             std::cout << "(";
-            for (int j = 0; j < op->num_clbits; j++)
+            for (uint_t j = 0; j < op->num_clbits; j++)
             {
                 std::cout << op->clbits[j];
                 if (j != op->num_clbits - 1)
@@ -1199,7 +1199,7 @@ void QuantumCircuit::print(void) const
         if (op->num_params > 0)
         {
             std::cout << "[";
-            for (int j = 0; j < op->num_params; j++)
+            for (uint_t j = 0; j < op->num_params; j++)
             {
                 std::cout << op->params[j];
                 if (j != op->num_params - 1)
@@ -1527,7 +1527,7 @@ std::string QuantumCircuit::to_qasm3(void)
         {
             if (op->num_qubits == op->num_clbits)
             {
-                for (int j = 0; j < op->num_qubits; j++)
+                for (uint_t j = 0; j < op->num_qubits; j++)
                 {
                     qasm3 << creg_name << "[" << op->clbits[j] << "] = " << op->name << " " << qreg_name << "[" << op->qubits[j] << "];" << std::endl;
                 }
@@ -1546,7 +1546,7 @@ std::string QuantumCircuit::to_qasm3(void)
             if (op->num_params > 0)
             {
                 qasm3 << "(";
-                for (int j = 0; j < op->num_params; j++)
+                for (uint_t j = 0; j < op->num_params; j++)
                 {
                     qasm3 << op->params[j];
                     if (j != op->num_params - 1)
@@ -1557,7 +1557,7 @@ std::string QuantumCircuit::to_qasm3(void)
             if (op->num_qubits > 0)
             {
                 qasm3 << " ";
-                for (int j = 0; j < op->num_qubits; j++)
+                for (uint_t j = 0; j < op->num_qubits; j++)
                 {
                     qasm3 << qreg_name << "[" << op->qubits[j] << "]";
                     if (j != op->num_qubits - 1)

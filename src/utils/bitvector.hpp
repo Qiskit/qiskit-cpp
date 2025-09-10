@@ -192,7 +192,7 @@ void BitVector::from_hex_string(const std::string &src, const uint_t base)
     if (size * 4 > ((size_ + 3) / 4) * 4)
         allocate(size * 4, base);
 
-    for (int_t i = 0; i < size; i++)
+    for (uint_t i = 0; i < size; i++)
     {
         char c = src[src.size() - 1 - i];
         uint_t h = 0;
@@ -278,11 +278,11 @@ std::string BitVector::to_hex_string(void)
 
         if (val < 10)
         {
-            str[str.size() - 1 - i] = ('0' + val);
+            str[str.size() - 1 - i] = ('0' + (char)val);
         }
         else
         {
-            str[str.size() - 1 - i] = ('a' + (val - 10));
+            str[str.size() - 1 - i] = ('a' + (char)(val - 10));
         }
     }
     return str;
