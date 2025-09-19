@@ -49,11 +49,15 @@ int main()
         circ.measure(i, i);
     }
 
-    // set 2 environment variables before executing
+    // set $HONE/.qiskit/qiskit-ibm.json
+    // by using Qiskit IBM Runtime
+    // see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk
+    //
+    // or set 2 environment variables before executing
     // QISKIT_IBM_TOKEN = "your API key"
     // QISKIT_IBM_INSTANCE = "your CRN"
     auto service = QiskitRuntimeService();
-    auto backend = service.backend("ibm_torino");
+    auto backend = service.backend("ibm_fez");
     auto sampler = Sampler(backend, 100);
 
     auto transpiled_circ = transpile(circ, backend);
@@ -63,10 +67,6 @@ int main()
         return -1;
     auto result = job->result();
 
-    std::cout << " ===== results in JSON =====" << std::endl;
-    std::cout << result.json() << std::endl;
-    std::cout << " ===== results[0] in JSON =====" << std::endl;
-    std::cout << result.json()["results"][0]["data"]["c"] << std::endl;
     auto pub_result = result[0];
     auto hex = pub_result.data().get_hexstring();
     std::cout << " ===== samples for pub[0] =====" << std::endl;

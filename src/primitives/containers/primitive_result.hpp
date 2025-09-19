@@ -30,17 +30,16 @@ namespace primitives {
 class PrimitiveResult {
 protected:
     std::vector<SamplerPubResult> pub_results_;     // a list of pub results
-    std::vector<bool> pub_allocated_;               // set if data in pub result is allocated
-    nlohmann::ordered_json json_;                   // json formatted results (raw output from Quantum)
 public:
     /// @brief Create a new PrimitiveResult
     PrimitiveResult() {}
 
-    /// @brief Create a new PrimitiveResult from string
-    /// @param str input string
-    PrimitiveResult(std::string str)
+
+    /// @brief allocate pub results
+    /// @param num_results number of pub results to be allocated
+    void allocate(uint_t num_results)
     {
-        from_string(str);
+        pub_results_.resize(num_results);
     }
 
     /// @brief Return the number of PUBs in this result
@@ -55,34 +54,7 @@ public:
     /// @return The pub result
     SamplerPubResult& operator[](uint_t i)
     {
-        if (!pub_allocated_[i]) {
-            // allocate bitstring data here for the first touch
-            pub_results_[i].from_json(json_["results"][i]);
-            pub_allocated_[i] = true;
-        }
         return pub_results_[i];
-    }
-
-    /// @brief Return json object containing results
-    /// @return The reference to json object
-    nlohmann::ordered_json& json(void)
-    {
-        return json_;
-    }
-
-    /// @brief Create a new PrimitiveResult from string
-    /// @param str input string
-    void from_string(std::string str)
-    {
-        json_ = nlohmann::ordered_json::parse(str);
-
-        auto num_results = json_["results"].size();
-        pub_results_.resize(num_results);
-        pub_allocated_.resize(num_results);
-        // allocating pub on demand in operator[] to save memory
-        for (int i = 0; i < num_results; i++) {
-            pub_allocated_[i] = false;
-        }
     }
 
     /// @brief set pubs in the results

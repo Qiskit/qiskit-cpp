@@ -48,6 +48,12 @@ public:
     /// @brief Create a new target
     Target() {}
 
+    /// @brief Create a new target
+    Target(QkTarget* target)
+    {
+        target_ = target;
+    }
+
     ~Target()
     {
         if (target_)

@@ -27,8 +27,7 @@
 
 #include "primitives/base/base_primitive_job.hpp"
 #include "providers/backend.hpp"
-
-#include "qrmi.h"
+#include "providers/job.hpp"
 
 namespace Qiskit {
 namespace primitives {
@@ -37,70 +36,103 @@ namespace primitives {
 /// @brief Job class for Backend Sampler primitive.
 class BackendSamplerJob : public BasePrimitiveJob {
 protected:
-    providers::BackendV2& backend_;
+    std::shared_ptr<providers::Job> job_ = nullptr;
 public:
     /// @brief Create a new BasePrimitiveJob
-    /// @param backend a backend to be used in this job
-    /// @param id a unique id identifying the job.
-    BackendSamplerJob(providers::BackendV2& backend, std::string id, std::vector<SamplerPub>& pubs) : BasePrimitiveJob(id, pubs), backend_(backend) {}
+    /// @param job a job pointer to run pubs
+    /// @param pubs a list of pub
+    BackendSamplerJob(std::shared_ptr<providers::Job> job, std::vector<SamplerPub>& pubs) : BasePrimitiveJob(pubs)
+    {
+        job_ = job;
+    }
 
+    BackendSamplerJob(const BackendSamplerJob& other) : BasePrimitiveJob(other)
+    {
+        job_ = other.job_;
+    }
+
+    ~BackendSamplerJob()
+    {
+        if (job_)
+            job_.reset();
+    }
 
     /// @brief Return the status of the job.
     /// @return JobStatus enum.
     providers::JobStatus status(void) override
     {
-        return backend_.status(job_id_);
+        return job_->status();
     }
 
     /// @brief Return whether the job is actively running.
     /// @return true if job is actively running, otherwise false.
     bool running(void) override
     {
-        return backend_.status(job_id_) == providers::JobStatus::RUNNING;
+        return job_->status() == providers::JobStatus::RUNNING;
     }
 
     /// @brief Return whether the job is queued.
     /// @return true if job is queued, otherwise false.
     bool queued(void)
     {
-        return backend_.status(job_id_) == providers::JobStatus::QUEUED;
+        return job_->status() == providers::JobStatus::QUEUED;
     }
 
     /// @brief Return whether the job has successfully run.
     /// @return true if successfully run, otherwise false.
     bool done(void) override
     {
-        return backend_.status(job_id_) == providers::JobStatus::DONE;
+        return job_->status() == providers::JobStatus::DONE;
     }
 
     /// @brief Return whether the job has been cancelled.
     /// @return true if job has been cancelled, otherwise false.
     bool cancelled(void) override
     {
-        return backend_.status(job_id_) == providers::JobStatus::CANCELLED;
+        return job_->status() == providers::JobStatus::CANCELLED;
     }
 
     /// @brief Return whether the job is in a final job state such as DONE or ERROR.
     /// @return true if job is in a final job state, otherwise false.
     bool in_final_state(void) override
     {
-        auto status = backend_.status(job_id_);
+        auto status = job_->status();
         if (status == providers::JobStatus::DONE || status == providers::JobStatus::CANCELLED || status == providers::JobStatus::FAILED)
             return true;
         return false;
     }
 
-
     /// @brief Attempt to cancel the job.
     bool cancel(void) override
     {
-        return backend_.stop_job(job_id_);
+        //return job_.stop_job();
+        return true;
     }
 
     PrimitiveResult result(void) override
     {
-        auto result = backend_.result(job_id_);
-        result.set_pubs(pubs_);
+        providers::JobStatus st;
+        while (true) {
+            st = job_->status();
+            if (st == providers::JobStatus::DONE || st == providers::JobStatus::CANCELLED || st == providers::JobStatus::FAILED)
+                break;
+#ifdef _MSC_VER
+            Sleep(1);
+#else
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+#endif
+        }
+
+        PrimitiveResult result;
+        if (st == providers::JobStatus::DONE) {
+            uint_t num_results = job_->num_results();
+            result.allocate(num_results);
+
+            for (uint_t i = 0; i< num_results; i++) {
+                result[i].set_pub(pubs_[i]);
+                job_->result(i, result[i]);
+            }
+        }
         return result;
     }
 };

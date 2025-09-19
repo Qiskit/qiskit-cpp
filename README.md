@@ -34,12 +34,42 @@ This interface is based on Qiskit C-API introduced in Qiskit 2.1.
 
 ### Preparing Qiskit and Qiskit C extension
 
-Before building Qiskit C++, install Qiskit 2.1 or later and build Qiskit C extension library https://github.com/Qiskit/qiskit/tree/main/crates/cext
+Before building Qiskit C++, install Qiskit 2.2 or later and build Qiskit C extension library https://github.com/Qiskit/qiskit/tree/main/crates/cext
 
 ```shell-session
 $ git clone git@github.com:Qiskit/qiskit.git
 $ cd qiskit
 $ make c
+```
+
+### Preparing Interface API to Quantum hardware
+
+Qiskit C++ requires one of the following APIs to access IBM Quantum Platform to run the quantum circuits.
+
+- qiskit-ibm-runtime C (https://github.com/Qiskit/qiskit-ibm-runtime-c)
+- QRMI (https://github.com/qiskit-community/qrmi)
+
+Before building your application with Qiskit C++, build one of these APIs.
+
+
+If you want to use QRMI, build as following.
+
+```shell-session
+$ git clone git@github.com:qiskit-community/qrmi.git
+$ cd qrmi
+$ cargo build --release
+```
+
+If you want to use qiskit-ibm-runtime C, build as following.
+(Note, qiskit-ibm-runtime C is an early prototype so build method may be changed)
+
+```shell-session
+$ git clone git@github.com:Qiskit/qiskit-ibm-runtime-c
+$ cd qiskit-ibm-runtime-c
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
 ```
 
 ### Building Qiskit C++
@@ -62,24 +92,18 @@ $ cmake -DQISKIT_ROOT=Path_to_qiskit ..
 $ make
 ```
 
-If you want to build sampler example, you will need QRMI C-API.
+If you want to build sampler/transpiler example, you will need one of qiskit-ibm-runtime C or QRMI.
 
-```shell-session
-$ git clone git@github.com:qiskit-community/qrmi.git
-$ cd qrmi
-$ cargo build --release
-```
-
-Then example can be built by setting `QRMI_ROOT`,
+Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` to cmake.
 
 ```shell-session
 $ mkdir build
 $ cd build
-$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQRMI_ROOT=Path_to_QRMI ..
+$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" ..
 $ make
 ```
 
-To run sampler example, set following environment variables to access Quantum hardware.
+To run sampler example, set your account information in `$HOME/.qiskit/qiskit-ibm.json` (see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk) or setting following environment variables to access Quantum hardware.
 
 ```
 QISKIT_IBM_TOKEN=<your API key>
@@ -88,9 +112,10 @@ QISKIT_IBM_INSTANCE=<your CRN>
 
 ### Making your own interface to Quantum hardware
 
-By default, Qiskit C++ uses QRMI (https://github.com/qiskit-community/qrmi) to access Quantum computers through IBM Qiskit Runtime Service.
-To use other services of interfaces, prepare your own backend interface from the BackendV2 base class (./src/providers/backend.hpp)
-Refer to ./src/providers/qrmi_backend.hpp for details.
+Qiskit C++ offers an abstract interface to access Quantum hardware. You can make your own interface to the hardware
+by overriding `providers::Job` and `providers::BackendV2` and make your own service provider to make backend object like
+`service::QiskitRuntimeService` class.
+Refer to `./src/providers/qrmi_backend.hpp` and `./src/providers/qrmi_job.hpp` for details.
 
 ## Contributing
 

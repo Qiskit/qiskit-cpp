@@ -12,11 +12,6 @@ else()
 endif()
 
 set(QISKIT_CPP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/)
-#set(QISKIT_CPP_RUST_PATH ${CMAKE_CURRENT_SOURCE_DIR}/crates/qc_rust)
-# set(QC_TRANSPILE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/crates/qc_transpile)
-#set(QISKIT_CPP_STATEVECTOR_SAMPLER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/crates/qc_statevector)
-#set(SAMPLES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/samples/)
-#set(EXTENSIONS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/demo/)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -41,21 +36,34 @@ function(add_application APP_NAME CPP_FILE)
       PUBLIC
         ${QISKIT_ROOT}/target/release
         ${QRMI_ROOT}/target/release
+        ${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug
     )
     if(QRMI_ROOT)
       target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qrmi.dll.lib nlohmann_json::nlohmann_json)
+      target_compile_options(${APP_NAME} PRIVATE "-DQRMI_ROOT=${QRMI_ROOT}")
+    elseif(QISKIT_IBM_RUNTIME_C_ROOT)
+      target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qiskit_ibm_runtime.dll.lib nlohmann_json::nlohmann_json)
+      set(CMAKE_CXX_FLAGS "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
     else()
       target_link_libraries(${APP_NAME} qiskit_cext.dll.lib nlohmann_json::nlohmann_json)
+      target_compile_options(${APP_NAME} PRIVATE "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
     endif()
   else()
     if(QRMI_ROOT)
       target_link_libraries(${APP_NAME}
-        PUBLIC
+        PRIVATE
           "-L${QISKIT_ROOT}/dist/c/lib -L${QRMI_ROOT}/target/release -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QRMI_ROOT}/target/release" qiskit qrmi nlohmann_json::nlohmann_json
       )
+      target_compile_options(${APP_NAME} PRIVATE "-DQRMI_ROOT=${QRMI_ROOT}")
+    elseif(QISKIT_IBM_RUNTIME_C_ROOT)
+      target_link_libraries(${APP_NAME}
+        PRIVATE
+          "-L${QISKIT_ROOT}/dist/c/lib -L${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug" qiskit qiskit_ibm_runtime nlohmann_json::nlohmann_json
+      )
+      target_compile_options(${APP_NAME} PRIVATE "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
     else()
       target_link_libraries(${APP_NAME}
-        PUBLIC
+        PRIVATE
           "-L${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib" qiskit nlohmann_json::nlohmann_json
       )
     endif()
@@ -66,6 +74,7 @@ function(add_application APP_NAME CPP_FILE)
     PRIVATE
       ${QISKIT_ROOT}/dist/c/include
       ${QRMI_ROOT}
+      ${QISKIT_IBM_RUNTIME_C_ROOT}/include
       ${SAMPLES_PATH}
       ${CMAKE_CURRENT_SOURCE_DIR}/src
       nlohmann_json::nlohmann_json
@@ -83,7 +92,7 @@ endfunction()
 add_application(circuit_test tests/circuit_test.cpp)
 add_application(observable_test tests/observable_test.cpp)
 
-if(QRMI_ROOT)
+if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT)
   add_application(sampler_test tests/sampler_test.cpp)
   add_application(transpile_test tests/transpile_test.cpp)
 endif()
