@@ -19,16 +19,9 @@
 
 #include "utils/types.hpp"
 #include "providers/backend.hpp"
-#include "primitives/backend_sampler_job.hpp"
+#include "providers/qrmi_job.hpp"
 
 #include <nlohmann/json.hpp>
-
-#ifdef _MSC_VER
-#include <windows.h>
-#else
-#include <thread>
-#include <chrono>
-#endif
 
 #include "qrmi.h"
 
@@ -97,7 +90,7 @@ public:
     /// @brief Run and collect samples from each pub.
     /// @param pubs An iterable of pub-like objects.
     /// @return PrimitiveJob
-    std::shared_ptr<primitives::BasePrimitiveJob> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
+    std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
         // JSON string to be submitted
         nlohmann::ordered_json sampler;
@@ -129,76 +122,7 @@ public:
         qrmi_string_free((char *)id);
         std::cerr << " QRMI Job submitted to " << name_ << ", JOB ID = " << job_id << std::endl;
 
-        return std::make_shared<primitives::BackendSamplerJob>(*this, job_id, input_pubs);
-    }
-
-
-    /// @brief Return the status of the job.
-    /// @param job_id job id to get status
-    /// @return JobStatus enum.
-    providers::JobStatus status(std::string& job_id) override
-    {
-        QrmiTaskStatus st;
-        int rc = qrmi_resource_task_status(qrmi_.get(), job_id.c_str(), &st);
-        if (rc != QRMI_RETURN_CODE_SUCCESS)
-            return providers::JobStatus::FAILED;
-        switch (st) {
-            case QRMI_TASK_STATUS_QUEUED:
-                return providers::JobStatus::QUEUED;
-            case QRMI_TASK_STATUS_RUNNING:
-                return providers::JobStatus::RUNNING;
-            case QRMI_TASK_STATUS_COMPLETED:
-                return providers::JobStatus::DONE;
-            case QRMI_TASK_STATUS_FAILED:
-                return providers::JobStatus::FAILED;
-            case QRMI_TASK_STATUS_CANCELLED:
-                return providers::JobStatus::CANCELLED;
-        }
-        return providers::JobStatus::FAILED;
-    }
-
-    /// @brief Attempt to cancel the job.
-    /// @param job_id job id to be cancelled
-    /// @return true if the job is cancelled
-    bool stop_job(std::string& job_id) override
-    {
-        QrmiReturnCode rc = qrmi_resource_task_stop(qrmi_.get(), job_id.c_str());
-        if (rc != QRMI_RETURN_CODE_SUCCESS)
-            return false;
-        return true;
-    }
-
-    /// @brief Attempt to cancel the job.
-    /// @param job_id job id to be cancelled
-    /// @return true if the job is cancelled
-    primitives::PrimitiveResult result(std::string& job_id) override
-    {
-        primitives::PrimitiveResult ret;
-        QrmiTaskStatus status;
-        QrmiReturnCode rc;
-        while (true) {
-            rc = qrmi_resource_task_status(qrmi_.get(), job_id.c_str(), &status);
-            if (rc != QRMI_RETURN_CODE_SUCCESS)
-                return ret;
-            if (status == QRMI_TASK_STATUS_COMPLETED || status == QRMI_TASK_STATUS_FAILED || status == QRMI_TASK_STATUS_CANCELLED)
-                break;
-#ifdef _MSC_VER
-            Sleep(1);
-#else
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-#endif
-        }
-        if (status == QRMI_TASK_STATUS_COMPLETED) {
-            char *result = nullptr;
-            rc = qrmi_resource_task_result(qrmi_.get(), job_id.c_str(), &result);
-            if (rc == QRMI_RETURN_CODE_SUCCESS) {
-                std::cerr << result << std::endl;
-                ret.from_string(std::string(result));
-                qrmi_string_free((char *)result);
-            }
-        }
-        qrmi_resource_task_stop(qrmi_.get(), job_id.c_str());
-        return ret;
+        return std::make_shared<providers::QRMIJob>(qrmi_, job_id);
     }
 
 };

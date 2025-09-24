@@ -27,24 +27,16 @@ namespace primitives {
 /// @brief Primitive job abstract base class.
 class BasePrimitiveJob {
 protected:
-    std::string job_id_;
     std::vector<SamplerPub> pubs_;
 public:
     /// @brief Create a new BasePrimitiveJob
     BasePrimitiveJob() {}
 
     /// @brief Create a new BasePrimitiveJob
-    /// @param id a unique id identifying the job.
-    BasePrimitiveJob(std::string id, std::vector<SamplerPub>& pubs) : job_id_(id)
+    /// @param pubs list of pub for this job
+    BasePrimitiveJob(std::vector<SamplerPub>& pubs)
     {
         pubs_ = pubs;
-    }
-
-    /// @brief Return a unique id identifying the job.
-    /// @return a unique id identifying the job.
-    std::string& job_id(void)
-    {
-        return job_id_;
     }
 
     /// @brief get pubs for this job

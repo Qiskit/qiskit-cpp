@@ -39,6 +39,7 @@ public:
     SamplerPubResult(SamplerPub& pub)
     {
         pub_ = pub;
+        data_.set_bits(pub_.circuit().get_measure_map().size());
     }
 
     /// @brief Create a new SamplerPubResult as a copy of src.
@@ -67,6 +68,7 @@ public:
     void set_pub(const SamplerPub& pub)
     {
         pub_ = pub;
+        data_.set_bits(pub_.circuit().get_measure_map().size());
     }
 
     /// @brief Set pub reuslt from json
@@ -76,6 +78,12 @@ public:
         data_.from_json(input);
     }
 
+    /// @brief allocate bit array data
+    /// @param num_samples number of samples to be allocated
+    void allocate(uint_t num_samples)
+    {
+        data_.allocate(num_samples, pub_.circuit().get_measure_map().size());
+    }
 
 };
 

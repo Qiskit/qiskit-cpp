@@ -20,8 +20,7 @@
 #include "utils/types.hpp"
 #include "transpiler/target.hpp"
 #include "primitives/containers/sampler_pub.hpp"
-#include "primitives/base/base_primitive_job.hpp"
-#include "primitives/containers/primitive_result.hpp"
+#include "providers/job.hpp"
 
 namespace Qiskit {
 namespace providers {
@@ -66,22 +65,7 @@ public:
     /// @brief Run and collect samples from each pub.
     /// @param pubs An iterable of pub-like objects.
     /// @return PrimitiveJob
-    virtual std::shared_ptr<primitives::BasePrimitiveJob> run(std::vector<primitives::SamplerPub>& circuits, uint_t shots) = 0;
-
-    /// @brief Return the status of the job.
-    /// @param job_id job id to get status
-    /// @return JobStatus enum.
-    virtual providers::JobStatus status(std::string& job_id) = 0;
-
-    /// @brief Attempt to cancel the job.
-    /// @param job_id job id to be cancelled
-    /// @return true if the job is cancelled
-    virtual bool stop_job(std::string& job_id) = 0;
-
-    /// @brief get results of the job, this will wait until job is in final state
-    /// @param job_id job id to get results
-    /// @return the results of the job
-    virtual primitives::PrimitiveResult result(std::string& job_id) = 0;
+    virtual std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& circuits, uint_t shots = 0) = 0;
 
 };
 

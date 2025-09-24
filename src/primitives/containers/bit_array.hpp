@@ -98,6 +98,11 @@ public:
     /// @brief Set pub samples from json
     /// @param input JSON input
     void from_json(nlohmann::ordered_json& input);
+
+    /// @brief Set pub sample from hexstring
+    /// @param index an index to be set
+    /// @param input a sample in a hex string format
+    void set_hexstring(uint_t index, std::string& input);
 };
 
 void BitArray::from_samples(const reg_t& samples, uint_t num_bits)
@@ -166,6 +171,13 @@ void BitArray::from_json(nlohmann::ordered_json& input)
         array_[i].from_hex_string(samples[i]);
     }
 }
+
+void BitArray::set_hexstring(uint_t index, std::string& input)
+{
+    if (index < array_.size())
+        array_[index].from_hex_string(input);
+}
+
 
 
 } // namespace primitives

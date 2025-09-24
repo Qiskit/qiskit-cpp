@@ -52,7 +52,8 @@ public:
     /// @return PrimitiveJob
     std::shared_ptr<BasePrimitiveJob> run(std::vector<SamplerPub> pubs)
     {
-        return backend_.run(pubs, shots_);
+        auto job = backend_.run(pubs, shots_);
+        return std::make_shared<BackendSamplerJob>(job, pubs);
     }
 
 };
