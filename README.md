@@ -78,25 +78,27 @@ Qiskit C++ only has C++ header files. There is nothing to do to build the SDK.
 
 ### Running examples
 
-Examples are available in [this directory](./tests).
+Examples are available in [this directory](./samples).
 
 #### Building examples
 
 To build application using Qiskit C++, add path to Qiskit C-API, include path to `qiskit.h` (installed in `dist/c/include`) and library `libqiskit.so` (installed in `dist/c/lib`) or `qiskit_cext.dll.lib` (generated in `target/release`) for Windows.
-See ./CMakeLists.txt for example to make test program.
+See ./samples/CMakeLists.txt for example to make test program.
 
 ```shell-session
+$ cd samples
 $ mkdir build
 $ cd build
 $ cmake -DQISKIT_ROOT=Path_to_qiskit ..
 $ make
 ```
 
-If you want to build sampler/transpiler example, you will need one of qiskit-ibm-runtime C or QRMI.
+If you want to build sampler or transpiler example, you will need one of qiskit-ibm-runtime C or QRMI.
 
 Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` to cmake.
 
 ```shell-session
+$ cd samples
 $ mkdir build
 $ cd build
 $ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" ..

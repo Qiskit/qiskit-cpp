@@ -76,7 +76,7 @@ function(add_application APP_NAME CPP_FILE)
       ${QRMI_ROOT}
       ${QISKIT_IBM_RUNTIME_C_ROOT}/include
       ${SAMPLES_PATH}
-      ${CMAKE_CURRENT_SOURCE_DIR}/src
+      ${CMAKE_CURRENT_SOURCE_DIR}/../src
       nlohmann_json::nlohmann_json
   )
 
@@ -85,14 +85,13 @@ endfunction()
 
 function(add_application_test TEST_NAME APP_NAME CPP_FILE)
   add_application(${APP_NAME} ${CPP_FILE})
-  target_include_directories(${APP_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests/external)
   add_test(NAME ${TEST_NAME} COMMAND ${APP_NAME})
 endfunction()
 
-add_application(circuit_test tests/circuit_test.cpp)
-add_application(observable_test tests/observable_test.cpp)
+add_application(circuit_test circuit_test.cpp)
+add_application(observable_test observable_test.cpp)
 
 if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT)
-  add_application(sampler_test tests/sampler_test.cpp)
-  add_application(transpile_test tests/transpile_test.cpp)
+  add_application(sampler_test sampler_test.cpp)
+  add_application(transpile_test transpile_test.cpp)
 endif()

@@ -1,0 +1,33 @@
+name: Qiskit C++ test cases
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+    tests:
+        name: tests-qiskit-cpp-${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os:
+                - ubuntu-latest
+                - macos-13
+                - macos-14
+                - ubuntu-24.04-arm
+                - windows-latest
+        steps:
+            - uses: actions/checkout@v5
+            - name: install deps
+              run: cargo install cbindgen
+            - name: clone Qiskit
+              uses: actions/checkout@v5
+              with:
+                repository: Qiskit/qiskit
+                path: test/deps
+            - name: Run tests
+              run: |
+                  cd test
+                  make
