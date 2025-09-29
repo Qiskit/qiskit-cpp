@@ -13,7 +13,7 @@
 DIR_TEST_BUILD = build
 
 default:
-#	$(MAKE) -C deps/qiskit c
+	$(MAKE) -C deps/qiskit c
 
 	# -S specifically specifies the source path to be the current folder
 	# -B specifically specifies the build path to be inside test/c/build
