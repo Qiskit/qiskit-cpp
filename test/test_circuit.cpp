@@ -182,7 +182,7 @@ static int test_standard_gates(void) {
     op = circ[count++];
     name = op.instruction().name();
     qubits = op.qubits();
-    if (name != "sx" || qubits[2] != 0) {
+    if (name != "sx" || qubits[0] != 2) {
         std::cerr << "  standard gate test : sx (2) != " << name << " (" << qubits[0] << ")" << std::endl;
         return EqualityError;
     }
