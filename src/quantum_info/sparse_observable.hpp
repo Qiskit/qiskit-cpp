@@ -37,7 +37,7 @@ public:
     {
         obs_ = nullptr;
     }
-    SparseObservable(uint_t num_qubits, std::vector<std::complex<double>> &coeffs, std::vector<QkBitTerm> &terms, reg_t &indicies, reg_t &boundaries);
+    SparseObservable(uint_t num_qubits, std::vector<std::complex<double>> &coeffs, std::vector<QkBitTerm> &terms, reg_t &indicies, std::vector<size_t> &boundaries);
     SparseObservable(const SparseObservable &other);
 
     ~SparseObservable()
@@ -146,7 +146,7 @@ public:
     std::string to_string(void);
 };
 
-SparseObservable::SparseObservable(uint_t num_qubits, std::vector<std::complex<double>> &coeffs, std::vector<QkBitTerm> &bits, reg_t &indicies, reg_t &boundaries)
+SparseObservable::SparseObservable(uint_t num_qubits, std::vector<std::complex<double>> &coeffs, std::vector<QkBitTerm> &bits, reg_t &indicies, std::vector<size_t> &boundaries)
 {
     std::vector<std::uint32_t> idx32(indicies.size());
     for (int i = 0; i < indicies.size(); i++)
@@ -204,7 +204,7 @@ SparseObservable SparseObservable::compose(SparseObservable &other)
 SparseObservable SparseObservable::from_label(std::string &label)
 {
     reg_t indices;
-    reg_t boundaries(2);
+    std::vector<size_t> boundaries(2);
     uint_t num_qubits = label.length();
     std::vector<QkBitTerm> terms;
     std::vector<std::complex<double>> coeff(1);
@@ -255,7 +255,7 @@ SparseObservable SparseObservable::from_label(std::string &label)
 SparseObservable SparseObservable::from_list(std::vector<std::pair<std::string, std::complex<double>>> &list, uint_t num_qubits_in)
 {
     reg_t indices;
-    reg_t boundaries;
+    std::vector<size_t> boundaries;
     uint_t num_qubits = num_qubits_in;
     std::vector<QkBitTerm> terms;
     std::vector<std::complex<double>> coeffs;

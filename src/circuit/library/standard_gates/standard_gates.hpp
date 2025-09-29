@@ -57,7 +57,7 @@ std::unordered_map<std::string, Instruction> get_standard_gate_name_mapping(void
     std::unordered_map<std::string, Instruction> name_mapping;
     name_mapping["global_phase"] = GlobalPhaseGate();
     name_mapping["h"] = HGate();
-    name_mapping["i"] = IGate();
+    name_mapping["id"] = IGate();
     name_mapping["x"] = XGate();
     name_mapping["y"] = YGate();
     name_mapping["z"] = ZGate();
@@ -105,7 +105,7 @@ std::unordered_map<std::string, Instruction> get_standard_gate_name_mapping(void
     name_mapping["cswap"] = CSwapGate();
     name_mapping["rccx"] = RCCXGate();
     name_mapping["mcx"] = MCXGate();
-    name_mapping["c3sx"] = C3XGate();
+    name_mapping["c3sx"] = C3SXGate();
     name_mapping["rcccx"] = RC3XGate();
     return name_mapping;
 }

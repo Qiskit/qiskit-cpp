@@ -1122,12 +1122,27 @@ CircuitInstruction QuantumCircuit::operator[](uint_t i)
         auto name_map = get_standard_gate_name_mapping();
         QkCircuitInstruction *op = new QkCircuitInstruction;
         qk_circuit_get_instruction(rust_circuit_.get(), i, op);
-        reg_t qubits(op->qubits, op->qubits + op->num_qubits);
-        reg_t clbits(op->clbits, op->qubits + op->num_clbits);
-        std::vector<double> params(op->params, op->params + op->num_params);
+        reg_t qubits;
+        if (op->num_qubits > 0) {
+            qubits.resize(op->num_qubits);
+            for (int i = 0; i < op->num_qubits; i++)
+                qubits[i] = op->qubits[i];
+        }
+        std::vector<double> params;
+        if (op->num_params > 0) {
+            params.resize(op->num_params);
+            for (int i = 0; i < op->num_params; i++)
+                params[i] = op->params[i];
+        }
         auto gate = name_map.find(op->name);
         if (gate == name_map.end())
         {
+            reg_t clbits;
+            if (op->num_clbits > 0) {
+                clbits.resize(op->num_clbits);
+                for (int i = 0; i < op->num_clbits; i++)
+                    clbits[i] = op->clbits[i];
+            }
             if (strcmp(op->name, "measure") == 0)
             {
                 qk_circuit_instruction_clear(op);

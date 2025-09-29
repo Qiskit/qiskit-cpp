@@ -29,7 +29,7 @@ protected:
 public:
     IGate(void)
     {
-        name_ = "i";
+        name_ = "id";
         num_qubits_ = 1;
         num_clbits_ = 0;
         map_ = QkGate_I;
