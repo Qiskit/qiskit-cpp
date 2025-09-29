@@ -123,13 +123,10 @@ Refer to `./src/providers/qrmi_backend.hpp` and `./src/providers/qrmi_job.hpp` f
 
 Regardless if you are part of the core team or an external contributor, welcome and thank you for contributing to Qiskit C++
 
-### Solving linting/format issues
-
-Contributor must execute the commands below and fix any issues before submitting Pull Request.
-
 ### Running unit test
 
-Contributor must execute the command below and fix any issues before submitting Pull Request.
+Contributor must add test cases under ./test directory if you have added new features to Qiskit C++.
+Also all the test cases running on the github repository should be passed.
 
 ### Checking API document
 
