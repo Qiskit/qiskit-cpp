@@ -83,17 +83,38 @@ public:
     // from bitstring
     void from_bitstring(const std::vector<std::string>& samples);
 
+    /// @brief Return subsets of the BitArray
+    /// @param start_bit start bit index of subset
+    /// @param num_bits number of bits in a subset
+    /// @return A new BitArray
+    BitArray get_subset(const uint_t start_bit, const uint_t num_bits);
+
     /// @brief Return a list of bitstrings.
     /// @return A list of bitstrings.
-    std::vector<std::string> get_bitstring(void);
+    std::vector<std::string> get_bitstrings(void);
+
+    /// @brief Return a list of bitstrings.
+    /// @param index a list of index to be stored in the output list
+    /// @return A list of bitstrings.
+    std::vector<std::string> get_bitstrings(reg_t& index);
 
     /// @brief Return a list of hex string
     /// @return A list of hex string.
-    std::vector<std::string> get_hexstring(void);
+    std::vector<std::string> get_hexstrings(void);
+
+    /// @brief Return a list of hex string.
+    /// @param index a list of index to be stored in the output list
+    /// @return A list of hex string.
+    std::vector<std::string> get_hexstrings(reg_t& index);
 
     /// @brief Return a counts dictionary with bitstring keys.
     /// @return A counts dictionary with bitstring keys.
     std::unordered_map<std::string, uint_t> get_counts(void);
+
+    /// @brief Return a counts dictionary with bitstring keys.
+    /// @param index a list of index to be stored in the output map
+    /// @return A counts dictionary with bitstring keys.
+    std::unordered_map<std::string, uint_t> get_counts(reg_t& index);
 
     /// @brief Set pub samples from json
     /// @param input JSON input
@@ -103,6 +124,11 @@ public:
     /// @param index an index to be set
     /// @param input a sample in a hex string format
     void set_hexstring(uint_t index, std::string& input);
+
+    /// @brief Return a list of bit counts
+    /// @return A list of interger counts of bits appears in each shot
+    reg_t bitcount(void);
+
 };
 
 void BitArray::from_samples(const reg_t& samples, uint_t num_bits)
@@ -132,7 +158,7 @@ void BitArray::from_bitstring(const std::vector<std::string>& samples)
     num_bits_ = array_[0].size();
 }
 
-std::vector<std::string> BitArray::get_bitstring(void)
+std::vector<std::string> BitArray::get_bitstrings(void)
 {
     std::vector<std::string> ret(array_.size());
     for (uint_t i = 0; i < array_.size(); i++) {
@@ -141,7 +167,20 @@ std::vector<std::string> BitArray::get_bitstring(void)
     return ret;
 }
 
-std::vector<std::string> BitArray::get_hexstring(void)
+std::vector<std::string> BitArray::get_bitstrings(reg_t& index)
+{
+    uint_t size = std::min(array_.size(), index.size());
+    std::vector<std::string> ret(size);
+
+    for (uint_t i = 0; i < size; i++) {
+        uint_t pos = index[i];
+        if (pos < array_.size())
+            ret[i] = array_[pos].to_string();
+    }
+    return ret;
+}
+
+std::vector<std::string> BitArray::get_hexstrings(void)
 {
     std::vector<std::string> ret(array_.size());
     for (uint_t i = 0; i < array_.size(); i++) {
@@ -149,6 +188,20 @@ std::vector<std::string> BitArray::get_hexstring(void)
     }
     return ret;
 }
+
+std::vector<std::string> BitArray::get_hexstrings(reg_t& index)
+{
+    uint_t size = std::min(array_.size(), index.size());
+    std::vector<std::string> ret(size);
+
+    for (uint_t i = 0; i < size; i++) {
+        uint_t pos = index[i];
+        if (pos < array_.size())
+            ret[i] = array_[pos].to_hex_string();
+    }
+    return ret;
+}
+
 
 std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
 {
@@ -159,10 +212,23 @@ std::unordered_map<std::string, uint_t> BitArray::get_counts(void)
     return ret;
 }
 
+std::unordered_map<std::string, uint_t> BitArray::get_counts(reg_t& index)
+{
+    uint_t size = std::min(array_.size(), index.size());
+    std::unordered_map<std::string, uint_t> ret;
+
+    for (uint_t i = 0; i < size; i++) {
+        uint_t pos = index[i];
+        if (pos < array_.size())
+            ret[array_[pos].to_string()]++;
+    }
+    return ret;
+}
+
 void BitArray::from_json(nlohmann::ordered_json& input)
 {
-    auto samples = input["data"]["c"]["samples"];
-    auto num_bits = input["data"]["c"]["num_bits"];
+    auto samples = input["samples"];
+    auto num_bits = input["num_bits"];
     auto num_shots = samples.size();
     if (num_bits_ == 0)
         num_bits_ = num_bits;
@@ -176,6 +242,27 @@ void BitArray::set_hexstring(uint_t index, std::string& input)
 {
     if (index < array_.size())
         array_[index].from_hex_string(input);
+}
+
+BitArray BitArray::get_subset(const uint_t start_bit, const uint_t num_bits)
+{
+    BitArray ret;
+    ret.allocate(array_.size(), num_bits);
+
+    for (uint_t i = 0; i < array_.size(); i++) {
+        ret.array_[i] = array_[i].get_subset(start_bit, num_bits);
+    }
+
+    return ret;
+}
+
+reg_t BitArray::bitcount(void)
+{
+    reg_t count(array_.size());
+    for (uint_t i = 0; i < array_.size(); i++) {
+        count[i] = array_[i].popcount();
+    }
+    return count;
 }
 
 

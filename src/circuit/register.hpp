@@ -150,7 +150,7 @@ public:
 
     /// @brief Return the name of this register
     /// @return the name of this register
-    std::string name() { return name_; }
+    const std::string& name() const { return name_; }
 
     void set_base_index(uint_t base)
     {

@@ -88,7 +88,7 @@ public:
 	/// @param qregs A list of QuantumRegister
 	/// @param cregs A list of ClassicalRegister
 	/// @param global_phase The global phase of the circuit, measured in radians
-	QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<ClassicalRegister> &cregs, const double global_phase = 0.0);
+	QuantumCircuit(std::vector<QuantumRegister> qregs, std::vector<ClassicalRegister> cregs, const double global_phase = 0.0);
 
 	/// @brief Create a new reference to Quantum Circuit
 	/// @details Copy constructor of QuantumCircuit does not copy the circuit,
@@ -122,6 +122,34 @@ public:
 		return num_clbits_;
 	}
 
+	/// @brief Return number of qregs
+	/// @return number of qregs
+	uint_t num_qregs(void) const
+	{
+		return qregs_.size();
+	}
+
+	/// @brief Return number of cregs
+	/// @return number of cregs
+	uint_t num_cregs(void) const
+	{
+		return cregs_.size();
+	}
+
+	/// @brief Return a list of qregs
+	/// @return reference to a list of qregs
+	const std::vector<QuantumRegister>& qregs(void) const
+	{
+		return qregs_;
+	}
+
+	/// @brief Return a list of cregs
+	/// @return reference to a list of cregs
+	const std::vector<ClassicalRegister>& cregs(void) const
+	{
+		return cregs_;
+	}
+
 	std::shared_ptr<rust_circuit> get_rust_circuit(const bool update = true)
 	{
 		if (update)
@@ -133,9 +161,10 @@ public:
 	/// @return copied circuit
 	QuantumCircuit copy(void);
 
-	/// @brief set circuit reference of Rust's circuit
+	/// @brief set circuit reference of Qiskit circuit
 	/// @param circ smart pointer to RUst circuit
-	void from_rust_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map);
+	/// @param map layout mapping
+	void set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map);
 
 	/// @brief set target to this circuit
 	/// @param target smart pointer to target
