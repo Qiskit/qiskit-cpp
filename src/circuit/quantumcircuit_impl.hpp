@@ -47,7 +47,7 @@ QuantumCircuit::QuantumCircuit(const uint_t num_qubits, const uint_t num_clbits,
     qregs_[0] = qr;
     cregs_[0] = cr;
 
-    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_), qk_circuit_free);
+    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new(0, 0), qk_circuit_free);
     qk_circuit_add_quantum_register(rust_circuit_.get(), qregs_[0].get_register().get());
     qk_circuit_add_classical_register(rust_circuit_.get(), cregs_[0].get_register().get());
 
@@ -69,7 +69,7 @@ QuantumCircuit::QuantumCircuit(QuantumRegister &qreg, ClassicalRegister &creg, c
     qregs_[0] = qreg;
     cregs_[0] = creg;
 
-    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_), qk_circuit_free);
+    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new(0, 0), qk_circuit_free);
 
     qk_circuit_add_quantum_register(rust_circuit_.get(), qregs_[0].get_register().get());
     qk_circuit_add_classical_register(rust_circuit_.get(), cregs_[0].get_register().get());
@@ -80,7 +80,7 @@ QuantumCircuit::QuantumCircuit(QuantumRegister &qreg, ClassicalRegister &creg, c
     }
 }
 
-QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<ClassicalRegister> &cregs, const double global_phase)
+QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> qregs, std::vector<ClassicalRegister> cregs, const double global_phase)
 {
     num_qubits_ = 0;
     num_clbits_ = 0;
@@ -105,7 +105,7 @@ QuantumCircuit::QuantumCircuit(std::vector<QuantumRegister> &qregs, std::vector<
         num_clbits_ += cregs[i].size();
     }
 
-    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new((std::uint32_t)num_qubits_, (std::uint32_t)num_clbits_), qk_circuit_free);
+    rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_new(0, 0), qk_circuit_free);
 
     for (uint_t i = 0; i < qregs_.size(); i++)
     {
@@ -158,19 +158,13 @@ QuantumCircuit QuantumCircuit::copy(void)
     return copied;
 }
 
-void QuantumCircuit::from_rust_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map)
+void QuantumCircuit::set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map)
 {
     if (rust_circuit_)
         rust_circuit_.reset();
     rust_circuit_ = circ;
     num_qubits_ = qk_circuit_num_qubits(circ.get());
     num_clbits_ = qk_circuit_num_clbits(circ.get());
-
-    qregs_.resize(1);
-    cregs_.resize(1);
-
-    qregs_[0].resize(num_qubits_);
-    cregs_[0].resize(num_clbits_);
 
     qubit_map_.resize(map.size());
     for (int i = 0; i < map.size(); i++)

@@ -74,7 +74,7 @@ public:
 
     /// @brief Return a QuantumCircuit for this sampler pub
     /// @return a quantum circuit
-    circuit::QuantumCircuit& circuit(void)
+    const circuit::QuantumCircuit& circuit(void) const
     {
         return circuit_;
     }

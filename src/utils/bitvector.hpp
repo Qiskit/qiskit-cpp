@@ -18,6 +18,7 @@
 #define __qiskitcpp_utils_bit_vector_hpp__
 
 #include "utils/types.hpp"
+#include "utils/utils.hpp"
 
 namespace Qiskit
 {
@@ -103,6 +104,12 @@ public:
         bits_[vpos] |= ((val & elem_mask_) << bpos);
     }
 
+    /// @brief Return subsets of the BitVector
+    /// @param start_bit start bit index of subset
+    /// @param num_bits number of bits in a subset
+    /// @return A new BitVector
+    BitVector get_subset(const uint_t start_bit, const uint_t num_bits);
+
     // convert from other data
     void from_uint(const uint_t src, const uint_t n, const uint_t base = 2);
     void from_string(const std::string &src, const uint_t base = 2);
@@ -115,6 +122,10 @@ public:
     std::string to_string();
     std::string to_hex_string();
     reg_t to_vector();
+
+    /// @brief Return number of 1 bits
+    /// @return A number of 1 bits
+    uint_t popcount(void);
 };
 
 void BitVector::allocate(uint_t n, uint_t base)
@@ -298,7 +309,27 @@ reg_t BitVector::to_vector(void)
     return ret;
 }
 
-    //------------------------------------------------------------------------------
+BitVector BitVector::get_subset(const uint_t start_bit, const uint_t num_bits)
+{
+    BitVector ret(num_bits);
+
+    for (uint_t i = 0; i < num_bits; i++) {
+        ret.set(i, get(start_bit + i));
+    }
+    return ret;
+}
+
+uint_t BitVector::popcount(void)
+{
+    uint_t count = 0;
+    for (uint_t i = 0; i < bits_.size(); i++) {
+        count += Qiskit::popcount(bits_[i]);
+    }
+    return count;
+}
+
+
+//------------------------------------------------------------------------------
 } // namespace Qiskit
 //------------------------------------------------------------------------------
 #endif // __qiskitcpp_utils_bit_vector_hpp__

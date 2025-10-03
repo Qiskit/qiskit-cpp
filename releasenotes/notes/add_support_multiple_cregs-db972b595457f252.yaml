@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Sampler pub result can return separate `BitArray` for each classical registers.
+
+    `BitArray` adds new functions.
+    `bitcount()` returns number of 1 bits in each bitstrings.
+    `get_counts()` and `get_bitstrings()` can have a list of index which element should be included in the map of counts
+    `get_bitstring` is renamed by `get_bitstrings`
+

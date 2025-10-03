@@ -25,6 +25,7 @@
 #include "service/qiskit_runtime_service.hpp"
 #include "compiler/transpiler.hpp"
 
+using namespace Qiskit;
 using namespace Qiskit::circuit;
 using namespace Qiskit::providers;
 using namespace Qiskit::primitives;
@@ -36,7 +37,13 @@ using Sampler = BackendSamplerV2;
 int main()
 {
     int num_qubits = 10;
-    QuantumCircuit circ(num_qubits, num_qubits);
+    auto qreg = QuantumRegister(num_qubits);
+    auto creg = ClassicalRegister(num_qubits, std::string("meas"));
+    auto ctest = ClassicalRegister(num_qubits, std::string("test"));
+    QuantumCircuit circ(std::vector<QuantumRegister>({qreg,}), std::vector<ClassicalRegister>({creg, ctest}));
+
+    // test measure all
+    circ.measure(qreg, ctest);
 
     // GHZ circuit
     circ.h(0);
@@ -44,10 +51,7 @@ int main()
     {
         circ.cx(i, i + 1);
     }
-    for (int i = 0; i < num_qubits; i++)
-    {
-        circ.measure(i, i);
-    }
+    circ.measure(qreg, creg);
 
     // set $HONE/.qiskit/qiskit-ibm.json
     // by using Qiskit IBM Runtime
@@ -57,7 +61,7 @@ int main()
     // QISKIT_IBM_TOKEN = "your API key"
     // QISKIT_IBM_INSTANCE = "your CRN"
     auto service = QiskitRuntimeService();
-    auto backend = service.backend("ibm_torino");
+    auto backend = service.backend("ibm_fez");
     auto sampler = Sampler(backend, 100);
 
     auto transpiled_circ = transpile(circ, backend);
@@ -68,16 +72,43 @@ int main()
     auto result = job->result();
 
     auto pub_result = result[0];
-    auto hex = pub_result.data().get_hexstring();
+    auto meas_bits = pub_result.data("meas");
+    auto bits = meas_bits.get_bitstrings();
     std::cout << " ===== samples for pub[0] =====" << std::endl;
-    for (auto h : hex)
+    for (auto b : bits)
     {
-        std::cout << h << ", ";
+        std::cout << b << ", ";
+    }
+    std::cout << std::endl;
+
+    std::cout << " --- test bits ---" << std::endl;
+    auto test_bits = pub_result.data("test");
+    bits = test_bits.get_bitstrings();
+    for (auto b : bits)
+    {
+        std::cout << b << ", ";
     }
     std::cout << std::endl;
 
     std::cout << " ===== counts for pub[0] =====" << std::endl;
-    auto count = pub_result.data().get_counts();
+    auto count = meas_bits.get_counts();
+    for (auto c : count)
+    {
+        std::cout << c.first << " : " << c.second << std::endl;
+    }
+
+
+    auto bitcounts = test_bits.bitcount();
+    reg_t zero_index;
+    zero_index.reserve(bitcounts.size());
+    for (uint_t i = 0; i < bitcounts.size(); i++) {
+        if (bitcounts[i] == 0) {
+            zero_index.push_back(i);
+        }
+    }
+
+    std::cout << " ===== counts for pub[0] whose test bit are 0 =====" << std::endl;
+    count = meas_bits.get_counts(zero_index);
     for (auto c : count)
     {
         std::cout << c.first << " : " << c.second << std::endl;
