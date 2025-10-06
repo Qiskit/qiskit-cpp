@@ -52,7 +52,7 @@ int test_parameter_new_values(void) {
  */
 int test_parameter_to_real(void) {
     auto x = Parameter("x");
-    auto cmplx = Parameter(std::complex<double>({1.0, 2.0}));
+    auto cmplx = Parameter(std::complex<double>(1.0, 2.0));
     auto val = Parameter(10.0);
 
     double x_out = x.as_real();
