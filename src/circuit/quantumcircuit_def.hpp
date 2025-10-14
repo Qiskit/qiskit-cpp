@@ -104,10 +104,6 @@ public:
 	/// @return number of qubits
 	uint_t num_qubits(void) const
 	{
-		if (target_)
-		{
-			return target_->num_qubits();
-		}
 		return num_qubits_;
 	}
 
@@ -115,10 +111,6 @@ public:
 	/// @return number of classical bits
 	uint_t num_clbits(void) const
 	{
-		if (target_)
-		{
-			return target_->num_qubits();
-		}
 		return num_clbits_;
 	}
 
