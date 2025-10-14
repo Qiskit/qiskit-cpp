@@ -133,7 +133,6 @@ QuantumCircuit::QuantumCircuit(const QuantumCircuit &circ)
     cregs_ = circ.cregs_;
 
     rust_circuit_ = circ.rust_circuit_;
-    target_ = circ.target_;
 
     measure_map_ = circ.measure_map_;
     qubit_map_ = circ.qubit_map_;
@@ -150,8 +149,6 @@ QuantumCircuit QuantumCircuit::copy(void)
 
     copied.qregs_ = qregs_;
     copied.cregs_ = cregs_;
-
-    copied.target_ = target_;
 
     copied.measure_map_ = measure_map_;
     copied.qubit_map_ = qubit_map_;
@@ -199,15 +196,6 @@ QuantumCircuit::~QuantumCircuit()
     {
         rust_circuit_.reset();
     }
-    if (target_)
-    {
-        target_.reset();
-    }
-}
-
-void QuantumCircuit::set_target(std::shared_ptr<transpiler::Target> target)
-{
-    target_ = target;
 }
 
 void QuantumCircuit::get_qubits(reg_t &bits)

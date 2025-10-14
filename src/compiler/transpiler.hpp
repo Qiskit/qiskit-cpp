@@ -61,7 +61,6 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::Back
 
     circuit::QuantumCircuit transpiled = circ;
     transpiled.set_qiskit_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free), layout_map);
-    transpiled.set_target(target);
 
     qk_transpile_layout_free(result.layout);
     target.reset();
