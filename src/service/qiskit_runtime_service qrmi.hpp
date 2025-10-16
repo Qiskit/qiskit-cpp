@@ -72,8 +72,13 @@ public:
                 }
                 nlohmann::json conf_json = nlohmann::json::parse(conf_str);
 
-                token_ = conf_json["default-ibm-quantum-platform"]["token"];
-                instance_ = conf_json["default-ibm-quantum-platform"]["instance"];
+                if (conf_json.contains("default-ibm-quantum-platform")) {
+                    auto iqp_set = conf_json["default-ibm-quantum-platform"];
+                    if (iqp_set.contains("token") && iqp_set.at("token").is_string())
+                        token_ = iqp_set["token"];
+                    if (iqp_set.contains("instance") && iqp_set.at("instance").is_string())
+                        instance_ = iqp_set["instance"];
+                }
             }
         }
 

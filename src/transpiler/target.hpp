@@ -99,29 +99,47 @@ public:
 
 bool Target::from_json(nlohmann::ordered_json &input)
 {
+    if (!input.contains("configuration")) {
+        std::cerr << " Target Error : No configuration section found" << std::endl;
+        return false;
+    }
     auto backend_configuration = input["configuration"];
+    if (!input.contains("properties")) {
+        std::cerr << " Target Error : No properties section found" << std::endl;
+        return false;
+    }
     auto backend_properties = input["properties"];
+
+    if (!backend_configuration.contains("n_qubits")) {
+        std::cerr << " Target Error : n_qubits not found in backend config" << std::endl;
+        return false;
+    }
+    num_qubits_ = backend_configuration["n_qubits"];
+
     if (target_)
     {
         qk_target_free(target_);
     }
 
-    num_qubits_ = backend_configuration["n_qubits"];
-
     target_ = qk_target_new((uint32_t)num_qubits_);
     if (target_ == nullptr)
         return false;
 
-    dt_ = backend_configuration["dt"];
     max_experiments_ = backend_configuration["max_experiments"];
     max_shots_ = backend_configuration["max_shots"];
 
     // set target configs available in C-API
-    qk_target_set_dt(target_, dt_);
-    qk_target_set_granularity(target_, backend_configuration["timing_constraints"]["granularity"]);
-    qk_target_set_min_length(target_, backend_configuration["timing_constraints"]["min_length"]);
-    qk_target_set_pulse_alignment(target_, backend_configuration["timing_constraints"]["pulse_alignment"]);
-    qk_target_set_acquire_alignment(target_, backend_configuration["timing_constraints"]["acquire_alignment"]);
+    if (backend_configuration.at("dt").is_number()) {
+        dt_ = backend_configuration["dt"];
+        qk_target_set_dt(target_, dt_);
+    }
+    if (backend_configuration.contains("timing_constraints")) {
+        auto timing_constraints = backend_configuration["timing_constraints"];
+        qk_target_set_granularity(target_, timing_constraints["granularity"]);
+        qk_target_set_min_length(target_, timing_constraints["min_length"]);
+        qk_target_set_pulse_alignment(target_, timing_constraints["pulse_alignment"]);
+        qk_target_set_acquire_alignment(target_, timing_constraints["acquire_alignment"]);
+    }
 
     // get basis gates and make property entries
     auto name_map = Qiskit::circuit::get_standard_gate_name_mapping();
