@@ -61,7 +61,7 @@ int main()
     // QISKIT_IBM_TOKEN = "your API key"
     // QISKIT_IBM_INSTANCE = "your CRN"
     auto service = QiskitRuntimeService();
-    auto backend = service.backend("ibm_fez");
+    auto backend = service.backend("ibm_torino");
     auto sampler = Sampler(backend, 100);
 
     auto transpiled_circ = transpile(circ, backend);
