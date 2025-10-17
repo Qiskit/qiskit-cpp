@@ -62,7 +62,6 @@ protected:
 	std::vector<ClassicalRegister> cregs_; // classical registers
 
 	std::shared_ptr<rust_circuit> rust_circuit_ = nullptr; // shared pointer to the circuit for Rust
-	std::shared_ptr<transpiler::Target> target_ = nullptr; // shared pointer to the target object
 
 	std::shared_ptr<ControlFlowOp> pending_control_flow_op_ = nullptr; // shared pointer to control flow object
 
@@ -157,12 +156,7 @@ public:
 	/// @param circ smart pointer to RUst circuit
 	/// @param map layout mapping
 	void set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map);
-
-	/// @brief set target to this circuit
-	/// @param target smart pointer to target
-	/// @details target is set for transpiled circuit
-	void set_target(std::shared_ptr<transpiler::Target> target);
-
+	
 	/// @brief get qubit mapping
 	/// @return qubit mapping
 	const reg_t &get_qubit_map(void)
