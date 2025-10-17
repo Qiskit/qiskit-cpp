@@ -15,8 +15,9 @@ body:
       # in easier.  The type is 'textarea' rather than three separate 'input's
       # to make the resulting issue body less noisy with headings.
       value: |
-        - **Direct Access Client version**: 
-        - **Python version**: 
+        - **Qiskit C++ Version**: 
+        - **Qiskit Version**: 
+        - **C++ Compiler**: 
         - **Operating system**: 
     validations:
       required: true
