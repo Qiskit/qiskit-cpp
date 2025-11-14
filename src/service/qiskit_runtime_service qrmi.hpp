@@ -152,7 +152,7 @@ public:
 
         std::string header;
         if (type_ == QRMI_RESOURCE_TYPE_IBM_DIRECT_ACCESS) {
-            header = "_QRMI_IBM_DS_";
+            header = "_QRMI_IBM_DA_";
         } else if (type_ == QRMI_RESOURCE_TYPE_PASQAL_CLOUD) {
             std::cerr << " ERROR: resource type QRMI_RESOURCE_TYPE_PASQAL_CLOUD is not supported yet" << std::endl;
             return Qiskit::providers::QRMIBackend();
