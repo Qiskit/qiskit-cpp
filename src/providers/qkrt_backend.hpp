@@ -103,7 +103,8 @@ public:
         if (shots == 0)
             shots = input_pubs[0].shots();
 
-        int ret = qkrt_sampler_job_run(&job, service_.get(), backend_, input_pubs[0].circuit().get_rust_circuit().get(), shots, NULL);
+        auto circuit = input_pubs[0].circuit();
+        int ret = qkrt_sampler_job_run(&job, service_.get(), backend_, circuit.get_rust_circuit().get(), shots, NULL);
 
         return std::make_shared<providers::QkrtJob>(service_, std::shared_ptr<qkrt_Job>(job, qkrt_job_free));
     }
