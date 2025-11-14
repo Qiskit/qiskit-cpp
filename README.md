@@ -25,7 +25,7 @@ This interface is based on Qiskit C-API introduced in Qiskit 2.1.
 
 ## Jump To:
 
-* [API Docs](https://miniature-chainsaw-lmg9qq7.pages.github.io/qiskit_cxx/index.html)
+* [API Docs](https://quantum.cloud.ibm.com/docs/en/api/qiskit-c)
 * [Getting Started](#getting-started)
 * [Contributing](#contributing)
 * [License](#license)
