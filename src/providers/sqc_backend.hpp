@@ -22,7 +22,7 @@
 #include "primitives/containers/sampler_pub.hpp"
 #include "providers/job.hpp"
 
-#include "sqc_api.h"
+//#include "sqc_api.h"
 
 namespace Qiskit {
 namespace providers {
@@ -61,7 +61,10 @@ public:
     /// @return PrimitiveJob
     std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
-        std::string qasm3 = input_pubs[0].circuit().to_qasm3();
+        std::string qasm3 = [&]() {
+            auto circuit = input_pubs[0].circuit();
+            return circuit.to_qasm3();
+        }();
         std::cout << "run qasm3: \n" << qasm3 << std::endl;
         return nullptr;
     }
