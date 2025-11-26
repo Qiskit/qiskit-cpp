@@ -92,10 +92,131 @@ public:
     std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
         auto circuit = input_pubs[0].circuit();
-        std::cout << "run qasm3: \n" << circuit.to_qasm3() << std::endl;
+        auto qasm_str = circuit.to_qasm3();
+        std::cout << "run qasm3: \n" << qasm_str << std::endl;
+
         return nullptr;
     }
 };
+
+
+/// @brief Convert a qiskit quantum circuit to a SQC circuit.
+/// @param A SQC circuit where a result is stored
+/// @param An original qiskit circuit
+/// @note This function destroys the original SQC circuit data.
+/// @note Currently parameterized circuits are not supported.
+bool qk_circ_to_sqc_circ(sqcQC* qc_handle, const circuit::QuantumCircuit& qk_circ)
+{
+    if(qc_handle == NULL)
+    {
+        std::cerr << "Error: Given SQC handle is null." << std::endl;
+        return false;
+    }
+    if(qk_circ.num_instructions() > MAX_N_GATES)
+    {
+        std::cerr << "Error: The number of a given circuit exceeds the limit of SQC." << std::endl;
+        return false;
+    }
+
+    qc_handle->qubits = static_cast<int>(qk_circ.num_qubits());
+    qc_handle->ngates = static_cast<int>(qk_circ.num_instructions());
+
+    for(int i = 0; i < static_cast<int>(qk_circ.num_instructions()); ++i) {
+        const auto circ_instr = qk_circ[i];
+        const auto& instr_name = circ_instr.instruction().name();
+        const auto& qubits = circ_instr.qubits();
+        const auto& clbits = circ_instr.clbits();
+
+        if(instr_name == "measure")
+        {
+            sqcMeasure(qc_handle, qubits[0], clbits[0], NULL);
+        }
+        else if(instr_name == "h")
+        {
+            sqcHGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "cx")
+        {
+            sqcCXGate(qc_handle, qubits[0], qubits[1]);
+        }
+        else if(instr_name == "cz")
+        {
+            sqcCXGate(qc_handle, qubits[0], qubits[1]);
+        } 
+        else if(instr_name == "rz")
+        {
+            sqcRZGate(qc_handle, qubits[0], qubits[1]);
+        }
+        else if(instr_name == "s")
+        {
+            sqcSGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "sdg")
+        {
+            sqcSdgGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "rx")
+        {
+            const auto& instr = circ_instr.instruction();
+            assert(instr.params().size() == 1);
+            sqcRXGate(qc_handle, instr.params()[0], qubits[0]);
+        }
+        else if(instr_name == "ry")
+        {
+            const auto& instr = circ_instr.instruction();
+            assert(instr.params().size() == 1);
+            sqcRZGate(qc_handle, instr.params()[0], qubits[0]);
+        }
+        else if(instr_name == "x")
+        {
+            sqcXGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "z")
+        {
+            sqcZGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "p")
+        {
+            sqcU1Gate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "reset")
+        {
+            sqcReset(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "barrier")
+        {
+            for(auto qubit : qubits)
+            {
+                sqcBarrier(qc_handle, qubit);
+            }
+        }
+        else if(instr_name == "ecr")
+        {
+            sqcECRGate(qc_handle, qubits[0], qubits[1]);
+        }
+        else if(instr_name == "sx")
+        {
+            sqcSXGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "id")
+        {
+            sqcIDGate(qc_handle, qubits[0]);
+        }
+        else if(instr_name == "delay")
+        {
+            // TODO
+            std::cerr << "Error (WIP): The delay operation is not support now." << std::endl;
+            return false;
+        }
+        else
+        {
+            std::cerr << "Error: An instruction " << instr_name << " is not supported in SQC." << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
 
 
 } // namespace providers
