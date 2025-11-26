@@ -32,6 +32,9 @@ namespace providers {
 class SQCBackend : public BackendV2 {
 private:
     sqcInitOptions* init_options_;
+    /// @note A circuit data will be built via qiskit-cpp, not SQC.
+    ///       A `qc_handle_` field is just used for an interface between qiskit-cpp and SQC.
+    sqcQC* qc_handle_;
     const sqcBackend backend_type_;
 
 public:
@@ -44,17 +47,22 @@ public:
     /// @param backend_name a resource name for backend.
     SQCBackend(const std::string name)
         : name_(name),
-          init_options_(nullptr),
-          backend_type_(SQC_RPC_SCHED_QC_TYPE_IBM_DACC)
+          init_options_(NULL),
+          qc_handle_(NULL),
+          backend_type_(SQC_RPC_SCHED_QC_TYPE_IBM_DACC),
     {
         init_options_ = sqcMallocInitOptions();
         init_options_->use_qiskit = 1; // only ibm_dacc is supported
-        sqcInitialize(init_options_);
+        if(sqcInitialize(init_options_) != E_SUCCESS) {
+            std::cerr << "Failed to initialize SQC" << std::endl;
+        }
+        qc_handle_ = sqcQuantumCircuit(0);
     }
 
     SQCBackend(const SQCBackend& other) = delete;
 
     ~SQCBackend() {
+        sqcDestroyQuantumCircuit(qc_handle_);
         sqcFinalize(init_options_);
         sqcFreeInitOptions(init_options_);
     }
@@ -63,9 +71,7 @@ public:
     /// @return a target class (nullptr)
     std::shared_ptr<transpiler::Target> target(void) override
     {
-        if(target_) {
-            return target_;
-        }
+        if(target_) return target_;
 
         // Create a dummy circuit to get target json files
         std::unique_ptr<sqcQC> qc_handle(sqcQuantumCircuit(0), sqcDestroyQuantumCircuit);
@@ -92,8 +98,37 @@ public:
     std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
         auto circuit = input_pubs[0].circuit();
-        auto qasm_str = circuit.to_qasm3();
-        std::cout << "run qasm3: \n" << qasm_str << std::endl;
+        std::cout << "run qasm3: \n" << circuit.to_qasm3() << std::endl;
+
+        if(!qk_circ_to_sqc_circ(qc_handle_, circuit))
+        {
+            std::cerr << "Error: Failed to convert a given qiskit circuit to a SQC circuit." << std::endl;
+            return nullptr;
+        }
+
+        // @TODO: gateInfo2qasm3 is implemented in sqc_api.c, but not declared in the header file.
+        qc_handle_->qasm = gateInfo2qasm3(qc_handle_);
+
+        std::unique_ptr<sqcRunOptions> run_options(new sqcRunOption);
+        sqcInitializeRunOpt(run_options.get());
+        run_options->nshots = shots;
+        run_options->qubits = qc_handle_->qubits;
+        run_options->outFormat = SQC_OUT_RAW; // @TODO
+
+        std::unique_ptr<sqcOut> result(new sqcOut,
+                [&run_options](sqcOut* out) { sqcFreeOut(out, run_options->outFormat); });
+        int error_code = sqcQCRun(qc_handle_, backend_type_, *run_options, result);
+
+        if(error_code != SQC_RESULT_OK)
+        {
+            std::cerr << "Error: Failed to run a SQC circuit." << std::endl;
+            return nullptr;
+        }
+
+        auto result_json = nlohmann::ordered_json::parse(result->result);
+
+        // TODO: create a job
+        // note: Current SQC api does not support async execution
 
         return nullptr;
     }
