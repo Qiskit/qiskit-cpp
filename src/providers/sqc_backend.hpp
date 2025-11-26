@@ -37,7 +37,7 @@ private:
 public:
     /// @brief Create a new SQCBackend. Internally this initializes SQC.
     SQCBackend()
-        : SQCBackend("unspecified")
+        : SQCBackend("unspecified") // @TODO
     {}
 
     /// @brief Create a new SQCBackend object
@@ -63,8 +63,28 @@ public:
     /// @return a target class (nullptr)
     std::shared_ptr<transpiler::Target> target(void) override
     {
-        std::cerr << "Error: SQCBackend::target() cannot be used" << std::endl;
-        return nullptr;
+        if(target_) {
+            return target_;
+        }
+
+        // Create a dummy circuit to get target json files
+        std::unique_ptr<sqcQC> qc_handle(sqcQuantumCircuit(0), sqcDestroyQuantumCircuit);
+        if(sqcIbmdTranspileInfo(qc_handle.get(), backend_type_) != SQC_RESULT_OK) {
+            std::cerr << "Failed to get the target information" << std::endl;
+            return nullptr;
+        }
+
+        nlohmann::ordered_json target_json;
+        target_json["configuration"] = nlohmann::ordered_json::parse(qc_handle->backend_config_json)
+        target_json["properties"] = nlohmann::ordered_json::parse(qc_handle->backend_props_json);
+        auto target = std::shared_ptr<transpiler::Target>();
+        if(!target->from_json(target_json)) {
+            std::cerr << "Failed to create a target from json files" << std::endl;
+            return nullptr;
+        }
+        target_ = target;
+
+        return target_;
     }
 
     /// @brief Run and collect samples from each pub.
