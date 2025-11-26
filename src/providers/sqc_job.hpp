@@ -44,9 +44,9 @@ public:
     /// @brief Create a new QkrtBackend object
     /// @param qrmi a pointer to QRMI handle
     /// @param job an id of the job
-    SQCJob(const std::string& job)
+    SQCJob(const std::string& job_id)
     {
-        job_id_ = job;
+        job_id_ = job_id;
         num_results_ = 0;
     }
 
@@ -95,15 +95,6 @@ public:
 protected:
     void read_results(void)
     {
-        //char *result = nullptr;
-        //int rc = qrmi_resource_task_result(qrmi_.get(), job_id_.c_str(), &result);
-        //if (rc == QRMI_RETURN_CODE_SUCCESS) {
-        //    results_ = nlohmann::ordered_json::parse(result);
-
-        //    num_results_ = results_["results"].size();
-        //    qrmi_string_free((char *)result);
-        //}
-        //qrmi_resource_task_stop(qrmi_.get(), job_id_.c_str());
     }
 };
 
