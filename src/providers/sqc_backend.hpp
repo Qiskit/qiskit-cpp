@@ -94,7 +94,7 @@ public:
     }
 
     /// @brief Run and collect samples from each pub.
-    /// @return PrimitiveJob
+    /// @return SQCJob
     std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
         auto circuit = input_pubs[0].circuit();
@@ -116,7 +116,7 @@ public:
         run_options->outFormat = SQC_OUT_RAW; // @TODO
 
         std::unique_ptr<sqcOut> result(new sqcOut,
-                [&run_options](sqcOut* out) { sqcFreeOut(out, run_options->outFormat); });
+            [&run_options](sqcOut* out) { sqcFreeOut(out, run_options->outFormat); });
         int error_code = sqcQCRun(qc_handle_, backend_type_, *run_options, result);
 
         if(error_code != SQC_RESULT_OK)
@@ -125,12 +125,9 @@ public:
             return nullptr;
         }
 
-        auto result_json = nlohmann::ordered_json::parse(result->result);
+        auto results_json = nlohmann::ordered_json::parse(result->result);
 
-        // TODO: create a job
-        // note: Current SQC api does not support async execution
-
-        return nullptr;
+        return std::make_shared<SQCJob>(results_json);
     }
 };
 

@@ -14,8 +14,8 @@
 
 // Job class for SQC
 
-#ifndef __qiskitcpp_providers_SQC_job_def_hpp__
-#define __qiskitcpp_providers_SQC_job_def_hpp__
+#ifndef __qiskitcpp_providers_SQC_job_hpp__
+#define __qiskitcpp_providers_SQC_job_hpp__
 
 #include <nlohmann/json.hpp>
 
@@ -34,27 +34,32 @@ private:
     std::string job_id_;
     nlohmann::ordered_json results_;   // json formatted results (converted output from SQC)
     uint_t num_results_ = 0;
+
 public:
-    /// @brief Create a new QkrtBackend
+    /// @brief Create a new SQCBackend
     SQCJob()
-    {
-        num_results_ = 0;
-    }
+        : SQCJob("")
+    {}
 
-    /// @brief Create a new QkrtBackend object
-    /// @param qrmi a pointer to QRMI handle
-    /// @param job an id of the job
+    /// @brief Create a new SQCBackend object
     SQCJob(const std::string& job_id)
-    {
-        job_id_ = job_id;
-        num_results_ = 0;
-    }
+        : job_id_(job_id),
+          num_results_(0)
+    {}
 
-    /// @brief Create a new QkrtJob from other
+    /// @note [TODO] This constructor will be removed after SQC API provides a async job execution
+    SQCJob(const nlohmann::ordered_json results)
+        : job_id_(""),
+          num_results_(results["results"].size()),
+          results_(results)
+    {}
+
+    /// @brief Create a new SQCJob from other
     SQCJob(const SQCJob& other)
     {
         job_id_ = other.job_id_;
-        num_results_ = 0;
+        num_results_ = other.num_results_;
+        results_ = other.results_;
     }
 
     ~SQCJob() {}
@@ -63,7 +68,8 @@ public:
     /// @return JobStatus enum.
     providers::JobStatus status(void) override
     {
-        return providers::JobStatus::FAILED;
+        /// @todo Wait SQC API for making the status request API public.
+        return providers::JobStatus::DONE;
     }
 
 
@@ -71,30 +77,21 @@ public:
     /// @return number of results
     uint_t num_results(void) override
     {
-        if (num_results_ == 0)
-            read_results();
         return num_results_;
     }
 
     /// @brief get sampler pub result
-    /// @param index an index of the reuslt
+    /// @param index an index of the result
     /// @param result an output sampler pub result
     /// @return true if result is successfully set
     bool result(uint_t index, primitives::SamplerPubResult& result) override
     {
-        //if (num_results_ == 0)
-        //    read_results();
+        if (index >= num_results_)
+            return false;
 
-        //if (index >= num_results_)
-        //    return false;
+        result.from_json(results_["results"][index]);
 
-        //result.from_json(results_["results"][index]);
-        return false;
-    }
-
-protected:
-    void read_results(void)
-    {
+        return true;
     }
 };
 
@@ -102,6 +99,6 @@ protected:
 } // namespace Qiskit
 
 
-#endif //__qiskitcpp_providers_QRMI_job_def_hpp__
+#endif //__qiskitcpp_providers_SQC_job_hpp__
 
 
