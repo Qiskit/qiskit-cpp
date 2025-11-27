@@ -115,8 +115,7 @@ public:
         run_options->qubits = qc_handle_->qubits;
         run_options->outFormat = SQC_OUT_RAW; // @TODO
 
-        std::unique_ptr<sqcOut> result(new sqcOut,
-            [&run_options](sqcOut* out) { sqcFreeOut(out, run_options->outFormat); });
+        std::unique_ptr<sqcOut> result(new sqcOut, [](sqcOut* out) { sqcFreeOut(out, SQC_OUT_RAW); });
         int error_code = sqcQCRun(qc_handle_, backend_type_, *run_options, result);
 
         if(error_code != SQC_RESULT_OK)
