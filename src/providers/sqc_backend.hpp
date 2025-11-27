@@ -31,7 +31,6 @@ namespace providers {
 /// @brief Backend class using SQC.
 class SQCBackend : public BackendV2 {
 private:
-    sqcInitOptions* init_options_;
     /// @note A circuit data will be built via qiskit-cpp, not SQC.
     ///       A `qc_handle_` field is just used for an interface between qiskit-cpp and SQC.
     sqcQC* qc_handle_;
@@ -47,24 +46,16 @@ public:
     /// @param backend_name a resource name for backend.
     SQCBackend(const std::string name)
         : name_(name),
-          init_options_(NULL),
           qc_handle_(NULL),
           backend_type_(SQC_RPC_SCHED_QC_TYPE_IBM_DACC),
     {
-        init_options_ = sqcMallocInitOptions();
-        init_options_->use_qiskit = 1; // only ibm_dacc is supported
-        if(sqcInitialize(init_options_) != E_SUCCESS) {
-            std::cerr << "Failed to initialize SQC" << std::endl;
-        }
+        
         qc_handle_ = sqcQuantumCircuit(0);
     }
 
-    SQCBackend(const SQCBackend& other) = delete;
-
-    ~SQCBackend() {
+    ~SQCBackend()
+    {
         sqcDestroyQuantumCircuit(qc_handle_);
-        sqcFinalize(init_options_);
-        sqcFreeInitOptions(init_options_);
     }
 
     /// @brief Return a target properties for this backend.

@@ -24,14 +24,26 @@ namespace service {
 
 class QiskitRuntimeService {
 private:
+    sqcInitOptions* init_options_;
+
 public:
     /// @brief Create a new runtime service class
     QiskitRuntimeService()
+        : init_options_(NULL)
     {
+        init_options_ = sqcMallocInitOptions();
+        init_options_->use_qiskit = 1; // only ibm_dacc is supported
+        if(sqcInitialize(init_options_) != E_SUCCESS) {
+            std::cerr << "Failed to initialize SQC" << std::endl;
+        }
     }
+
+    QiskitRuntimeService(QiskitRuntimeService const&) = delete;
 
     ~QiskitRuntimeService()
     {
+        sqcFinalize(init_options_);
+        sqcFreeInitOptions(init_options_);
     }
 
     /// @brief create a new backend object
