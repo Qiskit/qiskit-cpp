@@ -36,7 +36,8 @@ function(add_application APP_NAME CPP_FILE)
       PUBLIC
         ${QISKIT_ROOT}/target/release
         ${QRMI_ROOT}/target/release
-        #${SQC_ROOT}/<TODO>
+        ${SQC_ROOT}/lib
+        ${SQC_ROOT}/lib64
         ${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug
     )
     if(QRMI_ROOT)
@@ -45,9 +46,8 @@ function(add_application APP_NAME CPP_FILE)
     elseif(QISKIT_IBM_RUNTIME_C_ROOT)
       target_link_libraries(${APP_NAME} qiskit_cext.dll.lib qiskit_ibm_runtime.dll.lib nlohmann_json::nlohmann_json)
       set(CMAKE_CXX_FLAGS "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
-    #elseif(SQC_ROOT)
-      #target_link_libraries(${APP_NAME} qiskit_cext.dll.lib <TODO> nlohmann_json::nlohmann_json)
-      #set(CMAKE_CXX_FLAGS "-DSQC_ROOT=${SQC_ROOT}")
+    #else(SQC_ROOT)
+      # SQC for MSVC is not supported
     else()
       target_link_libraries(${APP_NAME} qiskit_cext.dll.lib nlohmann_json::nlohmann_json)
       target_compile_options(${APP_NAME} PRIVATE "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
@@ -65,12 +65,12 @@ function(add_application APP_NAME CPP_FILE)
           "-L${QISKIT_ROOT}/dist/c/lib -L${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug" qiskit qiskit_ibm_runtime nlohmann_json::nlohmann_json
       )
       target_compile_options(${APP_NAME} PRIVATE "-DQISKIT_IBM_RUNTIME_C_ROOT=${QISKIT_IBM_RUNTIME_C_ROOT}")
-    #elseif(SQC_ROOT)
-    #  target_link_libraries(${APP_NAME}
-    #    PRIVATE
-    #      "-L${QISKIT_ROOT}/dist/c/lib -L${SQC_ROOT}/<TODO> -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${QISKIT_IBM_RUNTIME_C_ROOT}/build/cargo/debug" qiskit qiskit_ibm_runtime nlohmann_json::nlohmann_json
-    #  )
-    #  target_compile_options(${APP_NAME} PRIVATE "-DSQC_ROOT=${SQC_ROOT}")
+    elseif(SQC_ROOT)
+      target_link_libraries(${APP_NAME}
+        PRIVATE
+          "-L${QISKIT_ROOT}/dist/c/lib -L${SQC_ROOT}/lib -L${SQC_ROOT}/lib -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib ${SQC_COMPILE_OPTIONS}" qiskit nlohmann_json::nlohmann_json
+      )
+      target_compile_options(${APP_NAME} PRIVATE "-DSQC_ROOT=${SQC_ROOT} -DSQC_COMPILE_OPTIONS=${SQC_COMPILE_OPTIONS}")
     else()
       target_link_libraries(${APP_NAME}
         PRIVATE
@@ -85,7 +85,7 @@ function(add_application APP_NAME CPP_FILE)
       ${QISKIT_ROOT}/dist/c/include
       ${QRMI_ROOT}
       ${QISKIT_IBM_RUNTIME_C_ROOT}/include
-      ${SQC_ROOT}/capi/include
+      ${SQC_ROOT}/include
       ${SAMPLES_PATH}
       ${CMAKE_CURRENT_SOURCE_DIR}/../src
       nlohmann_json::nlohmann_json
