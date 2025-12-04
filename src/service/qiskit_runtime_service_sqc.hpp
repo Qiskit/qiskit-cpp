@@ -28,7 +28,7 @@ private:
 
 public:
     /// @brief Create a new runtime service class
-    QiskitRuntimeService()
+    QiskitRuntimeService(const std::string)
         : init_options_(NULL)
     {
         init_options_ = sqcMallocInitOptions();
