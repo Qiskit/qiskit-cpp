@@ -111,7 +111,7 @@ public:
         }
         sqcConvQASMtoMemory(sqc_circ.get(), backend_type_, sqc_circ->qasm, qasm_len);
 
-        std::unique_ptr<sqcRunOptions> run_options(new sqcRunOption);
+        std::unique_ptr<sqcRunOptions> run_options(new sqcRunOptions);
         sqcInitializeRunOpt(run_options.get());
         run_options->nshots = shots;
         run_options->qubits = sqc_circ->qubits;
