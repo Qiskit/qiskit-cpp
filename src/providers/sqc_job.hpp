@@ -38,7 +38,7 @@ private:
 public:
     /// @brief Create a new SQCBackend
     SQCJob()
-        : SQCJob("")
+        : SQCJob(std::string{""})
     {}
 
     /// @brief Create a new SQCBackend object

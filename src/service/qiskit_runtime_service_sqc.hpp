@@ -38,8 +38,6 @@ public:
         }
     }
 
-    QiskitRuntimeService(QiskitRuntimeService const&) = delete;
-
     ~QiskitRuntimeService()
     {
         sqcFinalize(init_options_);
