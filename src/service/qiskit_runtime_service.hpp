@@ -16,6 +16,8 @@
 
 #ifdef QRMI_ROOT
 #include "service/qiskit_runtime_service qrmi.hpp"
+#elif defined(SQC_ROOT)
+#include "service/qiskit_runtime_service_sqc.hpp"
 #else   // otherwise use Qiskit IBM runtime C-API
 
 #ifndef __qiskitcpp_providers_qiskit_runtime_service_def_hpp__

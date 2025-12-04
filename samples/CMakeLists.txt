@@ -102,11 +102,7 @@ endfunction()
 add_application(circuit_test circuit_test.cpp)
 add_application(observable_test observable_test.cpp)
 
-if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT)
+if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR (SQC_ROOT AND SQC_LINK_OPTIONS))
   add_application(sampler_test sampler_test.cpp)
   add_application(transpile_test transpile_test.cpp)
-endif()
-
-if(SQC_ROOT AND SQC_LINK_OPTIONS)
-  add_application(sqc_test sqc_test.cpp)
 endif()
