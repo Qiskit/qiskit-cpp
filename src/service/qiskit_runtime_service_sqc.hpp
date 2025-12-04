@@ -28,7 +28,7 @@ private:
 
 public:
     /// @brief Create a new runtime service class
-    QiskitRuntimeService(const std::string)
+    QiskitRuntimeService()
         : init_options_(NULL)
     {
         init_options_ = sqcMallocInitOptions();
@@ -44,11 +44,12 @@ public:
         sqcFreeInitOptions(init_options_);
     }
 
-    /// @brief create a new backend object
-    /// @return a new QkrtBackend class
-    Qiskit::providers::SQCBackend backend()
+    /// @brief Create a new backend object
+    /// @param name the name of the backend resource
+    /// @return A new QkrtBackend class
+    Qiskit::providers::SQCBackend backend(std::string name)
     {
-        return Qiskit::providers::SQCBackend();
+        return Qiskit::providers::SQCBackend(name);
     }
 };
 
