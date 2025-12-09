@@ -137,7 +137,7 @@ std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ)
     if(qk_circ.num_instructions() > MAX_N_GATES)
     {
         std::cerr << "Error: The number of a given circuit exceeds the limit of SQC." << std::endl;
-        return false;
+        return nullptr;
     }
 
     auto sqc_circ = std::shared_ptr<sqcQC>(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
