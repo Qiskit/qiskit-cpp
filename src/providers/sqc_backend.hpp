@@ -31,11 +31,10 @@ namespace Qiskit {
 namespace providers {
 
 /// @brief Convert a qiskit quantum circuit to a SQC circuit.
-/// @param A SQC circuit where a result is stored
 /// @param An original qiskit circuit
-/// @note This function destroys the original SQC circuit data.
+/// @return a SQC circuit equivalent to the given qiskit circuit
 /// @note Currently parameterized circuits are not supported.
-bool qk_circ_to_sqc_circ(sqcQC* qc_handle, circuit::QuantumCircuit& qk_circ);
+std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ);
 
 /// @class SQCBackend
 /// @brief Backend class using SQC.
@@ -82,7 +81,7 @@ public:
         nlohmann::ordered_json target_json;
         target_json["configuration"] = nlohmann::ordered_json::parse(qc_handle->backend_config_json);
         target_json["properties"] = nlohmann::ordered_json::parse(qc_handle->backend_props_json);
-        auto target = std::shared_ptr<transpiler::Target>();
+        auto target = std::make_shared<transpiler::Target>();
         if(!target->from_json(target_json)) {
             std::cerr << "Failed to create a target from json files" << std::endl;
             return nullptr;
@@ -102,13 +101,13 @@ public:
 
         // Create a sqcQC from a qiskit circuit
         const uint_t qasm_len = qasm3_str.size() + 500;
-        std::unique_ptr<sqcQC, decltype(&sqcDestroyQuantumCircuit)> sqc_circ(sqcQuantumCircuit(0), &sqcDestroyQuantumCircuit);
-        sqc_circ->qasm = (char*)malloc(qasm_len);
-        if(!qk_circ_to_sqc_circ(sqc_circ.get(), circuit))
+        auto sqc_circ = qk_circ_to_sqc_circ(circuit);
+        if(!sqc_circ)
         {
             std::cerr << "Error: Failed to convert a given qiskit circuit to a SQC circuit." << std::endl;
             return nullptr;
         }
+        sqc_circ->qasm = (char*)malloc(qasm_len);
         sqcConvQASMtoMemory(sqc_circ.get(), backend_type_, sqc_circ->qasm, qasm_len);
 
         std::unique_ptr<sqcRunOptions> run_options(new sqcRunOptions);
@@ -133,22 +132,15 @@ public:
 };
 
 
-bool qk_circ_to_sqc_circ(sqcQC* qc_handle, circuit::QuantumCircuit& qk_circ)
+std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ)
 {
-    if(qc_handle == NULL)
-    {
-        std::cerr << "Error: Given SQC handle is null." << std::endl;
-        return false;
-    }
     if(qk_circ.num_instructions() > MAX_N_GATES)
     {
         std::cerr << "Error: The number of a given circuit exceeds the limit of SQC." << std::endl;
         return false;
     }
 
-    qc_handle->qubits = static_cast<int>(qk_circ.num_qubits());
-    qc_handle->ngates = static_cast<int>(qk_circ.num_instructions());
-
+    auto sqc_circ = std::shared_ptr<sqcQC>(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
     for(int i = 0; i < static_cast<int>(qk_circ.num_instructions()); ++i) {
         const auto circ_instr = qk_circ[i];
         const auto& instr_name = circ_instr.instruction().name();
@@ -157,94 +149,94 @@ bool qk_circ_to_sqc_circ(sqcQC* qc_handle, circuit::QuantumCircuit& qk_circ)
 
         if(instr_name == "measure")
         {
-            sqcMeasure(qc_handle, qubits[0], clbits[0], NULL);
+            sqcMeasure(sqc_circ, qubits[0], clbits[0], NULL);
         }
         else if(instr_name == "h")
         {
-            sqcHGate(qc_handle, qubits[0]);
+            sqcHGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "cx")
         {
-            sqcCXGate(qc_handle, qubits[0], qubits[1]);
+            sqcCXGate(sqc_circ, qubits[0], qubits[1]);
         }
         else if(instr_name == "cz")
         {
-            sqcCXGate(qc_handle, qubits[0], qubits[1]);
+            sqcCZGate(sqc_circ, qubits[0], qubits[1]);
         } 
         else if(instr_name == "rz")
         {
-            sqcRZGate(qc_handle, qubits[0], qubits[1]);
+            sqcRZGate(sqc_circ, qubits[0], qubits[1]);
         }
         else if(instr_name == "s")
         {
-            sqcSGate(qc_handle, qubits[0]);
+            sqcSGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "sdg")
         {
-            sqcSdgGate(qc_handle, qubits[0]);
+            sqcSdgGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "rx")
         {
             const auto& instr = circ_instr.instruction();
             assert(instr.params().size() == 1);
-            sqcRXGate(qc_handle, instr.params()[0], qubits[0]);
+            sqcRXGate(sqc_circ, instr.params()[0], qubits[0]);
         }
         else if(instr_name == "ry")
         {
             const auto& instr = circ_instr.instruction();
             assert(instr.params().size() == 1);
-            sqcRZGate(qc_handle, instr.params()[0], qubits[0]);
+            sqcRYGate(sqc_circ, instr.params()[0], qubits[0]);
         }
         else if(instr_name == "x")
         {
-            sqcXGate(qc_handle, qubits[0]);
+            sqcXGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "z")
         {
-            sqcZGate(qc_handle, qubits[0]);
+            sqcZGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "p")
         {
             const auto& instr = circ_instr.instruction();
-            sqcU1Gate(qc_handle, instr.params()[0], qubits[0]);
+            sqcU1Gate(sqc_circ, instr.params()[0], qubits[0]);
         }
         else if(instr_name == "reset")
         {
-            sqcReset(qc_handle, qubits[0]);
+            sqcReset(sqc_circ, qubits[0]);
         }
         else if(instr_name == "barrier")
         {
             for(auto qubit : qubits)
             {
-                sqcBarrier(qc_handle, qubit);
+                sqcBarrier(sqc_circ, qubit);
             }
         }
         else if(instr_name == "ecr")
         {
-            sqcECRGate(qc_handle, qubits[0], qubits[1]);
+            sqcECRGate(sqc_circ, qubits[0], qubits[1]);
         }
         else if(instr_name == "sx")
         {
-            sqcSXGate(qc_handle, qubits[0]);
+            sqcSXGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "id")
         {
-            sqcIDGate(qc_handle, qubits[0]);
+            sqcIDGate(sqc_circ, qubits[0]);
         }
         else if(instr_name == "delay")
         {
             // TODO
             std::cerr << "Error (WIP): The delay operation is not support now." << std::endl;
-            return false;
+            return nullptr;
         }
         else
         {
             std::cerr << "Error: An instruction " << instr_name << " is not supported in SQC." << std::endl;
-            return false;
+            return nullptr;
         }
     }
 
-    return true;
+    return sqc_circ;
 }
 
 
