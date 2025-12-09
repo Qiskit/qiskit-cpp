@@ -140,7 +140,7 @@ std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ)
         return nullptr;
     }
 
-    auto sqc_circ = std::shared_ptr<sqcQC>(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
+    std::shared_ptr<sqcQC> sqc_circ(sqcQuantumCircuit(qk_circ.num_qubits()), sqcDestroyQuantumCircuit);
     for(int i = 0; i < static_cast<int>(qk_circ.num_instructions()); ++i) {
         const auto circ_instr = qk_circ[i];
         const auto& instr_name = circ_instr.instruction().name();
