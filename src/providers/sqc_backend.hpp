@@ -149,79 +149,79 @@ std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ)
 
         if(instr_name == "measure")
         {
-            sqcMeasure(sqc_circ, qubits[0], clbits[0], NULL);
+            sqcMeasure(sqc_circ.get(), qubits[0], clbits[0], NULL);
         }
         else if(instr_name == "h")
         {
-            sqcHGate(sqc_circ, qubits[0]);
+            sqcHGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "cx")
         {
-            sqcCXGate(sqc_circ, qubits[0], qubits[1]);
+            sqcCXGate(sqc_circ.get(), qubits[0], qubits[1]);
         }
         else if(instr_name == "cz")
         {
-            sqcCZGate(sqc_circ, qubits[0], qubits[1]);
+            sqcCZGate(sqc_circ.get(), qubits[0], qubits[1]);
         } 
         else if(instr_name == "rz")
         {
-            sqcRZGate(sqc_circ, qubits[0], qubits[1]);
+            sqcRZGate(sqc_circ.get(), qubits[0], qubits[1]);
         }
         else if(instr_name == "s")
         {
-            sqcSGate(sqc_circ, qubits[0]);
+            sqcSGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "sdg")
         {
-            sqcSdgGate(sqc_circ, qubits[0]);
+            sqcSdgGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "rx")
         {
             const auto& instr = circ_instr.instruction();
             assert(instr.params().size() == 1);
-            sqcRXGate(sqc_circ, instr.params()[0], qubits[0]);
+            sqcRXGate(sqc_circ.get(), instr.params()[0], qubits[0]);
         }
         else if(instr_name == "ry")
         {
             const auto& instr = circ_instr.instruction();
             assert(instr.params().size() == 1);
-            sqcRYGate(sqc_circ, instr.params()[0], qubits[0]);
+            sqcRYGate(sqc_circ.get(), instr.params()[0], qubits[0]);
         }
         else if(instr_name == "x")
         {
-            sqcXGate(sqc_circ, qubits[0]);
+            sqcXGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "z")
         {
-            sqcZGate(sqc_circ, qubits[0]);
+            sqcZGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "p")
         {
             const auto& instr = circ_instr.instruction();
-            sqcU1Gate(sqc_circ, instr.params()[0], qubits[0]);
+            sqcU1Gate(sqc_circ.get(), instr.params()[0], qubits[0]);
         }
         else if(instr_name == "reset")
         {
-            sqcReset(sqc_circ, qubits[0]);
+            sqcReset(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "barrier")
         {
             for(auto qubit : qubits)
             {
-                sqcBarrier(sqc_circ, qubit);
+                sqcBarrier(sqc_circ.get(), qubit);
             }
         }
         else if(instr_name == "ecr")
         {
-            sqcECRGate(sqc_circ, qubits[0], qubits[1]);
+            sqcECRGate(sqc_circ.get(), qubits[0], qubits[1]);
         }
         else if(instr_name == "sx")
         {
-            sqcSXGate(sqc_circ, qubits[0]);
+            sqcSXGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "id")
         {
-            sqcIDGate(sqc_circ, qubits[0]);
+            sqcIDGate(sqc_circ.get(), qubits[0]);
         }
         else if(instr_name == "delay")
         {
