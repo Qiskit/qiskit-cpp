@@ -30,11 +30,6 @@
 namespace Qiskit {
 namespace providers {
 
-/// @brief Convert a qiskit quantum circuit to a SQC circuit.
-/// @param An original qiskit circuit
-/// @return a SQC circuit equivalent to the given qiskit circuit
-/// @note Currently parameterized circuits are not supported.
-std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ);
 
 /// @class SQCBackend
 /// @brief Backend class using SQC.
@@ -99,16 +94,8 @@ public:
         const auto qasm3_str = circuit.to_qasm3();
         std::cout << "run qasm3: \n" << qasm3_str << std::endl;
 
-        // Create a sqcQC from a qiskit circuit
-        const uint_t qasm_len = qasm3_str.size() + 500;
-        auto sqc_circ = qk_circ_to_sqc_circ(circuit);
-        if(!sqc_circ)
-        {
-            std::cerr << "Error: Failed to convert a given qiskit circuit to a SQC circuit." << std::endl;
-            return nullptr;
-        }
-        sqc_circ->qasm = (char*)malloc(qasm_len);
-        sqcConvQASMtoMemory(sqc_circ.get(), backend_type_, sqc_circ->qasm, qasm_len);
+        std::shared_ptr<sqcQC> sqc_circ(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
+        sqc_circ->qasm = strdup(qasm3_str.c_str());
 
         std::unique_ptr<sqcRunOptions> run_options(new sqcRunOptions);
         sqcInitializeRunOpt(run_options.get());
@@ -132,118 +119,8 @@ public:
 };
 
 
-std::shared_ptr<sqcQC> qk_circ_to_sqc_circ(circuit::QuantumCircuit& qk_circ)
-{
-    if(qk_circ.num_instructions() > MAX_N_GATES)
-    {
-        std::cerr << "Error: The number of a given circuit exceeds the limit of SQC." << std::endl;
-        return nullptr;
-    }
-
-    std::shared_ptr<sqcQC> sqc_circ(sqcQuantumCircuit(qk_circ.num_qubits()), sqcDestroyQuantumCircuit);
-    for(int i = 0; i < static_cast<int>(qk_circ.num_instructions()); ++i) {
-        const auto circ_instr = qk_circ[i];
-        const auto& instr_name = circ_instr.instruction().name();
-        const auto& qubits = circ_instr.qubits();
-        const auto& clbits = circ_instr.clbits();
-
-        if(instr_name == "measure")
-        {
-            sqcMeasure(sqc_circ.get(), qubits[0], clbits[0], NULL);
-        }
-        else if(instr_name == "h")
-        {
-            sqcHGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "cx")
-        {
-            sqcCXGate(sqc_circ.get(), qubits[0], qubits[1]);
-        }
-        else if(instr_name == "cz")
-        {
-            sqcCZGate(sqc_circ.get(), qubits[0], qubits[1]);
-        } 
-        else if(instr_name == "rz")
-        {
-            sqcRZGate(sqc_circ.get(), qubits[0], qubits[1]);
-        }
-        else if(instr_name == "s")
-        {
-            sqcSGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "sdg")
-        {
-            sqcSdgGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "rx")
-        {
-            const auto& instr = circ_instr.instruction();
-            assert(instr.params().size() == 1);
-            sqcRXGate(sqc_circ.get(), instr.params()[0], qubits[0]);
-        }
-        else if(instr_name == "ry")
-        {
-            const auto& instr = circ_instr.instruction();
-            assert(instr.params().size() == 1);
-            sqcRYGate(sqc_circ.get(), instr.params()[0], qubits[0]);
-        }
-        else if(instr_name == "x")
-        {
-            sqcXGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "z")
-        {
-            sqcZGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "p")
-        {
-            const auto& instr = circ_instr.instruction();
-            sqcU1Gate(sqc_circ.get(), instr.params()[0], qubits[0]);
-        }
-        else if(instr_name == "reset")
-        {
-            sqcReset(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "barrier")
-        {
-            for(auto qubit : qubits)
-            {
-                sqcBarrier(sqc_circ.get(), qubit);
-            }
-        }
-        else if(instr_name == "ecr")
-        {
-            sqcECRGate(sqc_circ.get(), qubits[0], qubits[1]);
-        }
-        else if(instr_name == "sx")
-        {
-            sqcSXGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "id")
-        {
-            sqcIDGate(sqc_circ.get(), qubits[0]);
-        }
-        else if(instr_name == "delay")
-        {
-            // TODO
-            std::cerr << "Error (WIP): The delay operation is not support now." << std::endl;
-            return nullptr;
-        }
-        else
-        {
-            std::cerr << "Error: An instruction " << instr_name << " is not supported in SQC." << std::endl;
-            return nullptr;
-        }
-    }
-
-    return sqc_circ;
-}
-
-
 } // namespace providers
 } // namespace Qiskit
 
 
 #endif //__qiskitcpp_providers_SQC_backend_def_hpp__
-
-
