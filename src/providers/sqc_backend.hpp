@@ -103,7 +103,7 @@ public:
         run_options->qubits = sqc_circ->qubits;
         run_options->outFormat = SQC_OUT_RAW; // @TODO
 
-        std::shared_ptr<sqcOut> result(new sqcOut, [](sqcOut* out) { sqcFreeOut(out, SQC_OUT_RAW); });
+        std::shared_ptr<sqcOut> result((sqcOut*)malloc(sizeof(sqcOut)), [](sqcOut* out) { sqcFreeOut(out, SQC_OUT_RAW); });
         int error_code = sqcQCRun(sqc_circ.get(), backend_type_, *run_options, result.get());
 
         if(error_code != SQC_RESULT_OK)
