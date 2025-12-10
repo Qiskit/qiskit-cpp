@@ -103,17 +103,11 @@ Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` 
 $ cd samples
 $ mkdir build
 $ cd build
-$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" ..
+$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" or -DSQC_ROOT="path to SQC" ..
 $ make
 ```
 
-If you use SQC, you also need to set `SQC_LINK_OPTIONS`.
-
-```shell-session
-$ cmake -DQISKIT_ROOT=Path_to_qiskit -DSQC_ROOT="path to SQC" -DSQC_LINK_OPTIONS="SQC link options" ..
-```
-
-The format of `SQC_LINK_OPTIONS` is assumued to be as follows, for example. For required options, please refer the the SQC documentation.
+You also need to set the library options to the environment variable `SQC_LIBS` before cmake if you use SQC. The format of `SQC_LIBS` is assumued to be as follows, for example. For required options, please refer the the SQC documentation.
 
 ```
 "-lsqc_api -lsqc_rpc ... -pthread"

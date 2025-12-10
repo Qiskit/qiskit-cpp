@@ -68,9 +68,9 @@ function(add_application APP_NAME CPP_FILE)
     elseif(SQC_ROOT)
       target_link_libraries(${APP_NAME}
         PRIVATE
-          "-L${QISKIT_ROOT}/dist/c/lib -L${SQC_ROOT}/lib -L${SQC_ROOT}/lib64 -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib $ENV{SQC_LINK_OPTIONS}" qiskit nlohmann_json::nlohmann_json
+          "-L${QISKIT_ROOT}/dist/c/lib -L${SQC_ROOT}/lib -L${SQC_ROOT}/lib64 -Wl,-rpath ${QISKIT_ROOT}/dist/c/lib -Wl,-rpath ${SQC_ROOT}/lib -Wl,-rpath ${SQC_ROOT}/lib64" qiskit nlohmann_json::nlohmann_json $ENV{SQC_LIBS}
       )
-      target_compile_options(${APP_NAME} PRIVATE "-DSQC_ROOT=${SQC_ROOT} -DSQC_LINK_OPTIONS=${SQC_LINK_OPTIONS}")
+      target_compile_options(${APP_NAME} PRIVATE "-DSQC_ROOT=${SQC_ROOT}")
     else()
       target_link_libraries(${APP_NAME}
         PRIVATE
@@ -102,7 +102,7 @@ endfunction()
 add_application(circuit_test circuit_test.cpp)
 add_application(observable_test observable_test.cpp)
 
-if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR (SQC_ROOT AND SQC_LINK_OPTIONS))
+if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR SQC_ROOT)
   add_application(sampler_test sampler_test.cpp)
   add_application(transpile_test transpile_test.cpp)
 endif()
