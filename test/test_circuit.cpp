@@ -628,15 +628,14 @@ static int test_to_qasm3_multi_regs(void) {
     const std::string expected =
         "OPENQASM 3.0;\n"
         "include \"stdgates.inc\";\n"
-        "qubit[2] q1;\n"
-        "qubit[1] q2;\n"
+        "qubit[3] q;\n"
         "bit[2] c1;\n"
         "bit[1] c2;\n"
-        "c2[0] = measure q2[0];\n"
-        "c1[0] = measure q1[0];\n"
-        "c1[1] = measure q1[1];\n";
+        "c2[0] = measure q[2];\n"
+        "c1[0] = measure q[0];\n"
+        "c1[1] = measure q[1];\n";
     if (actual != expected) {
-        std::cerr << "  to_qasm3_multi_regs test : \n    expected" << expected
+        std::cerr << "  to_qasm3_multi_regs test : \n    expected:\n" << expected
             << "\n    actual:\n" << actual << std::endl;
         return EqualityError;
     }

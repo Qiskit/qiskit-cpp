@@ -1209,6 +1209,8 @@ void QuantumCircuit::print(void) const
     }
 }
 
+
+
 std::string QuantumCircuit::to_qasm3(void)
 {
     add_pending_control_flow_op();
@@ -1506,29 +1508,28 @@ std::string QuantumCircuit::to_qasm3(void)
     }
     qk_opcounts_clear(&opcounts);
 
-    // Maps a base index to the pointer to the corresponding register
-    std::map<uint_t, Register*> qreg_table;
-    std::map<uint_t, Register*> creg_table;
-    for(auto& qreg : this->qregs_)
-    {
-        qasm3 << "qubit[" << qreg.size() << "] " << qreg.name() << ";" << std::endl;
-        qreg_table[qreg.base_index()] = &qreg;
-    }
-    for(auto& creg : this->cregs_)
-    {
-        qasm3 << "bit[" << creg.size() << "] " << creg.name() << ";" << std::endl;
-        creg_table[creg.base_index()] = &creg;
-    }
-    auto recover_reg_data = [](std::map<uint_t, Register*> const& table, uint_t index)
-        -> std::pair<std::string, uint_t>
-    {
-        const auto it = std::prev(table.upper_bound(index));
-        return std::make_pair(it->second->name(), index - it->first);
-    };
-
     // save ops
     uint_t nops;
     nops = qk_circuit_num_instructions(rust_circuit_.get());
+
+    // Declare registers
+    // After transpilation, qubit registers will be mapped to physical registers,
+    // so we need to combined them in a single quantum register "q";
+    const std::string qreg_name = "q";
+    qasm3 << "qubit[" << num_qubits() << "] " << qreg_name << ";" << std::endl;
+    for(const auto& creg : cregs_)
+    {
+        qasm3 << "bit[" << creg.size() << "] " << creg.name() << ";" << std::endl;
+    }
+
+    auto recover_reg_data = [this](uint_t index) -> std::pair<std::string, uint_t>
+    {
+        auto it = std::upper_bound(cregs_.begin(), cregs_.end(), index,
+                [](uint_t v, const ClassicalRegister& reg) { return v < reg.base_index(); });
+        assert(it != cregs_.begin());
+        it = std::prev(it);
+        return std::make_pair(it->name(), index - it->base_index());
+    };
 
     for (uint_t i = 0; i < nops; i++)
     {
@@ -1540,9 +1541,8 @@ std::string QuantumCircuit::to_qasm3(void)
             {
                 for (uint_t j = 0; j < op->num_qubits; j++)
                 {
-                    const auto creg_data = recover_reg_data(creg_table, op->clbits[j]);
-                    const auto qreg_data = recover_reg_data(qreg_table, op->qubits[j]);
-                    qasm3 << creg_data.first << "[" << creg_data.second << "] = " << op->name << " " << qreg_data.first << "[" << qreg_data.second << "];" << std::endl;
+                    const auto creg_data = recover_reg_data(op->clbits[j]);
+                    qasm3 << creg_data.first << "[" << creg_data.second << "] = " << op->name << " " << qreg_name << "[" << op->qubits[j] << "];" << std::endl;
                 }
             }
         }
@@ -1572,8 +1572,7 @@ std::string QuantumCircuit::to_qasm3(void)
                 qasm3 << " ";
                 for (uint_t j = 0; j < op->num_qubits; j++)
                 {
-                    const auto qreg_data = recover_reg_data(qreg_table, op->qubits[j]);
-                    qasm3 << qreg_data.first << "[" << qreg_data.second << "]";
+                    qasm3 << qreg_name << "[" << op->qubits[j] << "]";
                     if (j != op->num_qubits - 1)
                         qasm3 << ", ";
                 }
