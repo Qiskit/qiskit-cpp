@@ -18,6 +18,7 @@
 #define __qiskitcpp_providers_SQC_backend_def_hpp__
 
 #include <memory>
+#include <regex>
 
 #include "utils/types.hpp"
 #include "transpiler/target.hpp"
@@ -30,6 +31,7 @@
 namespace Qiskit {
 namespace providers {
 
+std::string replace_all(std::string s, const std::string& from, const std::string& to);
 
 /// @class SQCBackend
 /// @brief Backend class using SQC.
@@ -94,6 +96,15 @@ public:
         const auto qasm3_str = circuit.to_qasm3();
         std::cout << "run qasm3: \n" << qasm3_str << std::endl;
 
+        // special modification of QASM3 for SQC
+        std::string sqc_qasm3_str = qasm3_str;
+        static const std::regex re(R"(\r\n|\r|\n)");
+        sqc_qasm3_str = std::regex_replace(sqc_qasm3_str, re, std::string("\\n"));
+        sqc_qasm3_str = replace_all(sqc_qasm3_str, "\"", "\\\"");
+        sqc_qasm3_str.insert(0, "\"");
+        sqc_qasm3_str.append("\"");
+        std::cout << "qasm3 for SQC: \n" << sqc_qasm3_str << std::endl;
+
         std::shared_ptr<sqcQC> sqc_circ(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
         sqc_circ->qasm = strdup(qasm3_str.c_str());
 
@@ -101,7 +112,7 @@ public:
         sqcInitializeRunOpt(run_options.get());
         run_options->nshots = shots;
         run_options->qubits = sqc_circ->qubits;
-        run_options->outFormat = SQC_OUT_RAW; // @TODO
+        run_options->outFormat = SQC_OUT_RAW; // Currently SQC supports the raw format only
 
         std::shared_ptr<sqcOut> result((sqcOut*)malloc(sizeof(sqcOut)), [](sqcOut* out) { sqcFreeOut(out, SQC_OUT_RAW); });
         int error_code = sqcQCRun(sqc_circ.get(), backend_type_, *run_options, result.get());
@@ -117,6 +128,25 @@ public:
         return std::make_shared<SQCJob>(results_json);
     }
 };
+
+
+std::string replace_all(std::string s, const std::string& from, const std::string& to) {
+    if (from.empty()) return s;
+    std::string out;
+    out.reserve(s.size());
+    std::size_t pos = 0;
+    while (true) {
+        std::size_t found = s.find(from, pos);
+        if (found == std::string::npos) {
+            out.append(s, pos, std::string::npos);
+            break;
+        }
+        out.append(s, pos, found - pos);
+        out.append(to);
+        pos = found + from.size();
+    }
+    return out;
+}
 
 
 } // namespace providers
