@@ -1519,10 +1519,10 @@ std::string QuantumCircuit::to_qasm3(void)
         qasm3 << "bit[" << creg.size() << "] " << creg.name() << ";" << std::endl;
         creg_table[creg.base_index()] = &creg;
     }
-    auto recover_reg_data = [](std::map<uint_t, Register*> const& table, uint32_t index)
+    auto recover_reg_data = [](std::map<uint_t, Register*> const& table, uint_t index)
         -> std::pair<std::string, uint_t>
     {
-        const auto it = std::prev(table.upper_bound(static_cast<int>(index)));
+        const auto it = std::prev(table.upper_bound(index));
         return std::make_pair(it->second->name(), index - it->first);
     };
 
