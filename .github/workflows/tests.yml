@@ -20,6 +20,10 @@ jobs:
                 - windows-latest
         steps:
             - uses: actions/checkout@v5
+            - uses: actions/setup-python@v6
+              if: ${{ matrix.os == 'windows-latest' }}
+              with:
+                python-version: '3.11'
             - name: install deps
               run: cargo install cbindgen
             - name: clone Qiskit
