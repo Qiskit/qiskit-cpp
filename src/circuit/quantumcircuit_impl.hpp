@@ -1209,8 +1209,6 @@ void QuantumCircuit::print(void) const
     }
 }
 
-
-
 std::string QuantumCircuit::to_qasm3(void)
 {
     add_pending_control_flow_op();
