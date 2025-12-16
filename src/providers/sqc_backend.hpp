@@ -106,7 +106,7 @@ public:
         std::cout << "qasm3 for SQC: \n" << sqc_qasm3_str << std::endl;
 
         std::shared_ptr<sqcQC> sqc_circ(sqcQuantumCircuit(circuit.num_qubits()), sqcDestroyQuantumCircuit);
-        sqc_circ->qasm = strdup(qasm3_str.c_str());
+        sqc_circ->qasm = strdup(sqc_qasm3_str.c_str());
 
         std::unique_ptr<sqcRunOptions> run_options(new sqcRunOptions);
         sqcInitializeRunOpt(run_options.get());
