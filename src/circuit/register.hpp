@@ -146,7 +146,7 @@ public:
 
     /// @brief Return the size of this register
     /// @return the size of this register
-    uint_t size(void) { return size_; }
+    uint_t size(void) const { return size_; }
 
     /// @brief Return the name of this register
     /// @return the name of this register
@@ -156,6 +156,10 @@ public:
     {
         base_index_ = base;
     }
+
+    /// @brief Return the base index of this register
+    /// @return the base index of this register
+    uint_t base_index() const { return base_index_; }
 
     Bit &operator[](const uint_t i) { return bits_[i]; }
 
