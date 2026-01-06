@@ -48,6 +48,7 @@ Qiskit C++ requires one of the following APIs to access IBM Quantum Platform to 
 
 - qiskit-ibm-runtime C (https://github.com/Qiskit/qiskit-ibm-runtime-c)
 - QRMI (https://github.com/qiskit-community/qrmi)
+- SQC 0.10.0 (https://github.com/jhpc-quantum/SQC)
 
 Before building your application with Qiskit C++, build one of these APIs.
 
@@ -72,7 +73,8 @@ $ cmake ..
 $ make
 ```
 
-If you want to use [SQC C API](https://github.com/jhpc-quantum/SQC), follow the SQC documentation.
+If you want to use [SQC C API](https://github.com/jhpc-quantum/SQC), follow [the SQC documentation](https://github.com/jhpc-quantum/documents/blob/main/SQC_JHPC_Quantum_user_guide.md).
+Basically, SQC is pre-built and available in the environment, and thus you only need to set up authentication credentials (JWT token) and environment variables based on the provided scripts.
 
 ### Building Qiskit C++
 
@@ -107,17 +109,17 @@ $ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit
 $ make
 ```
 
-You also need to set the library options to the environment variable `SQC_LIBS` before cmake if you use SQC. The format of `SQC_LIBS` is assumued to be as follows, for example. For required options, please refer the the SQC documentation.
-
-```
-"-lsqc_api -lsqc_rpc ... -pthread"
-```
-
 To run sampler example, set your account information in `$HOME/.qiskit/qiskit-ibm.json` (see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk) or setting following environment variables to access Quantum hardware.
 
 ```
 QISKIT_IBM_TOKEN=<your API key>
 QISKIT_IBM_INSTANCE=<your CRN>
+```
+
+To run the sample example with SQC, you also need to set the library options to the environment variable `SQC_LIBS`, which is automatically set by a provided script (see [here](https://github.com/jhpc-quantum/documents/blob/main/SQC_JHPC_Quantum_user_guide.md), before running cmake. In SQC 0.10.0, you can see that `backend_setup.sh` configures `SQC_LIBS` as follows:
+
+```
+SQC_LIBS="-lsqc_api -lsqc_rpc ... (omitted) ... -pthread"
 ```
 
 ### Making your own interface to Quantum hardware
