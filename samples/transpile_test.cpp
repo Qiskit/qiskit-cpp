@@ -23,7 +23,7 @@
 #include "circuit/quantumcircuit.hpp"
 #include "primitives/backend_sampler_v2.hpp"
 
-#include "service/qiskit_runtime_service.hpp"
+#include "service/qiskit_runtime_service_qrmi.hpp"
 #include "compiler/transpiler.hpp"
 
 using namespace Qiskit::circuit;

@@ -614,6 +614,35 @@ static int test_compose(void) {
     return Ok;
 }
 
+static int test_to_qasm3_multi_regs(void) {
+    auto qreg1 = QuantumRegister(2, std::string("q1"));
+    auto qreg2 = QuantumRegister(1, std::string("q2"));
+    auto creg1 = ClassicalRegister(2, std::string("c1"));
+    auto creg2 = ClassicalRegister(1, std::string("c2"));
+    QuantumCircuit circ(std::vector<QuantumRegister>({qreg1, qreg2}), std::vector<ClassicalRegister>({creg1, creg2}));
+
+    circ.measure(qreg2, creg2);
+    circ.measure(qreg1, creg1);
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "bit[2] c1;\n"
+        "bit[1] c2;\n"
+        "c2[0] = measure q[2];\n"
+        "c1[0] = measure q[0];\n"
+        "c1[1] = measure q[1];\n";
+    if (actual != expected) {
+        std::cerr << "  to_qasm3_multi_regs test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
 
 extern "C" int test_circuit(void) {
     int num_failed = 0;
@@ -621,6 +650,7 @@ extern "C" int test_circuit(void) {
     num_failed += RUN_TEST(test_measure);
     num_failed += RUN_TEST(test_append);
     num_failed += RUN_TEST(test_compose);
+    num_failed += RUN_TEST(test_to_qasm3_multi_regs);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;

@@ -1506,15 +1506,28 @@ std::string QuantumCircuit::to_qasm3(void)
     }
     qk_opcounts_clear(&opcounts);
 
-    // registers
-    std::string creg_name = "c";
-    std::string qreg_name = "q";
-    qasm3 << "bit[" << num_clbits() << "] " << creg_name << ";" << std::endl;
-    qasm3 << "qubit[" << num_qubits() << "] " << qreg_name << ";" << std::endl;
-
     // save ops
     uint_t nops;
     nops = qk_circuit_num_instructions(rust_circuit_.get());
+
+    // Declare registers
+    // After transpilation, qubit registers will be mapped to physical registers,
+    // so we need to combined them in a single quantum register "q";
+    const std::string qreg_name = "q";
+    qasm3 << "qubit[" << num_qubits() << "] " << qreg_name << ";" << std::endl;
+    for(const auto& creg : cregs_)
+    {
+        qasm3 << "bit[" << creg.size() << "] " << creg.name() << ";" << std::endl;
+    }
+
+    auto recover_reg_data = [this](uint_t index) -> std::pair<std::string, uint_t>
+    {
+        auto it = std::upper_bound(cregs_.begin(), cregs_.end(), index,
+                [](uint_t v, const ClassicalRegister& reg) { return v < reg.base_index(); });
+        assert(it != cregs_.begin());
+        it = std::prev(it);
+        return std::make_pair(it->name(), index - it->base_index());
+    };
 
     for (uint_t i = 0; i < nops; i++)
     {
@@ -1526,7 +1539,8 @@ std::string QuantumCircuit::to_qasm3(void)
             {
                 for (uint_t j = 0; j < op->num_qubits; j++)
                 {
-                    qasm3 << creg_name << "[" << op->clbits[j] << "] = " << op->name << " " << qreg_name << "[" << op->qubits[j] << "];" << std::endl;
+                    const auto creg_data = recover_reg_data(op->clbits[j]);
+                    qasm3 << creg_data.first << "[" << creg_data.second << "] = " << op->name << " " << qreg_name << "[" << op->qubits[j] << "];" << std::endl;
                 }
             }
         }

@@ -48,6 +48,7 @@ Qiskit C++ requires one of the following APIs to access IBM Quantum Platform to 
 
 - qiskit-ibm-runtime C (https://github.com/Qiskit/qiskit-ibm-runtime-c)
 - QRMI (https://github.com/qiskit-community/qrmi)
+- SQC 0.10.0 (https://github.com/jhpc-quantum/SQC)
 
 Before building your application with Qiskit C++, build one of these APIs.
 
@@ -72,6 +73,9 @@ $ cmake ..
 $ make
 ```
 
+If you want to use [SQC C API](https://github.com/jhpc-quantum/SQC), follow [the SQC documentation](https://github.com/jhpc-quantum/documents/blob/main/SQC_JHPC_Quantum_user_guide.md).
+Basically, SQC is pre-built and available in the environment, and thus you only need to set up authentication credentials (JWT token) and environment variables based on the provided scripts.
+
 ### Building Qiskit C++
 
 Qiskit C++ only has C++ header files. There is nothing to do to build the SDK.
@@ -93,15 +97,15 @@ $ cmake -DQISKIT_ROOT=Path_to_qiskit ..
 $ make
 ```
 
-If you want to build sampler or transpiler example, you will need one of qiskit-ibm-runtime C or QRMI.
+If you want to build sampler or transpiler example, you will need one of qiskit-ibm-runtime C or QRMI or SQC.
 
-Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` to cmake.
+Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` or `SQC_ROOT` to cmake.
 
 ```shell-session
 $ cd samples
 $ mkdir build
 $ cd build
-$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" ..
+$ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit-ibm-runtime C" or -DQRMI_ROOT="path to QRMI" or -DSQC_ROOT="path to SQC" ..
 $ make
 ```
 
@@ -110,6 +114,12 @@ To run sampler example, set your account information in `$HOME/.qiskit/qiskit-ib
 ```
 QISKIT_IBM_TOKEN=<your API key>
 QISKIT_IBM_INSTANCE=<your CRN>
+```
+
+To run the sample example with SQC, you also need to set the library options to the environment variable `SQC_LIBS`, which is automatically set by a provided script (see [here](https://github.com/jhpc-quantum/documents/blob/main/SQC_JHPC_Quantum_user_guide.md)), before running cmake. In SQC 0.10.0, `backend_setup.sh` configures `SQC_LIBS` as follows:
+
+```
+SQC_LIBS="-lsqc_api -lsqc_rpc ... (omitted) ... -pthread"
 ```
 
 ### Making your own interface to Quantum hardware
