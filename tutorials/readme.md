@@ -24,7 +24,7 @@ So it is easy to port Qiskit codes into your C++ applications using Qiskit C++.
 ![alt C-API and Qiskit C++ interface structure](qiskit-cpp-structure.png)
 This chart shows how Qiskit C++ is implemented by using Qiskit C-API. Qiskit C++ accesses Qiskit's core functions written in Rust through C-API.
 To access quantum resources, we use one of `QRMI` https://github.com/qiskit-community/qrmi, `Qiskit IBM Runtime C` https://github.com/Qiskit/qiskit-ibm-runtime-c
- or `SQC` https://github.com/jhpc-quantum/SQC through runtime class of Qiskit C++.
+ or `SQC` https://github.com/jhpc-quantum/SQC (for `ibm_kobe`) through runtime class of Qiskit C++.
 
 ## Getting started
 
