@@ -122,6 +122,10 @@ To run the sample example with SQC, you also need to set the library options to 
 SQC_LIBS="-lsqc_api -lsqc_rpc ... (omitted) ... -pthread"
 ```
 
+### Tutorials
+
+See [tutorial](tutorials/readme.md) for more examples.
+
 ### Making your own interface to Quantum hardware
 
 Qiskit C++ offers an abstract interface to access Quantum hardware. You can make your own interface to the hardware
