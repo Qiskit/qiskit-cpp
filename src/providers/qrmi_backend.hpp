@@ -36,7 +36,7 @@ protected:
     std::string primitive_name_ = "sampler";
     std::string acc_token_;
     std::shared_ptr<QrmiQuantumResource> qrmi_ = nullptr;
-    std::shared_ptr<transpiler::Target> target_ = nullptr;
+    transpiler::Target target_;
 public:
     /// @brief Create a new QRMIBackend
     QRMIBackend() {}
@@ -68,22 +68,21 @@ public:
 
     /// @brief Return a target properties for this backend
     /// @return a target class
-    std::shared_ptr<transpiler::Target> target(void) override
+    const transpiler::Target& target(void) override
     {
-        if (target_) {
+        if (target_.is_set()) {
             return target_;
         }
-        transpiler::Target target;
 
         char *target_str = NULL;
         QrmiReturnCode rc = qrmi_resource_target(qrmi_.get(), &target_str);
         if (rc != QRMI_RETURN_CODE_SUCCESS) {
-            return nullptr;
+            return target_;
         }
         nlohmann::ordered_json json_target = nlohmann::ordered_json::parse(target_str);
         qrmi_string_free((char *)target_str);
-        target_ = std::make_shared<transpiler::Target>();
-        target_->from_json(json_target);
+        target_ = transpiler::Target();
+        target_.from_json(json_target);
         return target_;
     }
 

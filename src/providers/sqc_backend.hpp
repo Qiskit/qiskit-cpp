@@ -38,7 +38,7 @@ std::string replace_all(std::string s, const std::string& from, const std::strin
 class SQCBackend : public BackendV2 {
 private:
     const sqcBackend backend_type_;
-    std::shared_ptr<transpiler::Target> target_;
+    transpiler::Target target_;
 
 public:
     /// @brief Create a new SQCBackend. Internally this initializes SQC.
@@ -64,27 +64,26 @@ public:
 
     /// @brief Return a target properties for this backend.
     /// @return a target class (nullptr)
-    std::shared_ptr<transpiler::Target> target(void) override
+    const transpiler::Target& target(void) override
     {
-        if(target_) return target_;
+        if (target_.is_set()) {
+            return target_;
+        }
 
         // Create a dummy circuit to get target json files
         std::unique_ptr<sqcQC, decltype(&sqcDestroyQuantumCircuit)> qc_handle(sqcQuantumCircuit(0), &sqcDestroyQuantumCircuit);
         if(sqcIbmdTranspileInfo(qc_handle.get(), backend_type_) != SQC_RESULT_OK) {
             std::cerr << "Failed to get the target information" << std::endl;
-            return nullptr;
+            return target_;
         }
 
         nlohmann::ordered_json target_json;
         target_json["configuration"] = nlohmann::ordered_json::parse(qc_handle->backend_config_json);
         target_json["properties"] = nlohmann::ordered_json::parse(qc_handle->backend_props_json);
-        auto target = std::make_shared<transpiler::Target>();
-        if(!target->from_json(target_json)) {
+        target_ = transpiler::Target();
+        if(!target_.from_json(target_json)) {
             std::cerr << "Failed to create a target from json files" << std::endl;
-            return nullptr;
         }
-        target_ = target;
-
         return target_;
     }
 
