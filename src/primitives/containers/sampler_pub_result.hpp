@@ -104,26 +104,24 @@ public:
             std::cerr << " SamplerPubResult Error : JSON result does not contain data section " << std::endl;
             return false;
         }
-        if (!input["data"].contains("c")) {
-            std::cerr << " SamplerPubResult Error : JSON result does not contain creg section " << std::endl;
+
+        auto data = input["data"];
+
+        for(auto creg : pub_.circuit().cregs()) {
+          if(!data.contains(creg.name())) {
+            std::cerr << " SamplerPubResult Error : JSON result does not contain "
+                         "creg section for "
+                      << creg.name()
+                      << std::endl;
             return false;
+          }
         }
 
-        auto data = input["data"]["c"];
-
-        uint_t total_bits = 0;
-        for (auto creg : pub_.circuit().cregs()) {
-            total_bits += creg.size();
-        }
-        // read all bits
-        BitArray allbits;
-        allbits.set_bits(total_bits);
-        allbits.from_json(data);
-
-        total_bits = 0;
-        for (auto creg : pub_.circuit().cregs()) {
-            data_[creg.name()] = allbits.get_subset(total_bits, creg.size());
-            total_bits += creg.size();
+        for(auto creg : pub_.circuit().cregs()) {
+          BitArray bits;
+          bits.set_bits(creg.size());
+          bits.from_json(data[creg.name()]);
+          data_[creg.name()] = bits;
         }
 
         return true;
