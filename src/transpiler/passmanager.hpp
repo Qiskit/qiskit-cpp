@@ -130,7 +130,7 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
     char *error;
     QkExitCode ret;
 
-    /*if (stages_.size() == 6) {
+    if (stages_.size() == 6) {
         if (stages_[0] == "init" && stages_[1] == "layout" && stages_[2] == "routing" &&
             stages_[3] == "translation" && stages_[4] == "optimization" && stages_[5] == "scheduling") {
             // use default transpiler
@@ -152,7 +152,7 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
             qk_transpile_layout_free(result.layout);
             return transpiled;
         }
-    }*/
+    }
 
     QkDag* dag = qk_circuit_to_dag(circ.get_rust_circuit().get());
     if (dag == nullptr) {

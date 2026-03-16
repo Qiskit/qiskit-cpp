@@ -156,7 +156,7 @@ public:
 	/// @param circ smart pointer to RUst circuit
 	/// @param map layout mapping
 	void set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, const std::vector<uint32_t> &map);
-	
+
 	/// @brief get qubit mapping
 	/// @return qubit mapping
 	const reg_t &get_qubit_map(void)
@@ -690,6 +690,15 @@ public:
 	/// @brief print circuit (this is for debug)
 	void print(void) const;
 
+
+	/// @brief compare two circuits
+	/// @param other a circuit to be compared with this circuit
+	/// @return true if two circuits are the same
+	bool operator==(const QuantumCircuit& other) const;
+	bool operator!=(const QuantumCircuit& other) const
+	{
+		return !(*this == other);
+	}
 protected:
 	void add_pending_control_flow_op(void);
 

@@ -1583,6 +1583,68 @@ std::string QuantumCircuit::to_qasm3(void)
     return qasm3.str();
 }
 
+
+bool QuantumCircuit::operator==(const QuantumCircuit& other) const
+{
+    if (num_qubits_ != other.num_qubits_) {
+        return false;
+    }
+    if (num_clbits_ != other.num_clbits_) {
+        return false;
+    }
+    if (global_phase_ != other.global_phase_) {
+        return false;
+    }
+
+    // compare instructions
+    uint_t nops;
+    uint_t nops_other;
+    nops = qk_circuit_num_instructions(rust_circuit_.get());
+    nops_other = qk_circuit_num_instructions(other.rust_circuit_.get());
+
+    for (uint_t i = 0; i < nops; i++) {
+        QkCircuitInstruction *op = new QkCircuitInstruction;
+        QkCircuitInstruction *op_other = new QkCircuitInstruction;
+        qk_circuit_get_instruction(rust_circuit_.get(), i, op);
+        qk_circuit_get_instruction(other.rust_circuit_.get(), i, op_other);
+
+        if (std::string(op->name) != std::string(op_other->name)) {
+            qk_circuit_instruction_clear(op);
+            qk_circuit_instruction_clear(op_other);
+            return false;
+        }
+        if (op->num_qubits != op_other->num_qubits || op->num_clbits != op_other->num_clbits || op->num_params != op_other->num_qubits) {
+            qk_circuit_instruction_clear(op);
+            qk_circuit_instruction_clear(op_other);
+            return false;
+        }
+        for (int i = 0; i < op->num_qubits; i++) {
+            if (op->qubits[i] != op_other->qubits[i]) {
+                qk_circuit_instruction_clear(op);
+                qk_circuit_instruction_clear(op_other);
+                return false;
+            }
+        }
+        for (int i = 0; i < op->num_params; i++) {
+            if (op->params[i] != op_other->params[i]) {
+                qk_circuit_instruction_clear(op);
+                qk_circuit_instruction_clear(op_other);
+                return false;
+            }
+        }
+        for (int i = 0; i < op->num_clbits; i++) {
+            if (op->clbits[i] != op_other->clbits[i]) {
+                qk_circuit_instruction_clear(op);
+                qk_circuit_instruction_clear(op_other);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+
 } // namespace circuit
 } // namespace Qiskit
 
