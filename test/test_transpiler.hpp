@@ -12,13 +12,11 @@
 
 #include <iostream>
 #include <cstdint>
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 
 #include "circuit/quantumcircuit.hpp"
-#include "transpiler/target.hpp"
-#include "transpiler/preset_passmanagers/generate_preset_pass_manager.hpp"
+#include "transpiler/passmanager.hpp"
 
 using namespace Qiskit;
 using namespace Qiskit::circuit;
@@ -46,6 +44,11 @@ static int test_translate_h(void)
     circ_ref.rz(M_PI / 2.0, 0);
 
     if (transpiled != circ_ref) {
+        std::cout << "  reference circuit : " << std::endl;
+        circ_ref.print();
+        std::cout << "  transpiled circuit : " << std::endl;
+        transpiled.print();
+
         return EqualityError;
     }
     return Ok;
@@ -73,6 +76,11 @@ static int test_translate_cx(void)
     circ_ref.rz(M_PI / 2.0, 1);
 
     if (transpiled != circ_ref) {
+        std::cout << "  reference circuit : " << std::endl;
+        circ_ref.print();
+        std::cout << "  transpiled circuit : " << std::endl;
+        transpiled.print();
+
         return EqualityError;
     }
     return Ok;
@@ -103,6 +111,11 @@ static int test_ghz_routing(void)
     circ_ref.measure(2, 2);
 
     if (transpiled != circ_ref) {
+        std::cout << "  reference circuit : " << std::endl;
+        circ_ref.print();
+        std::cout << "  transpiled circuit : " << std::endl;
+        transpiled.print();
+
         return EqualityError;
     }
     return Ok;

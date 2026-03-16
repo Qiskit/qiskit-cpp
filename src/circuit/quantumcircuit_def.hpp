@@ -23,12 +23,11 @@
 
 #include "utils/types.hpp"
 #include "circuit/parameter.hpp"
-#include "circuit/classical/expr.hpp"
+//#include "circuit/classical/expr.hpp"
 #include "circuit/classicalregister.hpp"
 #include "circuit/quantumregister.hpp"
 #include "circuit/library/standard_gates/standard_gates.hpp"
 #include "circuit/circuitinstruction.hpp"
-#include "transpiler/target.hpp"
 
 #include <complex>
 #include "qiskit.h"

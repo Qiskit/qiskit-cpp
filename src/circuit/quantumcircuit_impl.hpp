@@ -20,8 +20,12 @@
 
 #include <memory>
 #include <functional>
+#include <iostream>
+#include <vector>
+#include <algorithm>
 #include <iomanip>
 #include <cstring>
+#include <cassert>
 
 #include "controlflow/__init__.hpp"
 
@@ -1586,12 +1590,6 @@ std::string QuantumCircuit::to_qasm3(void)
 
 bool QuantumCircuit::operator==(const QuantumCircuit& other) const
 {
-    if (num_qubits_ != other.num_qubits_) {
-        return false;
-    }
-    if (num_clbits_ != other.num_clbits_) {
-        return false;
-    }
     if (global_phase_ != other.global_phase_) {
         return false;
     }
@@ -1601,6 +1599,9 @@ bool QuantumCircuit::operator==(const QuantumCircuit& other) const
     uint_t nops_other;
     nops = qk_circuit_num_instructions(rust_circuit_.get());
     nops_other = qk_circuit_num_instructions(other.rust_circuit_.get());
+    if (nops != nops_other) {
+        return false;
+    }
 
     for (uint_t i = 0; i < nops; i++) {
         QkCircuitInstruction *op = new QkCircuitInstruction;
@@ -1613,27 +1614,27 @@ bool QuantumCircuit::operator==(const QuantumCircuit& other) const
             qk_circuit_instruction_clear(op_other);
             return false;
         }
-        if (op->num_qubits != op_other->num_qubits || op->num_clbits != op_other->num_clbits || op->num_params != op_other->num_qubits) {
+        if (op->num_qubits != op_other->num_qubits || op->num_clbits != op_other->num_clbits || op->num_params != op_other->num_params) {
             qk_circuit_instruction_clear(op);
             qk_circuit_instruction_clear(op_other);
             return false;
         }
-        for (int i = 0; i < op->num_qubits; i++) {
-            if (op->qubits[i] != op_other->qubits[i]) {
+        for (int j = 0; j < op->num_qubits; j++) {
+            if (op->qubits[j] != op_other->qubits[j]) {
                 qk_circuit_instruction_clear(op);
                 qk_circuit_instruction_clear(op_other);
                 return false;
             }
         }
-        for (int i = 0; i < op->num_params; i++) {
-            if (op->params[i] != op_other->params[i]) {
+        for (int j = 0; j < op->num_params; j++) {
+            if (op->params[j] != op_other->params[j]) {
                 qk_circuit_instruction_clear(op);
                 qk_circuit_instruction_clear(op_other);
                 return false;
             }
         }
-        for (int i = 0; i < op->num_clbits; i++) {
-            if (op->clbits[i] != op_other->clbits[i]) {
+        for (int j = 0; j < op->num_clbits; j++) {
+            if (op->clbits[j] != op_other->clbits[j]) {
                 qk_circuit_instruction_clear(op);
                 qk_circuit_instruction_clear(op_other);
                 return false;
