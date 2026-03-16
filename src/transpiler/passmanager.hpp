@@ -81,7 +81,7 @@ public:
     StagedPassManager(const StagedPassManager& other) : PassManager(other)
     {
         stages_ = other.stages_;
-        optimization_level_ = optimization_level_;
+        optimization_level_ = other.optimization_level_;
         approximation_degree_ = other.approximation_degree_;
         seed_transpiler_ = other.seed_transpiler_;
     }
@@ -182,7 +182,7 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
                 std::cerr << "StagedPassManager Error in transplation stage (" << ret << ") : " << error << std::endl;
             }
         } else if (stage == "optimization") {
-            ret = qk_transpile_stage_optimization(dag, target_.rust_target(), &options, &error);
+            ret = qk_transpile_stage_optimization(dag, target_.rust_target(), &options, &error, layout);
             if (ret != QkExitCode_Success) {
                 std::cerr << "StagedPassManager Error in optimization stage (" << ret << ") : " << error << std::endl;
             }
