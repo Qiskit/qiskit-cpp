@@ -18,6 +18,7 @@
 #define __qiskitcpp_primitives_qrmi_qiskit_ibm_runtime_job_def_hpp__
 
 #ifdef _MSC_VER
+#define NOMINMAX
 #include <windows.h>
 #else
 #include <thread>

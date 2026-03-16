@@ -23,6 +23,7 @@
 #include "providers/qkrt_backend.hpp"
 
 #ifdef _MSC_VER
+#define NOMINMAX
 #include <windows.h>
 #else
 #include <thread>
