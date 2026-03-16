@@ -12,7 +12,9 @@
 
 #include <iostream>
 #include <cstdint>
-#include <numbers>
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include "circuit/quantumcircuit.hpp"
 #include "transpiler/target.hpp"
@@ -39,9 +41,9 @@ static int test_translate_h(void)
     auto transpiled = pass.run(circ);
 
     QuantumCircuit circ_ref(1, 1);
-    circ_ref.rz(std::numbers::pi / 2, 0);
+    circ_ref.rz(M_PI / 2.0, 0);
     circ_ref.sx(0);
-    circ_ref.rz(std::numbers::pi / 2, 0);
+    circ_ref.rz(M_PI / 2.0, 0);
 
     if (transpiled != circ_ref) {
         return EqualityError;
@@ -62,13 +64,13 @@ static int test_translate_cx(void)
     auto transpiled = pass.run(circ);
 
     QuantumCircuit circ_ref(2, 2);
-    circ_ref.rz(std::numbers::pi / 2, 1);
+    circ_ref.rz(M_PI / 2.0, 1);
     circ_ref.sx(1);
-    circ_ref.rz(std::numbers::pi / 2, 1);
+    circ_ref.rz(M_PI / 2.0, 1);
     circ_ref.cz(0, 1);
-    circ_ref.rz(std::numbers::pi / 2, 1);
+    circ_ref.rz(M_PI / 2.0, 1);
     circ_ref.sx(1);
-    circ_ref.rz(std::numbers::pi / 2, 1);
+    circ_ref.rz(M_PI / 2.0, 1);
 
     if (transpiled != circ_ref) {
         return EqualityError;
