@@ -109,7 +109,7 @@ static int test_ghz_routing(void)
 }
 
 
-extern "C" int test_circuit(void) {
+extern "C" int test_transpiler(void) {
     int num_failed = 0;
     num_failed += RUN_TEST(test_translate_h);
     num_failed += RUN_TEST(test_translate_cx);
