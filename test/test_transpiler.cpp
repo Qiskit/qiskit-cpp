@@ -39,9 +39,9 @@ static int test_translate_h(void)
     auto transpiled = pass.run(circ);
 
     QuantumCircuit circ_ref(1, 1);
-    circ_ref.rz(std::numers::pi / 2, 0);
+    circ_ref.rz(std::numbers::pi / 2, 0);
     circ_ref.sx(0);
-    circ_ref.rz(std::numers::pi / 2, 0);
+    circ_ref.rz(std::numbers::pi / 2, 0);
 
     if (transpiled != circ_ref) {
         return EqualityError;
@@ -62,13 +62,13 @@ static int test_translate_cx(void)
     auto transpiled = pass.run(circ);
 
     QuantumCircuit circ_ref(2, 2);
-    circ_ref.rz(std::numers::pi / 2, 1);
+    circ_ref.rz(std::numbers::pi / 2, 1);
     circ_ref.sx(1);
-    circ_ref.rz(std::numers::pi / 2, 1);
+    circ_ref.rz(std::numbers::pi / 2, 1);
     circ_ref.cz(0, 1);
-    circ_ref.rz(std::numers::pi / 2, 1);
+    circ_ref.rz(std::numbers::pi / 2, 1);
     circ_ref.sx(1);
-    circ_ref.rz(std::numers::pi / 2, 1);
+    circ_ref.rz(std::numbers::pi / 2, 1);
 
     if (transpiled != circ_ref) {
         return EqualityError;
