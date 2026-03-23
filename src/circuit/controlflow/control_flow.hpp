@@ -29,7 +29,7 @@ class ControlFlowOp
 {
 protected:
   // TO DO : this is temporary, make condition class to handle multiple conditions
-  Expr expr_;
+  //Expr expr_;
   uint32_t clbit_;
   uint32_t value_;
 public:
@@ -44,7 +44,7 @@ public:
 
   /// @brief Create a new instruction.
   /// @param (expr) expression
-  ControlFlowOp(Expr expr) : expr_(expr) {}
+  //ControlFlowOp(Expr expr) : expr_(expr) {}
 
   virtual void add_control_flow_op(QuantumCircuit& circ) = 0;
 };

@@ -23,6 +23,7 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #elif defined(_MSC_VER)
+#define NOMINMAX
 #include <windows.h>
 #endif
 

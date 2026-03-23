@@ -25,6 +25,7 @@
 #include "providers/qrmi_backend.hpp"
 
 #ifdef _MSC_VER
+#define NOMINMAX
 #include <windows.h>
 #else
 #include <thread>

@@ -44,7 +44,7 @@ protected:
     std::string primitive_name_ = "sampler";
     qkrt_Backend* backend_ = nullptr;
     std::shared_ptr<qkrt_Service> service_;
-    std::shared_ptr<transpiler::Target> target_ = nullptr;
+    transpiler::Target target_;
 public:
     /// @brief Create a new QkrtBackend
     QkrtBackend() {}
@@ -72,24 +72,22 @@ public:
     {
         if (service_)
             service_.reset();
-        if (target_)
-            target_.reset();
     }
 
     /// @brief Return a target properties for this backend
     /// @return a target class
-    std::shared_ptr<transpiler::Target> target(void) override
+    const transpiler::Target& target(void) override
     {
-        if (target_) {
+        if (target_.is_set()) {
             return target_;
         }
 
         QkTarget *target = qkrt_get_backend_target(service_.get(), backend_);
         if (target == nullptr) {
             std::cerr << "ERROR: failed to get target for the backend " << name_ << std::endl;
-            return nullptr;
+            return target_;
         }
-        target_ = std::make_shared<transpiler::Target>(target);
+        target_ = transpiler::Target(target);
         return target_;
     }
 

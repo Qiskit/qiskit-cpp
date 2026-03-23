@@ -10,6 +10,9 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#ifndef _TEST_COMMON_H_
+#define _TEST_COMMON_H_
+
 #include <stdio.h>
 
 // An enumeration of test results. These should be returned by test functions to
@@ -30,3 +33,5 @@ enum TestResult {
 // post-process the returned `TestResult` to product a minimal info message for
 // the developer running the test suite.
 int run(const char *name, int (*test_function)(void));
+
+#endif//_TEST_COMMON_H_

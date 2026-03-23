@@ -34,9 +34,10 @@ namespace compiler {
 circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::BackendV2 &backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     auto target = backend.target();
-    if (target == nullptr)
-    {
-        return circ;
+    auto capi_target = target.rust_target();
+    if (capi_target == nullptr) {
+        std::cerr << "transpile error : Target object for the backend is not valid." << std::endl;
+        return circ.copy();
     }
 
     QkTranspileOptions options = qk_transpiler_default_options();
@@ -47,12 +48,10 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::Back
     QkTranspileResult result;
     char *error;
 
-    QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), target->rust_target(), &options, &result, &error);
-    if (ret != QkExitCode_Success)
-    {
+    QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), capi_target, &options, &result, &error);
+    if (ret != QkExitCode_Success) {
         std::cerr << "transpile error (" << ret << ") : " << error << std::endl;
-        target.reset();
-        return circ;
+        return circ.copy();
     }
 
     // save qubit map after transpile
@@ -63,8 +62,6 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::Back
     transpiled.set_qiskit_circuit(std::shared_ptr<rust_circuit>(result.circuit, qk_circuit_free), layout_map);
 
     qk_transpile_layout_free(result.layout);
-    target.reset();
-
     return transpiled;
 }
 
