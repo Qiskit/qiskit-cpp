@@ -158,21 +158,32 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
     if (dag == nullptr) {
         return circ.copy();
     }
-    QkTranspileLayout* layout = nullptr;
+    QkTranspilerStageState* state = nullptr;
 
     for (auto stage : stages_) {
         if (stage == "init") {
-            ret = qk_transpile_stage_init(dag, target_.rust_target(), &options, &layout, &error);
+            ret = qk_transpile_stage_init(dag, target_.rust_target(), &options, &state, &error);
             if (ret != QkExitCode_Success) {
                 std::cerr << "StagedPassManager Error in init stage (" << ret << ") : " << error << std::endl;
             }
         } else if (stage == "layout") {
-            ret = qk_transpile_stage_layout(dag, target_.rust_target(), &options, &layout, &error);
+            ret = qk_transpile_stage_layout(dag, target_.rust_target(), &options, &state, &error);
             if (ret != QkExitCode_Success) {
                 std::cerr << "StagedPassManager Error in layout stage (" << ret << ") : " << error << std::endl;
             }
         } else if (stage == "routing") {
-            ret = qk_transpile_stage_routing(dag, target_.rust_target(), &options, layout, &error);
+            if (state == nullptr) {
+                int nq_dag = qk_dag_num_qubits(dag);
+                std::vector<uint32_t> def_map(nq_dag + 1, 0);
+                for (int i = 0; i < nq_dag; i++) {
+                    def_map[i] = (uint32_t)i;
+                }
+                QkTranspileLayout* def_layout = qk_transpile_layout_generate_from_mapping(dag, target_.rust_target(), def_map.data());
+                qk_transpile_state_new(&state);
+                qk_transpile_state_layout_set(state, def_layout);
+            }
+
+            ret = qk_transpile_stage_routing(dag, target_.rust_target(), &options, state, &error);
             if (ret != QkExitCode_Success) {
                 std::cerr << "StagedPassManager Error in routing stage (" << ret << ") : " << error << std::endl;
             }
@@ -182,7 +193,18 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
                 std::cerr << "StagedPassManager Error in transplation stage (" << ret << ") : " << error << std::endl;
             }
         } else if (stage == "optimization") {
-            ret = qk_transpile_stage_optimization(dag, target_.rust_target(), &options, &error, layout);
+            if (state == nullptr) {
+                int nq_dag = qk_dag_num_qubits(dag);
+                std::vector<uint32_t> def_map(nq_dag + 1, 0);
+                for (int i = 0; i < nq_dag; i++) {
+                    def_map[i] = (uint32_t)i;
+                }
+                QkTranspileLayout* def_layout = qk_transpile_layout_generate_from_mapping(dag, target_.rust_target(), def_map.data());
+                qk_transpile_state_new(&state);
+                qk_transpile_state_layout_set(state, def_layout);
+            }
+
+            ret = qk_transpile_stage_optimization(dag, target_.rust_target(), &options, &error, state);
             if (ret != QkExitCode_Success) {
                 std::cerr << "StagedPassManager Error in optimization stage (" << ret << ") : " << error << std::endl;
             }
@@ -193,13 +215,14 @@ circuit::QuantumCircuit StagedPassManager::run(circuit::QuantumCircuit& circ)
     QkCircuit* result_circ = qk_dag_to_circuit(dag);
 
     circuit::QuantumCircuit transpiled = circ;
-    if (layout) {
+    if (state) {
+        QkTranspileLayout* layout = qk_transpile_state_layout(state);
         std::vector<uint32_t> layout_map(qk_transpile_layout_num_output_qubits(layout));
         qk_transpile_layout_final_layout(layout, false, layout_map.data());
 
         transpiled.set_qiskit_circuit(std::shared_ptr<rust_circuit>(result_circ, qk_circuit_free), layout_map);
 
-        qk_transpile_layout_free(layout);
+        qk_transpile_state_free(state);
     } else {
         std::vector<uint32_t> layout_map;
         transpiled.set_qiskit_circuit(std::shared_ptr<rust_circuit>(result_circ, qk_circuit_free), layout_map);
