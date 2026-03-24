@@ -14,8 +14,11 @@
 
 // Test parameterized circuit of Qiskit C++
 
+#define _USE_MATH_DEFINES
 #include <iostream>
 #include <cstdint>
+#include <cstdlib>
+#include <cmath>
 
 #include "circuit/quantumcircuit.hpp"
 
@@ -38,6 +41,12 @@ int main()
     circ.print();
 
     circ.draw();
+
+
+    Parameter p1 = Parameter(M_PI/2.0);
+    Parameter p2 = Parameter(M_PI/2.0);
+    std::cout << (p1 == p2) << std::endl;
+
 
     return 0;
 }

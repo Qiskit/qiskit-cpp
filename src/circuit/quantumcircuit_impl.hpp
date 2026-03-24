@@ -1558,6 +1558,8 @@ std::string QuantumCircuit::to_qasm3(void)
 }
 
 
+#define QC_COMPARE_EPS (1e-15)
+
 bool QuantumCircuit::operator==(const QuantumCircuit& other) const
 {
     if (global_phase_ != other.global_phase_) {
@@ -1597,7 +1599,11 @@ bool QuantumCircuit::operator==(const QuantumCircuit& other) const
             }
         }
         for (int j = 0; j < op->num_params; j++) {
-            if (qk_param_equal(op->params[j], op_other->params[j])) {
+            QkParam* sub = qk_param_zero();
+            qk_param_sub(sub, op->params[j], op_other->params[j]);
+            double diff = qk_param_as_real(sub);
+            qk_param_free(sub);
+            if (fabs(diff) > QC_COMPARE_EPS) {
                 qk_circuit_instruction_clear(op);
                 qk_circuit_instruction_clear(op_other);
                 return false;

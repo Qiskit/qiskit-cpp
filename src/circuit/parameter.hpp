@@ -93,7 +93,7 @@ public:
 
     /// @brief get string expression of the Parameter
 	/// @return a string expression of the Parameter
-    std::string as_str(void)
+    std::string as_str(void) const
     {
         char* str = qk_param_str(qiskit_param_.get());
         std::string ret = str;
@@ -329,6 +329,25 @@ public:
         return !qk_param_equal(qiskit_param_.get(), rhs.qiskit_param_.get());
     }
 
+
+    /// @brief compare the Parameter with a scalar
+    /// @param rhs a scalar to be compared
+	/// @return true if 2 are equal
+    bool operator==(const double rhs) const
+    {
+        Parameter r(rhs);
+        return *this == r;
+    }
+
+    /// @brief compare the Parameter with a scalar
+    /// @param rhs a scalar to be compared
+	/// @return true if 2 are not equal
+    bool operator!=(const double rhs) const
+    {
+        Parameter r(rhs);
+        return *this != r;
+    }
+
     /// @brief calculate exponent of this Parameter
 	/// @return a new Parameter for the result
     Parameter exp(void)
@@ -453,6 +472,9 @@ public:
 	/// @return a new substituted Parameter
     Parameter subs(const std::vector<Parameter>& symbols, const std::vector<Parameter>& others);
 #endif
+
+    friend std::ostream& operator<<(std::ostream& os, const Parameter& p);
+
 };
 
 #ifdef QISKIT_CAPI_HAS_SUBS
@@ -502,9 +524,14 @@ Parameter Parameter::subs(const std::vector<Parameter>& symbol, const std::vecto
 }
 #endif
 
+std::ostream& operator<<(std::ostream& os, const Parameter& p)
+{
+    os << p.as_str();
+    return os;
+}
 
 
-} // namespace circuit
+} // namespace circui
 } // namespace Qiskit
 
 #endif // __qiskitcpp_circuit_parameter_hpp__
