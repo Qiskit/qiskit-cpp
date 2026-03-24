@@ -38,7 +38,7 @@ protected:
     std::string name_;
     uint_t num_qubits_;
     uint_t num_clbits_;
-    std::vector<double> params_;
+    std::vector<Parameter> params_;
     std::string label_;
     QkGate map_ = QkGate_I;
     bool is_standard_gate_ = false;
@@ -107,14 +107,14 @@ public:
 
     /// @brief Return parameters of the instruction
     /// @return parameters of the instruction
-    const std::vector<double>& params(void) const
+    const std::vector<Parameter>& params(void) const
     {
         return params_;
     }
 
     /// @brief set parameters to the instruction
     /// @param parameters to be set
-    void set_params(const std::vector<double>& params)
+    void set_params(const std::vector<Parameter>& params)
     {
         params_ = params;
     }

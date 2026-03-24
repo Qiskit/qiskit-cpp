@@ -689,6 +689,8 @@ public:
 	/// @brief print circuit (this is for debug)
 	void print(void) const;
 
+	/// @brief draw the circuit
+	void draw(void) const;
 
 	/// @brief compare two circuits
 	/// @param other a circuit to be compared with this circuit

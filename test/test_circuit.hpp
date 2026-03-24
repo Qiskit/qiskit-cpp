@@ -27,7 +27,7 @@ static int test_standard_gates(void) {
     CircuitInstruction op;
     std::string name;
     reg_t qubits;
-    std::vector<double> params;
+    std::vector<Parameter> params;
 
     circ.i(0);
     op = circ[count++];
@@ -538,7 +538,7 @@ static int test_append(void) {
     CircuitInstruction op;
     std::string name;
     reg_t qubits;
-    std::vector<double> params;
+    std::vector<Parameter> params;
 
     circ.h(0);
 
@@ -573,7 +573,7 @@ static int test_compose(void) {
     CircuitInstruction op;
     std::string name;
     reg_t qubits;
-    std::vector<double> params;
+    std::vector<Parameter> params;
 
     circ.h(0);
     for (uint_t i = 1; i < num_qubits; i++) {

@@ -168,8 +168,7 @@ void QuantumCircuit::set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, cons
     num_clbits_ = qk_circuit_num_clbits(circ.get());
 
     qubit_map_.resize(map.size());
-    for (int i = 0; i < map.size(); i++)
-    {
+    for (int i = 0; i < map.size(); i++) {
         qubit_map_[i] = (uint_t)map[i];
     }
 
@@ -177,15 +176,14 @@ void QuantumCircuit::set_qiskit_circuit(std::shared_ptr<rust_circuit> circ, cons
     uint_t nops;
     nops = qk_circuit_num_instructions(rust_circuit_.get());
 
-    for (uint_t i = 0; i < nops; i++)
-    {
-        QkCircuitInstruction *op = new QkCircuitInstruction;
-        qk_circuit_get_instruction(rust_circuit_.get(), i, op);
-        if (strcmp(op->name, "measure") == 0)
-        {
+    for (uint_t i = 0; i < nops; i++) {
+        QkOperationKind kind = qk_circuit_instruction_kind(rust_circuit_.get(), i);
+        if (kind == QkOperationKind_Measure) {
+            QkCircuitInstruction *op = new QkCircuitInstruction;
+            qk_circuit_get_instruction(rust_circuit_.get(), i, op);
             measure_map_.push_back(std::pair<uint_t, uint_t>((uint_t)op->qubits[0], (uint_t)op->clbits[0]));
+            qk_circuit_instruction_clear(op);
         }
-        qk_circuit_instruction_clear(op);
     }
 }
 
@@ -278,10 +276,10 @@ void QuantumCircuit::p(const double phase, const uint_t qubit)
 
 void QuantumCircuit::p(const Parameter &phase, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {phase.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_Phase, qubits, params);
 }
 
 void QuantumCircuit::r(const double theta, const double phi, const uint_t qubit)
@@ -294,10 +292,10 @@ void QuantumCircuit::r(const double theta, const double phi, const uint_t qubit)
 
 void QuantumCircuit::r(const Parameter &theta, const Parameter &phi, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get(), phi.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_r(rust_circuit_.get(), theta.expr_, phi.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_R, qubits, params);
 }
 
 void QuantumCircuit::rx(const double theta, const uint_t qubit)
@@ -309,10 +307,10 @@ void QuantumCircuit::rx(const double theta, const uint_t qubit)
 
 void QuantumCircuit::rx(const Parameter &theta, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rx(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RX, qubits, params);
 }
 
 void QuantumCircuit::ry(const double theta, const uint_t qubit)
@@ -324,10 +322,10 @@ void QuantumCircuit::ry(const double theta, const uint_t qubit)
 
 void QuantumCircuit::ry(const Parameter &theta, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_ry(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RY, qubits, params);
 }
 
 void QuantumCircuit::rz(const double theta, const uint_t qubit)
@@ -339,10 +337,10 @@ void QuantumCircuit::rz(const double theta, const uint_t qubit)
 
 void QuantumCircuit::rz(const Parameter &theta, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rz(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RZ, qubits, params);
 }
 
 void QuantumCircuit::s(const uint_t qubit)
@@ -397,10 +395,10 @@ void QuantumCircuit::u(const double theta, const double phi, const double lam, c
 
 void QuantumCircuit::u(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get(), phi.qiskit_param_.get(), lam.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_U, qubits, params);
 }
 
 void QuantumCircuit::u1(const double theta, const uint_t qubit)
@@ -413,10 +411,10 @@ void QuantumCircuit::u1(const double theta, const uint_t qubit)
 
 void QuantumCircuit::u1(const Parameter &theta, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_U1, qubits, params);
 }
 
 void QuantumCircuit::u2(const double phi, const double lam, const uint_t qubit)
@@ -429,10 +427,10 @@ void QuantumCircuit::u2(const double phi, const double lam, const uint_t qubit)
 
 void QuantumCircuit::u2(const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {phi.qiskit_param_.get(), lam.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_U2, qubits, params);
 }
 
 void QuantumCircuit::u3(const double theta, const double phi, const double lam, const uint_t qubit)
@@ -445,10 +443,10 @@ void QuantumCircuit::u3(const double theta, const double phi, const double lam, 
 
 void QuantumCircuit::u3(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t qubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit};
+    QkParam* params[] = {theta.qiskit_param_.get(), phi.qiskit_param_.get(), lam.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_U3, qubits, params);
 }
 
 void QuantumCircuit::unitary(const std::vector<complex_t> &unitary, const reg_t &qubits)
@@ -526,10 +524,10 @@ void QuantumCircuit::cp(const double phase, const uint_t cqubit, const uint_t tq
 
 void QuantumCircuit::cp(const Parameter &phase, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {phase.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CPhase, qubits, params);
 }
 
 void QuantumCircuit::crx(const double theta, const uint_t cqubit, const uint_t tqubit)
@@ -541,10 +539,10 @@ void QuantumCircuit::crx(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::crx(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CRX, qubits, params);
 }
 
 void QuantumCircuit::cry(const double theta, const uint_t cqubit, const uint_t tqubit)
@@ -556,10 +554,10 @@ void QuantumCircuit::cry(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::cry(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CRY, qubits, params);
 }
 
 void QuantumCircuit::crz(const double theta, const uint_t cqubit, const uint_t tqubit)
@@ -571,10 +569,10 @@ void QuantumCircuit::crz(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::crz(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    //  qc_p(rust_circuit_.get(), theta.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CRZ, qubits, params);
 }
 
 void QuantumCircuit::cs(const uint_t cqubit, const uint_t tqubit)
@@ -608,10 +606,10 @@ void QuantumCircuit::cu(const double theta, const double phi, const double lam, 
 
 void QuantumCircuit::cu(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get(), phi.qiskit_param_.get(), lam.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CU, qubits, params);
 }
 
 void QuantumCircuit::cu1(const double theta, const uint_t cqubit, const uint_t tqubit)
@@ -624,10 +622,10 @@ void QuantumCircuit::cu1(const double theta, const uint_t cqubit, const uint_t t
 
 void QuantumCircuit::cu1(const Parameter &theta, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CU1, qubits, params);
 }
 
 void QuantumCircuit::cu3(const double theta, const double phi, const double lam, const uint_t cqubit, const uint_t tqubit)
@@ -640,10 +638,10 @@ void QuantumCircuit::cu3(const double theta, const double phi, const double lam,
 
 void QuantumCircuit::cu3(const Parameter &theta, const Parameter &phi, const Parameter &lam, const uint_t cqubit, const uint_t tqubit)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    std::uint32_t qubits[] = {(std::uint32_t)cqubit, (std::uint32_t)tqubit};
+    QkParam* params[] = {theta.qiskit_param_.get(), phi.qiskit_param_.get(), lam.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_u(rust_circuit_.get(), theta.expr_, phi.expr_, lam.expr_, qubit);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_CU3, qubits, params);
 }
 
 void QuantumCircuit::rxx(const double theta, const uint_t qubit1, const uint_t qubit2)
@@ -655,10 +653,10 @@ void QuantumCircuit::rxx(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rxx(const Parameter &theta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RXX, qubits, params);
 }
 
 void QuantumCircuit::ryy(const double theta, const uint_t qubit1, const uint_t qubit2)
@@ -670,10 +668,10 @@ void QuantumCircuit::ryy(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::ryy(const Parameter &theta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RYY, qubits, params);
 }
 
 void QuantumCircuit::rzz(const double theta, const uint_t qubit1, const uint_t qubit2)
@@ -685,10 +683,10 @@ void QuantumCircuit::rzz(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rzz(const Parameter &theta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RZZ, qubits, params);
 }
 
 void QuantumCircuit::rzx(const double theta, const uint_t qubit1, const uint_t qubit2)
@@ -700,10 +698,10 @@ void QuantumCircuit::rzx(const double theta, const uint_t qubit1, const uint_t q
 
 void QuantumCircuit::rzx(const Parameter &theta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
-    // qc_rzz(rust_circuit_.get(), theta.expr_, qubit1, qubit2);
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_RZX, qubits, params);
 }
 
 void QuantumCircuit::xx_minus_yy(const double theta, const double beta, const uint_t qubit1, const uint_t qubit2)
@@ -716,9 +714,10 @@ void QuantumCircuit::xx_minus_yy(const double theta, const double beta, const ui
 
 void QuantumCircuit::xx_minus_yy(const Parameter &theta, const Parameter &beta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get(), beta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_XXMinusYY, qubits, params);
 }
 
 void QuantumCircuit::xx_plus_yy(const double theta, const double beta, const uint_t qubit1, const uint_t qubit2)
@@ -731,9 +730,10 @@ void QuantumCircuit::xx_plus_yy(const double theta, const double beta, const uin
 
 void QuantumCircuit::xx_plus_yy(const Parameter &theta, const Parameter &beta, const uint_t qubit1, const uint_t qubit2)
 {
-    // std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    std::uint32_t qubits[] = {(std::uint32_t)qubit1, (std::uint32_t)qubit2};
+    QkParam* params[] = {theta.qiskit_param_.get(), beta.qiskit_param_.get()};
     pre_add_gate();
-    // TO DO support parameter expression
+    qk_circuit_parameterized_gate(rust_circuit_.get(), QkGate_XXPlusYY, qubits, params);
 }
 
 void QuantumCircuit::ccx(const uint_t cqubit1, const uint_t cqubit2, const uint_t tqubit)
@@ -864,8 +864,7 @@ IfElseOp &QuantumCircuit::if_test(const std::uint32_t clbit, const std::uint32_t
 
 uint_t QuantumCircuit::num_parameters(void) const
 {
-    // TO DO : add support for Parameter in Qiskit C-API
-    return 0; // qc_num_parameters(rust_circuit_);
+    return qk_circuit_num_param_symbols(rust_circuit_.get());
 }
 
 void QuantumCircuit::assign_parameters(const std::vector<std::string> keys, const std::vector<double> values)
@@ -937,13 +936,11 @@ void QuantumCircuit::compose(QuantumCircuit &circ, const reg_t &qubits, const re
     pre_add_gate();
     uint_t size = std::min(qubits.size(), clbits.size());
     std::vector<std::uint32_t> vqubits(size);
-    for (uint_t i = 0; i < size; i++)
-    {
+    for (uint_t i = 0; i < size; i++) {
         vqubits[i] = (std::uint32_t)qubits[i];
     }
     std::vector<std::uint32_t> vclbits(size);
-    for (uint_t i = 0; i < size; i++)
-    {
+    for (uint_t i = 0; i < size; i++) {
         vclbits[i] = (std::uint32_t)clbits[i];
     }
 
@@ -951,80 +948,67 @@ void QuantumCircuit::compose(QuantumCircuit &circ, const reg_t &qubits, const re
     nops = qk_circuit_num_instructions(circ.rust_circuit_.get());
 
     auto name_map = get_standard_gate_name_mapping();
-    for (uint_t i = 0; i < nops; i++)
-    {
+    for (uint_t i = 0; i < nops; i++) {
         QkCircuitInstruction *op = new QkCircuitInstruction;
         qk_circuit_get_instruction(circ.rust_circuit_.get(), i, op);
 
         std::vector<std::uint32_t> vqubits(op->num_qubits);
         std::vector<std::uint32_t> vclbits;
-        for (uint_t j = 0; j < op->num_qubits; j++)
-        {
+        for (uint_t j = 0; j < op->num_qubits; j++) {
             vqubits[j] = (std::uint32_t)qubits[op->qubits[j]];
         }
-        if (op->num_clbits > 0)
-        {
+        if (op->num_clbits > 0) {
             vclbits.resize(op->num_clbits);
-            for (uint_t j = 0; j < op->num_clbits; j++)
-            {
+            for (uint_t j = 0; j < op->num_clbits; j++) {
                 vclbits[j] = (std::uint32_t)clbits[op->clbits[j]];
             }
         }
-
-        if (std::string("reset") == op->name)
-        {
-            qk_circuit_reset(rust_circuit_.get(), vqubits[0]);
-        }
-        else if (std::string("barrier") == op->name)
-        {
-            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
-        }
-        else if (std::string("measure") == op->name)
-        {
+        QkOperationKind kind = qk_circuit_instruction_kind(rust_circuit_.get(), i);
+        if (kind == QkOperationKind_Measure) {
             qk_circuit_measure(rust_circuit_.get(), vqubits[0], vclbits[0]);
-        }
-        else
-        {
-            qk_circuit_gate(rust_circuit_.get(), name_map[op->name].gate_map(), vqubits.data(), op->params);
+        } else if (kind == QkOperationKind_Reset) {
+            qk_circuit_reset(rust_circuit_.get(), vqubits[0]);
+        } else if (kind == QkOperationKind_Barrier) {
+            qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
+        } else if (kind == QkOperationKind_Gate) {
+            qk_circuit_parameterized_gate(rust_circuit_.get(), name_map[op->name].gate_map(), vqubits.data(), op->params);
+        } else if (kind == QkOperationKind_Unitary) {
+            // TO DO : how we can get unitary matrix from Rust ?
         }
         qk_circuit_instruction_clear(op);
     }
 
-    for (auto m : circ.measure_map_)
-    {
+    for (auto m : circ.measure_map_) {
         measure_map_.push_back(m);
     }
 }
 
 void QuantumCircuit::append(const Instruction &op, const reg_t &qubits)
 {
-    if (op.num_qubits() == qubits.size())
-    {
+    if (op.num_qubits() == qubits.size()) {
         std::vector<std::uint32_t> vqubits(qubits.size());
-        for (uint_t i = 0; i < qubits.size(); i++)
-        {
+        for (uint_t i = 0; i < qubits.size(); i++) {
             vqubits[i] = (std::uint32_t)qubits[i];
         }
         pre_add_gate();
-        if (op.is_standard_gate())
-        {
-            if (op.num_params() > 0)
-                qk_circuit_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), op.params().data());
+        if (op.is_standard_gate()) {
+            if (op.num_params() > 0) {
+                std::vector<QkParam*> params;
+                for (auto &p : op.params()) {
+                    params.push_back(p.qiskit_param_.get());
+                }
+                qk_circuit_parameterized_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), params.data());
+            }
             else
                 qk_circuit_gate(rust_circuit_.get(), op.gate_map(), vqubits.data(), nullptr);
-        }
-        else
-        {
-            if (std::string("reset") == op.name())
-            {
+        } else {
+            if (std::string("reset") == op.name()) {
                 qk_circuit_reset(rust_circuit_.get(), vqubits[0]);
             }
-            else if (std::string("barrier") == op.name())
-            {
+            else if (std::string("barrier") == op.name()) {
                 qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
             }
-            else if (std::string("measure") == op.name())
-            {
+            else if (std::string("measure") == op.name()) {
                 qk_circuit_measure(rust_circuit_.get(), vqubits[0], vqubits[0]);
                 measure_map_.push_back(std::pair<uint_t, uint_t>(qubits[0], qubits[0]));
             }
@@ -1034,28 +1018,26 @@ void QuantumCircuit::append(const Instruction &op, const reg_t &qubits)
 
 void QuantumCircuit::append(const Instruction &op, const std::vector<std::uint32_t> &qubits)
 {
-    if (op.num_qubits() == qubits.size())
-    {
+    if (op.num_qubits() == qubits.size()) {
         pre_add_gate();
-        if (op.is_standard_gate())
-        {
-            if (op.num_params() > 0)
-                qk_circuit_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), op.params().data());
+        if (op.is_standard_gate()) {
+            if (op.num_params() > 0) {
+                std::vector<QkParam*> params;
+                for (auto &p : op.params()) {
+                    params.push_back(p.qiskit_param_.get());
+                }
+                qk_circuit_parameterized_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), params.data());
+            }
             else
                 qk_circuit_gate(rust_circuit_.get(), op.gate_map(), qubits.data(), nullptr);
-        }
-        else
-        {
-            if (std::string("reset") == op.name())
-            {
+        } else {
+            if (std::string("reset") == op.name()) {
                 qk_circuit_reset(rust_circuit_.get(), qubits[0]);
             }
-            else if (std::string("barrier") == op.name())
-            {
+            else if (std::string("barrier") == op.name()) {
                 qk_circuit_barrier(rust_circuit_.get(), qubits.data(), (uint32_t)qubits.size());
             }
-            else if (std::string("measure") == op.name())
-            {
+            else if (std::string("measure") == op.name()) {
                 qk_circuit_measure(rust_circuit_.get(), qubits[0], qubits[0]);
                 measure_map_.push_back(std::pair<uint_t, uint_t>((uint_t)qubits[0], (uint_t)qubits[0]));
             }
@@ -1066,30 +1048,28 @@ void QuantumCircuit::append(const Instruction &op, const std::vector<std::uint32
 void QuantumCircuit::append(const CircuitInstruction &inst)
 {
     std::vector<std::uint32_t> vqubits(inst.qubits().size());
-    for (uint_t i = 0; i < inst.qubits().size(); i++)
-    {
+    for (uint_t i = 0; i < inst.qubits().size(); i++) {
         vqubits[i] = (std::uint32_t)inst.qubits()[i];
     }
     pre_add_gate();
-    if (inst.instruction().is_standard_gate())
-    {
-        if (inst.instruction().num_params() > 0)
-            qk_circuit_gate(rust_circuit_.get(), inst.instruction().gate_map(), vqubits.data(), inst.instruction().params().data());
+    if (inst.instruction().is_standard_gate()) {
+        if (inst.instruction().num_params() > 0) {
+            std::vector<QkParam*> params;
+            for (auto &p : inst.instruction().params()) {
+                params.push_back(p.qiskit_param_.get());
+            }
+            qk_circuit_parameterized_gate(rust_circuit_.get(), inst.instruction().gate_map(), vqubits.data(), params.data());
+        }
         else
             qk_circuit_gate(rust_circuit_.get(), inst.instruction().gate_map(), vqubits.data(), nullptr);
-    }
-    else
-    {
-        if (std::string("reset") == inst.instruction().name())
-        {
+    } else {
+        if (std::string("reset") == inst.instruction().name()) {
             qk_circuit_reset(rust_circuit_.get(), vqubits[0]);
         }
-        else if (std::string("barrier") == inst.instruction().name())
-        {
+        else if (std::string("barrier") == inst.instruction().name()) {
             qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
         }
-        else if (std::string("measure") == inst.instruction().name())
-        {
+        else if (std::string("measure") == inst.instruction().name()) {
             qk_circuit_measure(rust_circuit_.get(), vqubits[0], (std::uint32_t)inst.clbits()[0]);
             measure_map_.push_back(std::pair<uint_t, uint_t>(inst.qubits()[0], inst.clbits()[0]));
         }
@@ -1103,9 +1083,10 @@ uint_t QuantumCircuit::num_instructions(void)
 
 CircuitInstruction QuantumCircuit::operator[](uint_t i)
 {
-    if (i < qk_circuit_num_instructions(rust_circuit_.get()))
-    {
+    if (i < qk_circuit_num_instructions(rust_circuit_.get())) {
         auto name_map = get_standard_gate_name_mapping();
+
+        QkOperationKind kind = qk_circuit_instruction_kind(rust_circuit_.get(), i);
         QkCircuitInstruction *op = new QkCircuitInstruction;
         qk_circuit_get_instruction(rust_circuit_.get(), i, op);
         reg_t qubits;
@@ -1114,52 +1095,43 @@ CircuitInstruction QuantumCircuit::operator[](uint_t i)
             for (int i = 0; i < op->num_qubits; i++)
                 qubits[i] = op->qubits[i];
         }
-        std::vector<double> params;
+
+        reg_t clbits;
+        if (op->num_clbits > 0) {
+            clbits.resize(op->num_clbits);
+            for (int i = 0; i < op->num_clbits; i++)
+                clbits[i] = op->clbits[i];
+        }
+
+        std::vector<Parameter> params;
         if (op->num_params > 0) {
             params.resize(op->num_params);
             for (int i = 0; i < op->num_params; i++)
-                params[i] = op->params[i];
+                params[i] = Parameter(qk_param_copy(op->params[i]));
         }
-        auto gate = name_map.find(op->name);
-        if (gate == name_map.end())
-        {
-            reg_t clbits;
-            if (op->num_clbits > 0) {
-                clbits.resize(op->num_clbits);
-                for (int i = 0; i < op->num_clbits; i++)
-                    clbits[i] = op->clbits[i];
-            }
-            if (strcmp(op->name, "measure") == 0)
-            {
-                qk_circuit_instruction_clear(op);
-                auto inst = Measure();
-                return CircuitInstruction(inst, qubits, clbits);
-            }
-            else if (strcmp(op->name, "reset") == 0)
-            {
-                qk_circuit_instruction_clear(op);
-                auto inst = Reset();
-                return CircuitInstruction(inst, qubits, clbits);
-            }
-            else if (strcmp(op->name, "barrier") == 0)
-            {
-                qk_circuit_instruction_clear(op);
-                auto inst = Barrier();
-                return CircuitInstruction(inst, qubits, clbits);
-            }
+        std::string name = op->name;
+        qk_circuit_instruction_clear(op);
+
+        if (kind == QkOperationKind_Measure) {
+            auto inst = Measure();
+            return CircuitInstruction(inst, qubits, clbits);
+        } else if (kind == QkOperationKind_Reset) {
+            auto inst = Reset();
+            return CircuitInstruction(inst, qubits, clbits);
+        } else if (kind == QkOperationKind_Barrier) {
+            auto inst = Barrier();
+            return CircuitInstruction(inst, qubits, clbits);
         }
-        else
-        {
-            // standard gates
+
+        // standard gates
+        auto gate = name_map.find(name);
+        if (gate != name_map.end()) {
             auto inst = gate->second;
-            if (params.size() > 0)
-            {
+            if (params.size() > 0) {
                 inst.set_params(params);
             }
-            qk_circuit_instruction_clear(op);
             return CircuitInstruction(inst, qubits);
         }
-        qk_circuit_instruction_clear(op);
     }
     return CircuitInstruction();
 }
@@ -1170,13 +1142,12 @@ void QuantumCircuit::print(void) const
     uint_t nops;
     nops = qk_circuit_num_instructions(rust_circuit_.get());
 
-    for (uint_t i = 0; i < nops; i++)
-    {
+    for (uint_t i = 0; i < nops; i++) {
+        QkOperationKind kind = qk_circuit_instruction_kind(rust_circuit_.get(), i);
         QkCircuitInstruction *op = new QkCircuitInstruction;
         qk_circuit_get_instruction(rust_circuit_.get(), i, op);
         std::cout << op->name;
-        if (op->num_qubits > 0)
-        {
+        if (op->num_qubits > 0) {
             std::cout << "(";
             for (uint_t j = 0; j < op->num_qubits; j++)
             {
@@ -1186,8 +1157,7 @@ void QuantumCircuit::print(void) const
             }
             std::cout << ") ";
         }
-        if (op->num_clbits > 0)
-        {
+        if (op->num_clbits > 0) {
             std::cout << "(";
             for (uint_t j = 0; j < op->num_clbits; j++)
             {
@@ -1197,12 +1167,12 @@ void QuantumCircuit::print(void) const
             }
             std::cout << ") ";
         }
-        if (op->num_params > 0)
-        {
+        if (op->num_params > 0) {
             std::cout << "[";
-            for (uint_t j = 0; j < op->num_params; j++)
-            {
-                std::cout << op->params[j];
+            for (uint_t j = 0; j < op->num_params; j++) {
+                char* param = qk_param_str(op->params[j]);
+                std::cout << param;
+                qk_str_free(param);
                 if (j != op->num_params - 1)
                     std::cout << ", ";
             }
@@ -1212,6 +1182,20 @@ void QuantumCircuit::print(void) const
         qk_circuit_instruction_clear(op);
     }
 }
+
+void QuantumCircuit::draw(void) const
+{
+    QkCircuitDrawerConfig conf;
+    conf.bundle_cregs = true;
+    conf.merge_wires = false;
+    conf.fold = 0;
+
+    char* out = qk_circuit_draw(rust_circuit_.get(), &conf);
+    std::cout << out << std::endl;
+    qk_str_free(out);
+}
+
+
 
 std::string QuantumCircuit::to_qasm3(void)
 {
@@ -1227,10 +1211,8 @@ std::string QuantumCircuit::to_qasm3(void)
     bool cs = false;
     bool sxdg = false;
     QkOpCounts opcounts = qk_circuit_count_ops(rust_circuit_.get());
-    for (int i = 0; i < opcounts.len; i++)
-    {
-        if (opcounts.data[i].count != 0)
-        {
+    for (int i = 0; i < opcounts.len; i++) {
+        if (opcounts.data[i].count != 0) {
             auto op = name_map[opcounts.data[i].name].gate_map();
             switch (op)
             {
@@ -1519,8 +1501,7 @@ std::string QuantumCircuit::to_qasm3(void)
     // so we need to combined them in a single quantum register "q";
     const std::string qreg_name = "q";
     qasm3 << "qubit[" << num_qubits() << "] " << qreg_name << ";" << std::endl;
-    for(const auto& creg : cregs_)
-    {
+    for(const auto& creg : cregs_) {
         qasm3 << "bit[" << creg.size() << "] " << creg.name() << ";" << std::endl;
     }
 
@@ -1533,47 +1514,36 @@ std::string QuantumCircuit::to_qasm3(void)
         return std::make_pair(it->name(), index - it->base_index());
     };
 
-    for (uint_t i = 0; i < nops; i++)
-    {
+    for (uint_t i = 0; i < nops; i++) {
         QkCircuitInstruction *op = new QkCircuitInstruction;
         qk_circuit_get_instruction(rust_circuit_.get(), i, op);
-        if (op->num_clbits > 0)
-        {
-            if (op->num_qubits == op->num_clbits)
-            {
-                for (uint_t j = 0; j < op->num_qubits; j++)
-                {
+        if (op->num_clbits > 0) {
+            if (op->num_qubits == op->num_clbits) {
+                for (uint_t j = 0; j < op->num_qubits; j++) {
                     const auto creg_data = recover_reg_data(op->clbits[j]);
                     qasm3 << creg_data.first << "[" << creg_data.second << "] = " << op->name << " " << qreg_name << "[" << op->qubits[j] << "];" << std::endl;
                 }
             }
-        }
-        else
-        {
-            if (strcmp(op->name, "u") == 0)
-            {
+        } else {
+            if (strcmp(op->name, "u") == 0) {
                 qasm3 << "U";
-            }
-            else
-            {
+            } else {
                 qasm3 << op->name;
             }
-            if (op->num_params > 0)
-            {
+            if (op->num_params > 0) {
                 qasm3 << "(";
-                for (uint_t j = 0; j < op->num_params; j++)
-                {
-                    qasm3 << op->params[j];
+                for (uint_t j = 0; j < op->num_params; j++) {
+                    char* param = qk_param_str(op->params[j]);
+                    qasm3 << param;
+                    qk_str_free(param);
                     if (j != op->num_params - 1)
                         qasm3 << ", ";
                 }
                 qasm3 << ")";
             }
-            if (op->num_qubits > 0)
-            {
+            if (op->num_qubits > 0) {
                 qasm3 << " ";
-                for (uint_t j = 0; j < op->num_qubits; j++)
-                {
+                for (uint_t j = 0; j < op->num_qubits; j++) {
                     qasm3 << qreg_name << "[" << op->qubits[j] << "]";
                     if (j != op->num_qubits - 1)
                         qasm3 << ", ";
@@ -1587,6 +1557,8 @@ std::string QuantumCircuit::to_qasm3(void)
     return qasm3.str();
 }
 
+
+#define QC_COMPARE_EPS (1e-15)
 
 bool QuantumCircuit::operator==(const QuantumCircuit& other) const
 {
@@ -1627,7 +1599,11 @@ bool QuantumCircuit::operator==(const QuantumCircuit& other) const
             }
         }
         for (int j = 0; j < op->num_params; j++) {
-            if (op->params[j] != op_other->params[j]) {
+            QkParam* sub = qk_param_zero();
+            qk_param_sub(sub, op->params[j], op_other->params[j]);
+            double diff = qk_param_as_real(sub);
+            qk_param_free(sub);
+            if (fabs(diff) > QC_COMPARE_EPS) {
                 qk_circuit_instruction_clear(op);
                 qk_circuit_instruction_clear(op_other);
                 return false;
