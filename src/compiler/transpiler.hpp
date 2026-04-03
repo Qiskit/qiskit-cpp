@@ -45,7 +45,7 @@ circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::Back
     options.seed = seed_transpiler;
     options.approximation_degree = approximation_degree;
 
-    QkTranspileResult result;
+    QkTranspileResult result = {nullptr, nullptr};
     char *error;
 
     QkExitCode ret = qk_transpile(circ.get_rust_circuit().get(), capi_target, &options, &result, &error);

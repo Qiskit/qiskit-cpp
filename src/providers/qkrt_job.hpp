@@ -106,7 +106,7 @@ public:
     bool result(uint_t index, primitives::SamplerPubResult& result) override
     {
         Samples *samples;
-        int ret = qkrt_job_results(&samples, service_.get(), job_.get());
+        int ret = qkrt_sampler_job_results(&samples, service_.get(), job_.get());
         if (ret != 0) {
             std::cerr << "ERROR: qkrt_job_results fails with code " << ret << std::endl;
             return false;
@@ -116,7 +116,7 @@ public:
         for (size_t i = 0; i< num_samples; i++) {
             char* sample = qkrt_samples_get_sample(samples, i);
             std::string ss(sample);
-            result.data().set_hexstring(i, ss);
+            result.set_hexstring(i, ss);
             qkrt_str_free(sample);
         }
         qkrt_samples_free(samples);

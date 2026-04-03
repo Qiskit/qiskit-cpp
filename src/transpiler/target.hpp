@@ -64,6 +64,9 @@ public:
     Target(QkTarget* target)
     {
         target_ = std::shared_ptr<QkTarget>(target, qk_target_free);
+        num_qubits_ = qk_target_num_qubits(target);
+        dt_ = qk_target_dt(target);
+        is_set_ = true;
     }
 
     /// @brief Create a new target

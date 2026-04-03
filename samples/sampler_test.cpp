@@ -22,7 +22,12 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "primitives/backend_sampler_v2.hpp"
+#ifdef QRMI_ROOT
 #include "service/qiskit_runtime_service_qrmi.hpp"
+#else
+#include "service/qiskit_runtime_service_c.hpp"
+#endif
+
 #include "compiler/transpiler.hpp"
 
 using namespace Qiskit;
