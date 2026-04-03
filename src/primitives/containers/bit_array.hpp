@@ -77,6 +77,12 @@ public:
         return array_.size();
     }
 
+    /// @brief accessing raw bit array
+    BitVector& operator[](const uint_t i)
+    {
+        return array_[i];
+    }
+
     // from simulator samples (< 64 qubits)
     void from_samples(const reg_t& samples, uint_t num_bits);
     void from_samples(const uint_t* samples, uint_t num_samples, uint_t num_bits);

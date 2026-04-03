@@ -137,6 +137,20 @@ public:
         }
     }
 
+    /// @brief add bitstring by hexstring
+    /// @param str hexstring to be added in data
+    void set_hexstring(const uint_t i, const std::string& str)
+    {
+        BitVector bits;
+        bits.from_hex_string(str);
+
+        uint_t pos = 0;
+        // split bitstring and store for each creg
+        for (auto creg : pub_.circuit().cregs()) {
+            data_[creg.name()][i] = bits.get_subset(pos, creg.size());
+            pos += creg.size();
+        }
+    }
 };
 
 } // namespace primitives
