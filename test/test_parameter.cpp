@@ -25,7 +25,7 @@ extern "C" {
 /**
  * Test creating a new free symbol and check the name.
  */
-int test_parameter_new(void) {
+static int test_parameter_new(void) {
     auto p = Parameter("a");
 
     if (p.as_str() != "a") {
@@ -38,7 +38,7 @@ int test_parameter_new(void) {
 /**
  * Test creating a new symbol from values.
  */
-int test_parameter_new_values(void) {
+static int test_parameter_new_values(void) {
     auto real = Parameter(0.1);
     if (real.as_str() != "0.1") {
         std::cerr << "The parameter value " << real.as_str() << " is not 0.1" << std::endl;
@@ -50,7 +50,7 @@ int test_parameter_new_values(void) {
 /**
  * Test casting to real values.
  */
-int test_parameter_to_real(void) {
+static int test_parameter_to_real(void) {
     auto x = Parameter("x");
     auto cmplx = Parameter(std::complex<double>(1.0, 2.0));
     auto val = Parameter(10.0);
@@ -81,7 +81,7 @@ int test_parameter_to_real(void) {
 /**
  * Test calling all binary operations and verify their string representation.
  */
-int test_parameter_binary_ops(void) {
+static int test_parameter_binary_ops(void) {
     auto a = Parameter("a");
     auto b = Parameter("b");
     auto ret = Parameter();
