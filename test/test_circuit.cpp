@@ -641,8 +641,11 @@ static int test_to_qasm3_multi_regs(void) {
     return Ok;
 }
 
-
+#if defined(_WIN32)
+int test_circuit(int argc, const char** argv) {
+#else
 int test_circuit(int argc, char** argv) {
+#endif
     int num_failed = 0;
     num_failed += RUN_TEST(test_standard_gates);
     num_failed += RUN_TEST(test_measure);

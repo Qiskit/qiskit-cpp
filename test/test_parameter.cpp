@@ -330,7 +330,11 @@ int test_parameter_copy(void) {
     return result;
 }
 
+#if defined(_WIN32)
+int test_parameter(int argc, const char** argv) {
+#else
 int test_parameter(int argc, char** argv) {
+#endif
     int num_failed = 0;
     num_failed += RUN_TEST(test_parameter_new);
     num_failed += RUN_TEST(test_parameter_new_values);
