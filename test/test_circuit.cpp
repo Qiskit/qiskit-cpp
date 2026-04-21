@@ -13,13 +13,11 @@
 #include <iostream>
 #include <cstdint>
 
+#include "common.hpp"
+
 #include "circuit/quantumcircuit.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;
-
-extern "C" {
-    #include "common.h"
-}
 
 static int test_standard_gates(void) {
     auto circ = QuantumCircuit(4, 4);
@@ -643,8 +641,11 @@ static int test_to_qasm3_multi_regs(void) {
     return Ok;
 }
 
-
-extern "C" int test_circuit(void) {
+#if defined(_WIN32)
+int test_circuit(int argc, char** const argv) {
+#else
+int test_circuit(int argc, char** argv) {
+#endif
     int num_failed = 0;
     num_failed += RUN_TEST(test_standard_gates);
     num_failed += RUN_TEST(test_measure);

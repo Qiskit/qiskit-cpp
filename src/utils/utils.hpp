@@ -53,7 +53,7 @@ inline uint_t _instrinsic_weight(uint_t x) { return (__builtin_popcountll(x)); }
 #endif
 #endif
 
-uint_t _naive_weight(uint_t x) {
+inline uint_t _naive_weight(uint_t x) {
     auto count = x;
     count = (count & 0x5555555555555555) + ((count >> 1) & 0x5555555555555555);
     count = (count & 0x3333333333333333) + ((count >> 2) & 0x3333333333333333);

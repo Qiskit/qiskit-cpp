@@ -452,79 +452,69 @@ public:
     /// @param symbol a symbol to be bound
     /// @param value a value to be set
 	/// @return a new bound Parameter
-    Parameter bind(const Parameter& symbol, const double value);
+    Parameter bind(const Parameter& symbol, const double value)
+    {
+        Parameter ret;
+
+        qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), &symbol.qiskit_param_.get(), &value, 1);
+        return ret;
+    }
 
     /// @brief bind values to symbols
     /// @param symbols a list symbols to be bound
     /// @param value a list of values to be set
 	/// @return a new bound Parameter
-    Parameter bind(const std::vector<Parameter>& symbols, const std::vector<double> values);
+    Parameter bind(const std::vector<Parameter>& symbols, const std::vector<double> values)
+    {
+        size_t size = std::min(symbols.size(), values.size());
+        Parameter ret;
+        std::vector<qiskit_param*> list(size);
+        for (uint_t i = 0; i < size; i++) {
+            list[i] = symbols[i].qiskit_param_.get();
+        }
+
+        qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), list.data(), values.data(), size);
+        return ret;
+
+    }
 
     /// @brief substitute a symbol to other symbol
     /// @param symbol a symbol to be bound
     /// @param other a symbol to be set
 	/// @return a new substituted Parameter
-    Parameter subs(const Parameter& symbol, const Parameter& other);
+    Parameter subs(const Parameter& symbol, const Parameter& other)
+    {
+        Parameter ret;
+
+        qk_param_subs(ret.qiskit_param_.get(), qiskit_param_.get(), &symbol.qiskit_param_.get(), &other.qiskit_param_.get(), 1);
+        return ret;
+    }
 
     /// @brief substitute symbols to other symbols
     /// @param symbols a list of symbols to be bound
     /// @param others a list of symbols to be set
 	/// @return a new substituted Parameter
-    Parameter subs(const std::vector<Parameter>& symbols, const std::vector<Parameter>& others);
+    Parameter subs(const std::vector<Parameter>& symbols, const std::vector<Parameter>& others)
+    {
+        size_t size = std::min(symbols.size(), values.size());
+        Parameter ret;
+        std::vector<qiskit_param*> slist(size);
+        std::vector<qiskit_param*> olist(size);
+        for (uint_t i = 0; i < size; i++) {
+            slist[i] = symbols[i].qiskit_param_.get();
+            olist[i] = others[i].qiskit_param_.get();
+        }
+
+        qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), slist.data(), olist.data(), size);
+        return ret;
+    }
 #endif
 
     friend std::ostream& operator<<(std::ostream& os, const Parameter& p);
 
 };
 
-#ifdef QISKIT_CAPI_HAS_SUBS
-Parameter Parameter::bind(const Parameter& symbol, const double value)
-{
-    Parameter ret;
-
-    qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), &symbol.qiskit_param_.get(), &value, 1);
-    return ret;
-}
-
-Parameter Parameter::bind(const std::vector<Parameter>& symbols, const std::vector<double> values)
-{
-    size_t size = std::min(symbols.size(), values.size());
-    Parameter ret;
-    std::vector<qiskit_param*> list(size);
-    for (uint_t i = 0; i < size; i++) {
-        list[i] = symbols[i].qiskit_param_.get();
-    }
-
-    qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), list.data(), values.data(), size);
-    return ret;
-
-}
-
-Parameter Parameter::subs(const Parameter& symbol, const Parameter& other)
-{
-    Parameter ret;
-
-    qk_param_subs(ret.qiskit_param_.get(), qiskit_param_.get(), &symbol.qiskit_param_.get(), &other.qiskit_param_.get(), 1);
-    return ret;
-}
-
-Parameter Parameter::subs(const std::vector<Parameter>& symbol, const std::vector<Parameter>& others)
-{
-    size_t size = std::min(symbols.size(), values.size());
-    Parameter ret;
-    std::vector<qiskit_param*> slist(size);
-    std::vector<qiskit_param*> olist(size);
-    for (uint_t i = 0; i < size; i++) {
-        slist[i] = symbols[i].qiskit_param_.get();
-        olist[i] = others[i].qiskit_param_.get();
-    }
-
-    qk_param_bind(ret.qiskit_param_.get(), qiskit_param_.get(), slist.data(), olist.data(), size);
-    return ret;
-}
-#endif
-
-std::ostream& operator<<(std::ostream& os, const Parameter& p)
+inline std::ostream& operator<<(std::ostream& os, const Parameter& p)
 {
     os << p.as_str();
     return os;

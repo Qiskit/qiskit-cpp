@@ -70,7 +70,7 @@ int main()
   circ.barrier(0);
   circ.measure(qr, cr);
 
-  circ.print();
+  circ.draw();
   std::cout << circ.to_qasm3();
 
   return 0;

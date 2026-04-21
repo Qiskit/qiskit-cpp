@@ -56,7 +56,26 @@ public:
     uint_t size() { return size_; }
     uint_t length() { return bits_.size(); }
 
-    void allocate(uint_t n, uint_t base = 2);
+    void allocate(uint_t n, uint_t base = 2)
+    {
+        vec_shift_bits_ = REG_BITS;
+        uint_t t = 1;
+        elem_shift_bits_ = 0;
+        for (uint_t i = 0; i < REG_BITS; i++) {
+            t <<= 1;
+            if (t >= base) {
+                break;
+            }
+            vec_shift_bits_--;
+            elem_shift_bits_++;
+        }
+        elem_mask_ = (1ull << (elem_shift_bits_ + 1)) - 1;
+        vec_mask_ = (1ull << vec_shift_bits_) - 1;
+
+        uint_t size = (n + (REG_SIZE >> elem_shift_bits_) - 1) >> vec_shift_bits_;
+        bits_.resize(size, 0ull);
+        size_ = n;
+    }
 
     BitVector &operator=(const BitVector &src)
     {
@@ -81,7 +100,14 @@ public:
     }
 
     // copy with swap
-    void map(const BitVector &src, const reg_t map);
+    void map(const BitVector &src, const reg_t map)
+    {
+        allocate(map.size(), src.base_);
+
+        for (uint_t i = 0; i < map.size(); i++) {
+            set(i, src[map[i]]);
+        }
+    }
 
     // bit access
     inline uint_t get(const uint_t idx) const
@@ -108,226 +134,153 @@ public:
     /// @param start_bit start bit index of subset
     /// @param num_bits number of bits in a subset
     /// @return A new BitVector
-    BitVector get_subset(const uint_t start_bit, const uint_t num_bits);
+    BitVector get_subset(const uint_t start_bit, const uint_t num_bits)
+    {
+        BitVector ret(num_bits);
+
+        for (uint_t i = 0; i < num_bits; i++) {
+            ret.set(i, get(start_bit + i));
+        }
+        return ret;
+    }
 
     // convert from other data
-    void from_uint(const uint_t src, const uint_t n, const uint_t base = 2);
-    void from_string(const std::string &src, const uint_t base = 2);
-    void from_hex_string(const std::string &src, const uint_t base = 2);
-    void from_vector(const reg_t &src, const uint_t base = 2);
+    void from_uint(const uint_t src, const uint_t n, const uint_t base = 2)
+    {
+        allocate(n, base);
+        bits_[0] = src;
+    }
+
+    void from_string(const std::string &src, const uint_t base = 2)
+    {
+        allocate(src.size(), base);
+
+        uint_t pos = 0;
+        uint_t n = REG_SIZE >> elem_shift_bits_;
+        for (uint_t i = 0; i < bits_.size(); i++) {
+            uint_t val = 0;
+            if (n > size_ - pos)
+                n = size_ - pos;
+            for (uint_t j = 0; j < n; j++) {
+                val |= (((uint_t)(src[size_ - 1 - pos] - '0') & elem_mask_)
+                        << (j << elem_shift_bits_));
+                pos++;
+            }
+            bits_[i] = val;
+        }
+    }
+
+    void from_hex_string(const std::string &src, const uint_t base = 2)
+    {
+        uint_t size;
+        if (src.size() > 2 && src[0] == '0' && src[1] == 'x') {
+            size = src.size() - 2;
+        } else {
+            size = src.size();
+        }
+        if (size * 4 > ((size_ + 3) / 4) * 4)
+            allocate(size * 4, base);
+
+        for (uint_t i = 0; i < size; i++) {
+            char c = src[src.size() - 1 - i];
+            uint_t h = 0;
+            if (c >= '0' && c <= '9') {
+                h = (uint_t)(c - '0');
+            } else if (c >= 'a' && c <= 'f') {
+                h = (uint_t)(c - 'a') + 10;
+            } else if (c >= 'A' && c <= 'F') {
+                h = (uint_t)(c - 'A') + 10;
+            }
+            uint_t pos = i % (REG_SIZE >> 2);
+            bits_[i / (REG_SIZE >> 2)] |= (h << (pos << 2));
+        }
+    }
+    void from_vector(const reg_t &src, const uint_t base = 2)
+    {
+        allocate(src.size(), base);
+
+        uint_t pos = 0;
+        uint_t n = REG_SIZE >> elem_shift_bits_;
+        for (uint_t i = 0; i < bits_.size(); i++) {
+            uint_t val = 0;
+            if (n > size_ - pos)
+                n = size_ - pos;
+            for (uint_t j = 0; j < n; j++) {
+                val |= ((src[pos++] & elem_mask_) << (j << elem_shift_bits_));
+            }
+            bits_[i] = val;
+        }
+    }
+
     void from_vector_with_map(const reg_t &src, const reg_t &map,
-                                const uint_t base = 2);
+                                const uint_t base = 2)
+    {
+        allocate(src.size(), base);
+
+        uint_t pos = 0;
+        uint_t n = REG_SIZE >> elem_shift_bits_;
+        for (uint_t i = 0; i < bits_.size(); i++) {
+            uint_t val = 0;
+            if (n > size_ - pos)
+                n = size_ - pos;
+            for (uint_t j = 0; j < n; j++) {
+                val |= ((src[map[pos++]] & elem_mask_) << (j << elem_shift_bits_));
+            }
+            bits_[i] = val;
+        }
+    }
 
     // convert to other data types
-    std::string to_string();
-    std::string to_hex_string();
-    reg_t to_vector();
+    std::string to_string()
+    {
+        std::string str;
+        for (uint_t i = 0; i < size_; i++) {
+            uint_t val = get(size_ - 1 - i);
+            str += std::to_string(val);
+        }
+        return str;
+    }
+
+    std::string to_hex_string()
+    {
+        uint_t size = size_ / 4;
+        std::string str = "0x";
+        for (uint_t i = 0; i < size; i++) {
+            str += '0';
+        }
+        for (uint_t i = 0; i < size; i++) {
+            uint_t pos = i % (REG_SIZE >> 2);
+            uint_t val = (bits_[i / (REG_SIZE >> 2)] >> (pos << 2)) & 15;
+
+            if (val < 10) {
+                str[str.size() - 1 - i] = ('0' + (char)val);
+            } else {
+                str[str.size() - 1 - i] = ('a' + (char)(val - 10));
+            }
+        }
+        return str;
+    }
+
+    reg_t to_vector()
+    {
+        reg_t ret(size_);
+        for (uint_t i = 0; i < size_; i++) {
+            ret[i] = get(i);
+        }
+        return ret;
+    }
 
     /// @brief Return number of 1 bits
     /// @return A number of 1 bits
-    uint_t popcount(void);
+    uint_t popcount(void)
+    {
+        uint_t count = 0;
+        for (uint_t i = 0; i < bits_.size(); i++) {
+            count += Qiskit::popcount(bits_[i]);
+        }
+        return count;
+    }
 };
-
-void BitVector::allocate(uint_t n, uint_t base)
-{
-    vec_shift_bits_ = REG_BITS;
-    uint_t t = 1;
-    elem_shift_bits_ = 0;
-    for (uint_t i = 0; i < REG_BITS; i++)
-    {
-        t <<= 1;
-        if (t >= base)
-        {
-            break;
-        }
-        vec_shift_bits_--;
-        elem_shift_bits_++;
-    }
-    elem_mask_ = (1ull << (elem_shift_bits_ + 1)) - 1;
-    vec_mask_ = (1ull << vec_shift_bits_) - 1;
-
-    uint_t size = (n + (REG_SIZE >> elem_shift_bits_) - 1) >> vec_shift_bits_;
-    bits_.resize(size, 0ull);
-    size_ = n;
-}
-
-void BitVector::map(const BitVector &src, const reg_t map)
-{
-    allocate(map.size(), src.base_);
-
-    for (uint_t i = 0; i < map.size(); i++)
-    {
-        set(i, src[map[i]]);
-    }
-}
-
-void BitVector::from_uint(const uint_t src, const uint_t n,
-                            const uint_t base)
-{
-    allocate(n, base);
-    bits_[0] = src;
-}
-
-void BitVector::from_string(const std::string &src, const uint_t base)
-{
-    allocate(src.size(), base);
-
-    uint_t pos = 0;
-    uint_t n = REG_SIZE >> elem_shift_bits_;
-    for (uint_t i = 0; i < bits_.size(); i++)
-    {
-        uint_t val = 0;
-        if (n > size_ - pos)
-            n = size_ - pos;
-        for (uint_t j = 0; j < n; j++)
-        {
-            val |= (((uint_t)(src[size_ - 1 - pos] - '0') & elem_mask_)
-                    << (j << elem_shift_bits_));
-            pos++;
-        }
-        bits_[i] = val;
-    }
-}
-
-void BitVector::from_hex_string(const std::string &src, const uint_t base)
-{
-    uint_t size;
-    if (src.size() > 2 && src[0] == '0' && src[1] == 'x')
-    {
-        size = src.size() - 2;
-    }
-    else
-    {
-        size = src.size();
-    }
-    if (size * 4 > ((size_ + 3) / 4) * 4)
-        allocate(size * 4, base);
-
-    for (uint_t i = 0; i < size; i++)
-    {
-        char c = src[src.size() - 1 - i];
-        uint_t h = 0;
-        if (c >= '0' && c <= '9')
-        {
-            h = (uint_t)(c - '0');
-        }
-        else if (c >= 'a' && c <= 'f')
-        {
-            h = (uint_t)(c - 'a') + 10;
-        }
-        else if (c >= 'A' && c <= 'F')
-        {
-            h = (uint_t)(c - 'A') + 10;
-        }
-        uint_t pos = i % (REG_SIZE >> 2);
-        bits_[i / (REG_SIZE >> 2)] |= (h << (pos << 2));
-    }
-}
-
-void BitVector::from_vector(const reg_t &src, const uint_t base)
-{
-    allocate(src.size(), base);
-
-    uint_t pos = 0;
-    uint_t n = REG_SIZE >> elem_shift_bits_;
-    for (uint_t i = 0; i < bits_.size(); i++)
-    {
-        uint_t val = 0;
-        if (n > size_ - pos)
-            n = size_ - pos;
-        for (uint_t j = 0; j < n; j++)
-        {
-            val |= ((src[pos++] & elem_mask_) << (j << elem_shift_bits_));
-        }
-        bits_[i] = val;
-    }
-}
-
-void BitVector::from_vector_with_map(const reg_t &src, const reg_t &map,
-                                        const uint_t base)
-{
-    allocate(src.size(), base);
-
-    uint_t pos = 0;
-    uint_t n = REG_SIZE >> elem_shift_bits_;
-    for (uint_t i = 0; i < bits_.size(); i++)
-    {
-        uint_t val = 0;
-        if (n > size_ - pos)
-            n = size_ - pos;
-        for (uint_t j = 0; j < n; j++)
-        {
-            val |= ((src[map[pos++]] & elem_mask_) << (j << elem_shift_bits_));
-        }
-        bits_[i] = val;
-    }
-}
-
-std::string BitVector::to_string(void)
-{
-    std::string str;
-    for (uint_t i = 0; i < size_; i++)
-    {
-        uint_t val = get(size_ - 1 - i);
-        str += std::to_string(val);
-    }
-    return str;
-}
-
-std::string BitVector::to_hex_string(void)
-{
-    uint_t size = size_ / 4;
-    std::string str = "0x";
-    for (uint_t i = 0; i < size; i++)
-    {
-        str += '0';
-    }
-    for (uint_t i = 0; i < size; i++)
-    {
-        uint_t pos = i % (REG_SIZE >> 2);
-        uint_t val = (bits_[i / (REG_SIZE >> 2)] >> (pos << 2)) & 15;
-
-        if (val < 10)
-        {
-            str[str.size() - 1 - i] = ('0' + (char)val);
-        }
-        else
-        {
-            str[str.size() - 1 - i] = ('a' + (char)(val - 10));
-        }
-    }
-    return str;
-}
-
-reg_t BitVector::to_vector(void)
-{
-    reg_t ret(size_);
-    for (uint_t i = 0; i < size_; i++)
-    {
-        ret[i] = get(i);
-    }
-    return ret;
-}
-
-BitVector BitVector::get_subset(const uint_t start_bit, const uint_t num_bits)
-{
-    BitVector ret(num_bits);
-
-    for (uint_t i = 0; i < num_bits; i++) {
-        ret.set(i, get(start_bit + i));
-    }
-    return ret;
-}
-
-uint_t BitVector::popcount(void)
-{
-    uint_t count = 0;
-    for (uint_t i = 0; i < bits_.size(); i++) {
-        count += Qiskit::popcount(bits_[i]);
-    }
-    return count;
-}
-
 
 //------------------------------------------------------------------------------
 } // namespace Qiskit

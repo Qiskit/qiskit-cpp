@@ -17,8 +17,15 @@
 #ifndef __qiskitcpp_circuit_classical_register_hpp__
 #define __qiskitcpp_circuit_classical_register_hpp__
 
+#include <atomic>
+
 #include "circuit/register.hpp"
 #include "qiskit.h"
+
+
+namespace {
+    std::atomic<uint64_t> CR_counter(0ull);
+}
 
 namespace Qiskit
 {
@@ -38,7 +45,7 @@ class ClassicalRegister : public Register
 {
 protected:
     std::shared_ptr<QkClassicalRegister> rust_register_ = nullptr;
-    static uint_t instances_counter_;
+//    static uint_t instances_counter_;
 
 public:
     /// @brief Create a new ClassicalRegister
@@ -78,7 +85,7 @@ public:
     std::string prefix(void) override
     {
         std::string ret = "c";
-        ret += std::to_string(instances_counter_++);
+        ret += std::to_string(CR_counter++);
         return ret;
     }
 
@@ -120,7 +127,7 @@ public:
     Binary operator>=(Expr &right);
 };
 
-uint_t ClassicalRegister::instances_counter_ = 0;
+//inline uint_t ClassicalRegister::instances_counter_ = 0;
 
 } // namespace circuit
 } // namespace Qiskit

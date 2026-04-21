@@ -123,11 +123,35 @@ public:
     /// @param (size) The number of bits to include in the register
     /// @param (name) The name of the register. If not provided, a unique name will be auto-generated from the register type.
     /// @param (bits) A list of Bit instances to be used to populate the register.
-    Register(uint_t size, std::string name, std::vector<Bit> &bits);
+    Register(uint_t size, std::string name, std::vector<Bit> &bits)
+    {
+        if (size != bits.size())
+        {
+            throw std::runtime_error("Register : size of bits and size is different");
+        }
+
+        size_ = size;
+        bits_ = bits;
+
+        for (uint_t i = 0; i < size; i++)
+        {
+            bits[i].register_ = this;
+            bits[i].index_ = (uint32_t)i;
+            bits_[i].register_ = this;
+            bits_[i].index_ = (uint32_t)i;
+        }
+    }
 
     /// @brief Create a new generic register as a copy of reg
     /// @param (reg) copy source
-    Register(const Register &reg);
+    Register(const Register &reg)
+    {
+        size_ = reg.size_;
+        name_ = reg.name_;
+        bits_ = reg.bits_;
+        base_index_ = reg.base_index_;
+    }
+
 
     /// @brief Resize this register with size
     /// @param (size) new size of this register
@@ -166,58 +190,25 @@ public:
 protected:
     virtual std::string prefix(void) = 0;
 
-    void allocate_bits(void);
+    void allocate_bits(void)
+    {
+        bits_.resize(size_);
+        for (uint_t i = 0; i < size_; i++)
+        {
+            bits_[i].register_ = this;
+            bits_[i].index_ = (uint32_t)i;
+        }
+    }
 };
 
-// =======================
-// class for bit
-// =======================
-uint32_t Bit::global_index(void)
+
+inline uint32_t Bit::global_index(void)
 {
     if (register_)
         return (uint32_t)register_->base_index_ + index_;
     return index_;
 }
 
-// =======================
-// base class for register
-// =======================
-Register::Register(uint_t size, std::string name, std::vector<Bit> &bits)
-{
-    if (size != bits.size())
-    {
-        throw std::runtime_error("Register : size of bits and size is different");
-    }
-
-    size_ = size;
-    bits_ = bits;
-
-    for (uint_t i = 0; i < size; i++)
-    {
-        bits[i].register_ = this;
-        bits[i].index_ = (uint32_t)i;
-        bits_[i].register_ = this;
-        bits_[i].index_ = (uint32_t)i;
-    }
-}
-
-Register::Register(const Register &reg)
-{
-    size_ = reg.size_;
-    name_ = reg.name_;
-    bits_ = reg.bits_;
-    base_index_ = reg.base_index_;
-}
-
-void Register::allocate_bits(void)
-{
-    bits_.resize(size_);
-    for (uint_t i = 0; i < size_; i++)
-    {
-        bits_[i].register_ = this;
-        bits_[i].index_ = (uint32_t)i;
-    }
-}
 
 } // namespace circuit
 } // namespace Qiskit

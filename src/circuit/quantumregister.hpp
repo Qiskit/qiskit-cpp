@@ -17,8 +17,16 @@
 #ifndef __qiskitcpp_circuit_quantum_register_hpp__
 #define __qiskitcpp_circuit_quantum_register_hpp__
 
+#include <atomic>
+
 #include "circuit/register.hpp"
 #include "qiskit.h"
+
+
+namespace {
+    std::atomic<uint64_t> QR_counter(0ull);
+}
+
 
 namespace Qiskit
 {
@@ -34,8 +42,7 @@ class QuantumRegister : public Register
 {
 protected:
     std::shared_ptr<QkQuantumRegister> rust_register_ = nullptr;
-    static uint_t instances_counter_;
-
+//    static uint_t instances_counter_;
 public:
     /// @brief Create a new generic register
     QuantumRegister()
@@ -85,12 +92,12 @@ public:
     std::string prefix(void) override
     {
         std::string ret = "q";
-        ret += std::to_string(instances_counter_++);
+        ret += std::to_string(QR_counter++);
         return ret;
     }
 };
 
-uint_t QuantumRegister::instances_counter_ = 0;
+//inline uint_t QuantumRegister::instances_counter_ = 0;
 
 } // namespace circuit
 } // namespace Qiskit

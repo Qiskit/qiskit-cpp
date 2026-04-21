@@ -22,4 +22,3 @@
 #include "circuit/quantumcircuit_impl.hpp"
 
 #endif  // __qiskitcpp_circuit_quantum_circuit_hpp__
-

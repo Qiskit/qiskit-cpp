@@ -17,14 +17,12 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "transpiler/passmanager.hpp"
+#include "common.hpp"
 
 using namespace Qiskit;
 using namespace Qiskit::circuit;
 using namespace Qiskit::transpiler;
 
-extern "C" {
-    #include "common.h"
-}
 
 static int test_translate_h(void)
 {
@@ -122,7 +120,11 @@ static int test_ghz_routing(void)
 }
 
 
-extern "C" int test_transpiler(void) {
+#if defined(_WIN32)
+int test_transpiler(int argc, char** const argv) {
+#else
+int test_transpiler(int argc, char** argv) {
+#endif
     int num_failed = 0;
     num_failed += RUN_TEST(test_translate_h);
     num_failed += RUN_TEST(test_translate_cx);

@@ -10,9 +10,9 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
-#include "common.h"
-#include <stdio.h>
-#include <string.h>
+#include "common.hpp"
+#include <iostream>
+#include <cstdint>
 
 // A function to run a test function of a given name. This function will also
 // post-process the returned `TestResult` to product a minimal info message for
@@ -26,14 +26,11 @@ int run(const char *name, int (*test_function)(void)) {
     char *msg;
     if (result == Ok) {
         did_fail = 0;
-        msg = "Ok";
+        std::cerr << "--- " << name << ": OK" << std::endl;
     } else if (result == EqualityError) {
-        msg = "FAILED with an EqualityError";
+        std::cerr << "--- " << name << ": FAILED with an EqualityError" << std::endl;
     } else {
-        msg = "FAILED with unknown error";
+        std::cerr << "--- " << name << ": FAILED with unknown error" << std::endl;
     }
-    fprintf(stderr, "--- %-30s: %s\n", name, msg);
-    fflush(stderr);
-
     return did_fail;
 }

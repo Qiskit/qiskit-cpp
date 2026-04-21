@@ -17,7 +17,6 @@
 #ifndef __qiskitcpp_circuit_control_flow_hpp__
 #define __qiskitcpp_circuit_control_flow_hpp__
 
-#include "circuit/quantumcircuit_def.hpp"
 
 namespace Qiskit {
 namespace circuit {
