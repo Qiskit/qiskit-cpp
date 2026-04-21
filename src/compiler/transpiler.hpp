@@ -31,7 +31,7 @@ namespace compiler {
 /// @param seed_transpiler The seed for the transpiler (default = -1)
 /// @param approximation_degree The approximation degree a heurstic dial (default = 1.0)
 /// @return transpiled QuantumCircuit
-circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::BackendV2 &backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
+inline circuit::QuantumCircuit transpile(circuit::QuantumCircuit &circ, providers::BackendV2 &backend, int optimization_level = 2, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     auto target = backend.target();
     auto capi_target = target.rust_target();

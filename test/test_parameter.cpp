@@ -14,13 +14,11 @@
 #include <cstdint>
 #include <cmath>
 
+#include "common.hpp"
+
 #include "circuit/parameter.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;
-
-extern "C" {
-    #include "common.h"
-}
 
 /**
  * Test creating a new free symbol and check the name.
@@ -332,7 +330,7 @@ int test_parameter_copy(void) {
     return result;
 }
 
-extern "C" int test_parameter(void) {
+int test_parameter(int argc, char** argv) {
     int num_failed = 0;
     num_failed += RUN_TEST(test_parameter_new);
     num_failed += RUN_TEST(test_parameter_new_values);

@@ -35,7 +35,7 @@ const std::vector<std::string> default_stages = {"init", "layout", "routing", "t
 ///         (1.0=no approximation, 0.0=maximal approximation).
 /// @param seed_transpiler Sets random seed for the stochastic parts of the transpiler.
 /// @return a new preset pass manager
-StagedPassManager generate_preset_pass_manager(uint_t optimization_level, providers::BackendV2& backend, double approximation_degree = 1.0, int seed_transpiler = -1)
+inline StagedPassManager generate_preset_pass_manager(uint_t optimization_level, providers::BackendV2& backend, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     return StagedPassManager(default_stages, backend, optimization_level, approximation_degree, seed_transpiler);
 }
@@ -48,7 +48,7 @@ StagedPassManager generate_preset_pass_manager(uint_t optimization_level, provid
 ///         (1.0=no approximation, 0.0=maximal approximation).
 /// @param seed_transpiler Sets random seed for the stochastic parts of the transpiler.
 /// @return a new preset pass manager
-StagedPassManager generate_preset_pass_manager(uint_t optimization_level, Target& target, double approximation_degree = 1.0, int seed_transpiler = -1)
+inline StagedPassManager generate_preset_pass_manager(uint_t optimization_level, Target& target, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     return StagedPassManager(default_stages, target, optimization_level, approximation_degree, seed_transpiler);
 }
@@ -61,7 +61,7 @@ StagedPassManager generate_preset_pass_manager(uint_t optimization_level, Target
 ///         (1.0=no approximation, 0.0=maximal approximation).
 /// @param seed_transpiler Sets random seed for the stochastic parts of the transpiler.
 /// @return a new preset pass manager
-StagedPassManager generate_preset_pass_manager(uint_t optimization_level, const std::vector<std::string>& basis_gates, const std::vector<std::pair<uint32_t, uint32_t>>& coupling_map, double approximation_degree = 1.0, int seed_transpiler = -1)
+inline StagedPassManager generate_preset_pass_manager(uint_t optimization_level, const std::vector<std::string>& basis_gates, const std::vector<std::pair<uint32_t, uint32_t>>& coupling_map, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     auto target = Target(basis_gates, coupling_map);
     return StagedPassManager(default_stages, target, optimization_level, approximation_degree, seed_transpiler);
@@ -75,7 +75,7 @@ StagedPassManager generate_preset_pass_manager(uint_t optimization_level, const 
 ///         (1.0=no approximation, 0.0=maximal approximation).
 /// @param seed_transpiler Sets random seed for the stochastic parts of the transpiler.
 /// @return a new preset pass manager
-StagedPassManager generate_preset_pass_manager(uint_t optimization_level, const std::unordered_map<std::string, std::vector<InstructionProperty>>& props, double approximation_degree = 1.0, int seed_transpiler = -1)
+inline StagedPassManager generate_preset_pass_manager(uint_t optimization_level, const std::unordered_map<std::string, std::vector<InstructionProperty>>& props, double approximation_degree = 1.0, int seed_transpiler = -1)
 {
     auto target = Target(props);
     return StagedPassManager(default_stages, target, optimization_level, approximation_degree, seed_transpiler);

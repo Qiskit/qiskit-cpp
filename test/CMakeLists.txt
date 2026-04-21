@@ -28,9 +28,9 @@ FetchContent_MakeAvailable(json)
 # files into a single executable. This has the benefit that a single test
 # executable is built and run rather than invididual ones for every individual
 # test file.
-create_test_sourcelist (source_files test_driver.c ${discovered_tests})
+create_test_sourcelist (source_files test_driver.cpp ${discovered_tests})
 
-add_library(common STATIC common.c)
+add_library(common STATIC common.cpp)
 # Actually define the test driver program executable to be built...
 add_executable (test_driver ${source_files})
 # ...include the location of the header file...
@@ -38,7 +38,6 @@ target_include_directories (test_driver PRIVATE ${CMAKE_SOURCE_DIR} nlohmann_jso
 # ...and linked with the qiskit library.
 target_link_libraries (test_driver ${qiskit} common nlohmann_json::nlohmann_json)
 
-target_link_options(test_driver PRIVATE "-Wl,-z,muldefs")
 
 # On MSVC we need to link the Python dll, we search it here and adjust the PATH in the tests below
 if (MSVC)

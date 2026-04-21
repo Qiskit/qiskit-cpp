@@ -13,8 +13,6 @@
 #ifndef _TEST_COMMON_H_
 #define _TEST_COMMON_H_
 
-#include <stdio.h>
-
 // An enumeration of test results. These should be returned by test functions to
 // indicate what kind of error occurred. This will be used to produce more
 // helpful messages for the developer running the test suite.

@@ -31,8 +31,6 @@
 namespace Qiskit {
 namespace providers {
 
-std::string replace_all(std::string s, const std::string& from, const std::string& to);
-
 /// @class SQCBackend
 /// @brief Backend class using SQC.
 class SQCBackend : public BackendV2 {
@@ -126,26 +124,27 @@ public:
 
         return std::make_shared<SQCJob>(results_json);
     }
+
+    std::string replace_all(std::string s, const std::string& from, const std::string& to) {
+        if (from.empty()) return s;
+        std::string out;
+        out.reserve(s.size());
+        std::size_t pos = 0;
+        while (true) {
+            std::size_t found = s.find(from, pos);
+            if (found == std::string::npos) {
+                out.append(s, pos, std::string::npos);
+                break;
+            }
+            out.append(s, pos, found - pos);
+            out.append(to);
+            pos = found + from.size();
+        }
+        return out;
+    }
 };
 
 
-std::string replace_all(std::string s, const std::string& from, const std::string& to) {
-    if (from.empty()) return s;
-    std::string out;
-    out.reserve(s.size());
-    std::size_t pos = 0;
-    while (true) {
-        std::size_t found = s.find(from, pos);
-        if (found == std::string::npos) {
-            out.append(s, pos, std::string::npos);
-            break;
-        }
-        out.append(s, pos, found - pos);
-        out.append(to);
-        pos = found + from.size();
-    }
-    return out;
-}
 
 
 } // namespace providers

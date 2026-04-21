@@ -49,36 +49,31 @@ public:
 
   // add false body
   /// @brief add false body
-  void else_(std::function<void(QuantumCircuit&)> body);
+  void else_(std::function<void(QuantumCircuit&)> body)
+  {
+    body(false_body_);
+    test_else_ = true;
+  }
 
-  void add_control_flow_op(QuantumCircuit& circ) override;
+  void add_control_flow_op(QuantumCircuit& circ) override
+  {
+    if(test_else_){
+      // if_else
+      std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
+      std::shared_ptr<rust_circuit> false_circ = false_body_.get_rust_circuit();
+
+      // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
+  //    qc_if_else(circ.get_rust_circuit(false), clbit_, value_, true_circ, false_circ);
+    }
+    else{
+      // if_test
+      std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
+
+      // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
+      //qc_if_test(circ.get_rust_circuit(false), clbit_, value_, true_circ);
+    }
+  }
 };
-
-void IfElseOp::else_(std::function<void(QuantumCircuit&)> body)
-{
-  body(false_body_);
-  test_else_ = true;
-}
-
-void IfElseOp::add_control_flow_op(QuantumCircuit& circ)
-{
-  if(test_else_){
-    // if_else
-    std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
-    std::shared_ptr<rust_circuit> false_circ = false_body_.get_rust_circuit();
-
-    // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
-//    qc_if_else(circ.get_rust_circuit(false), clbit_, value_, true_circ, false_circ);
-  }
-  else{
-    // if_test
-    std::shared_ptr<rust_circuit> true_circ = true_body_.get_rust_circuit();
-
-    // TO DO : Add if_else support in Qiskit C-API (maybe in the future?)
-    //qc_if_test(circ.get_rust_circuit(false), clbit_, value_, true_circ);
-  }
-}
-
 
 
 } // namespace circuit

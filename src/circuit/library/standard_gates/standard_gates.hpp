@@ -51,7 +51,7 @@
 namespace Qiskit {
 namespace circuit {
 
-std::unordered_map<std::string, Instruction> get_standard_gate_name_mapping(void)
+inline std::unordered_map<std::string, Instruction> get_standard_gate_name_mapping(void)
 {
     // mapping of gate string and QkGate
     std::unordered_map<std::string, Instruction> name_mapping;
