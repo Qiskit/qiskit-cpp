@@ -642,7 +642,7 @@ static int test_to_qasm3_multi_regs(void) {
 }
 
 #if defined(_WIN32)
-int test_circuit(int argc, char** argv const) {
+int test_circuit(int argc, char** const argv) {
 #else
 int test_circuit(int argc, char** argv) {
 #endif

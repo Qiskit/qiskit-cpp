@@ -331,7 +331,7 @@ int test_parameter_copy(void) {
 }
 
 #if defined(_WIN32)
-int test_parameter(int argc, char** argv const) {
+int test_parameter(int argc, char** const argv) {
 #else
 int test_parameter(int argc, char** argv) {
 #endif
