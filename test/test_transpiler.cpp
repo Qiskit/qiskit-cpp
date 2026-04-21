@@ -121,7 +121,7 @@ static int test_ghz_routing(void)
 
 
 #if defined(_WIN32)
-int test_transpiler(int argc, const char** argv) {
+int test_transpiler(int argc, char** argv const) {
 #else
 int test_transpiler(int argc, char** argv) {
 #endif
