@@ -32,9 +32,10 @@ create_test_sourcelist (source_files test_driver.cpp ${discovered_tests})
 
 add_library(common STATIC common.cpp)
 # Actually define the test driver program executable to be built...
-add_executable (test_driver ${source_files})
+add_executable (test_driver ${source_files} ../src/circuit/qasm3_exporter.cpp)
 # ...include the location of the header file...
 target_include_directories (test_driver PRIVATE ${CMAKE_SOURCE_DIR} nlohmann_json::nlohmann_json ../src deps/qiskit/dist/c/include)
+target_include_directories (test_driver PRIVATE /home/khang/pro-lab/coding-space/skill-quantum/qiskit-cpp-work/qiskit-cpp/src /home/khang/pro-lab/coding-space/skill-quantum/qiskit-cpp-work/qiskit-source/dist/c/include)
 # ...and linked with the qiskit library.
 target_link_libraries (test_driver ${qiskit} common nlohmann_json::nlohmann_json)
 

@@ -16,6 +16,7 @@
 #include "common.hpp"
 
 #include "circuit/quantumcircuit.hpp"
+#include "circuit/parameter.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;
 
@@ -641,6 +642,83 @@ static int test_to_qasm3_multi_regs(void) {
     return Ok;
 }
 
+// Regression test for https://github.com/Qiskit/qiskit-cpp/issues/146
+// `to_qasm3` must emit a single-parameter gate using the original symbolic
+// parameter name, not a numeric value.
+static int test_to_qasm3_parameter_symbol(void) {
+    auto circ = QuantumCircuit(1, 1);
+
+    Parameter theta("theta");
+    circ.rx(theta, 0);
+
+    const auto actual = circ.to_qasm3();
+    // The key check: `rx(theta)` must be present, not a numeric value.
+    if (actual.find("rx(theta)") == std::string::npos) {
+        std::cerr << "  to_qasm3_parameter_symbol test : missing 'rx(theta)' in: " << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+// A `Parameter` that is a compound expression built from a free symbol should
+// also be emitted using its string expression, e.g. `rx(2*theta + 1.5)`.
+static int test_to_qasm3_parameter_expression(void) {
+    auto circ = QuantumCircuit(1, 1);
+
+    Parameter theta("theta");
+    Parameter expr = theta * 2.0 + 1.5;
+    circ.rx(expr, 0);
+
+    const auto actual = circ.to_qasm3();
+    // `2*theta + 1.5` may be canonicalised slightly differently by
+    // `qk_param_str`; just check that the symbolic name `theta` is preserved
+    // and that we do not fall back to a numeric-only representation.
+    if (actual.find("2*theta") == std::string::npos) {
+        std::cerr << "  to_qasm3_parameter_expression test : missing symbolic '2*theta' in: " << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+// Numeric parameters must keep their previous behavior of being serialized as
+// decimal numbers (no symbolic transformation).
+static int test_to_qasm3_numeric_parameter(void) {
+    auto circ = QuantumCircuit(1, 1);
+
+    circ.rz(0.5, 0);
+
+    const auto actual = circ.to_qasm3();
+    // Check that the numeric value is present (0.5 or 1/2 format).
+    // The register name may differ, so check for key content instead.
+    if (actual.find("rz(0.5)") == std::string::npos && actual.find("rz(1/2)") == std::string::npos) {
+        std::cerr << "  to_qasm3_numeric_parameter test : missing 'rz(0.5)' in: " << actual << std::endl;
+        return EqualityError;
+    }
+    if (actual.find("rz(theta)") != std::string::npos) {
+        std::cerr << "  to_qasm3_numeric_parameter test : unexpected symbolic 'theta' in: " << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+// `U` is special: it must keep being uppercased even when parameterized.
+static int test_to_qasm3_u_gate_parameterized(void) {
+    auto circ = QuantumCircuit(1, 1);
+
+    Parameter a("a");
+    Parameter b("b");
+    Parameter c("c");
+    circ.u(a, b, c, 0);
+
+    const auto actual = circ.to_qasm3();
+    if (actual.find("U(a, b, c) q[0];") == std::string::npos) {
+        std::cerr << "  to_qasm3_u_gate_parameterized test : expected 'U(a, b, c) q[0];' in:\n"
+                  << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 #if defined(_WIN32)
 int test_circuit(int argc, char** const argv) {
 #else
@@ -652,6 +730,10 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_append);
     num_failed += RUN_TEST(test_compose);
     num_failed += RUN_TEST(test_to_qasm3_multi_regs);
+    num_failed += RUN_TEST(test_to_qasm3_numeric_parameter);
+    num_failed += RUN_TEST(test_to_qasm3_parameter_symbol);
+    num_failed += RUN_TEST(test_to_qasm3_parameter_expression);
+    num_failed += RUN_TEST(test_to_qasm3_u_gate_parameterized);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;

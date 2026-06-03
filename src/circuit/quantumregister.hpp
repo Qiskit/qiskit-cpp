@@ -18,6 +18,7 @@
 #define __qiskitcpp_circuit_quantum_register_hpp__
 
 #include <atomic>
+#include <memory>
 
 #include "circuit/register.hpp"
 #include "qiskit.h"

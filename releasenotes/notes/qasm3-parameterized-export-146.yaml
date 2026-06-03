@@ -1,0 +1,20 @@
+---
+features:
+  - |
+    Added support for exporting parameterized circuits in OpenQASM 3.0. The
+    ``QuantumCircuit::to_qasm3`` method now serializes a ``Parameter`` (or any
+    expression built from ``Parameter``s) as a symbolic identifier (e.g.
+    ``rx(theta) q[0];``) instead of attempting to stringify an unbound value.
+
+fixes:
+  - |
+    ``QuantumCircuit::to_qasm3`` could not export circuits containing
+    parameterized gates, which made parameterized circuits impossible to
+    round-trip through OpenQASM 3.0. Gate parameters are now serialized using
+    ``qk_param_str`` and therefore carry their symbolic expression (or numeric
+    value) faithfully.
+
+    This also refactors the OpenQASM 3.0 export implementation out of the
+    ``QuantumCircuit`` class into a new ``Qasm3Exporter`` class
+    (``src/circuit/qasm3_exporter.hpp``), so the circuit class no longer needs
+    to know about the textual QASM representation.
