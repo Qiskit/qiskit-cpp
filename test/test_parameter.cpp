@@ -16,6 +16,7 @@
 
 #include "common.hpp"
 
+#include "qasm3/exporter.hpp"
 #include "circuit/parameter.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;

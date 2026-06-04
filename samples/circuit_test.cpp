@@ -19,6 +19,7 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "circuit/library/quantum_volume.hpp"
+#include "qasm3/exporter.hpp"
 
 using namespace Qiskit::circuit;
 
@@ -71,7 +72,7 @@ int main()
   circ.measure(qr, cr);
 
   circ.draw();
-  std::cout << circ.to_qasm3();
+  std::cout << Qiskit::qasm3::dumps(circ);
 
   return 0;
 }

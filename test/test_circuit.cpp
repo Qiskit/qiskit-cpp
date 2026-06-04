@@ -16,6 +16,7 @@
 #include "common.hpp"
 
 #include "circuit/quantumcircuit.hpp"
+#include "qasm3/exporter.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;
 
@@ -612,7 +613,7 @@ static int test_compose(void) {
     return Ok;
 }
 
-static int test_to_qasm3_multi_regs(void) {
+static int test_qasm3_multi_regs(void) {
     auto qreg1 = QuantumRegister(2, std::string("q1"));
     auto qreg2 = QuantumRegister(1, std::string("q2"));
     auto creg1 = ClassicalRegister(2, std::string("c1"));
@@ -622,7 +623,7 @@ static int test_to_qasm3_multi_regs(void) {
     circ.measure(qreg2, creg2);
     circ.measure(qreg1, creg1);
 
-    const auto actual = circ.to_qasm3();
+    const auto actual = Qiskit::qasm3::dumps(circ);
     const std::string expected =
         "OPENQASM 3.0;\n"
         "include \"stdgates.inc\";\n"
@@ -633,10 +634,144 @@ static int test_to_qasm3_multi_regs(void) {
         "c1[0] = measure q[0];\n"
         "c1[1] = measure q[1];\n";
     if (actual != expected) {
-        std::cerr << "  to_qasm3_multi_regs test : \n    expected:\n" << expected
+        std::cerr << "  qasm3_multi_regs test : \n    expected:\n" << expected
             << "\n    actual:\n" << actual << std::endl;
         return EqualityError;
     }
+
+    return Ok;
+}
+
+static int test_qasm3_parameter_symbol(void) {
+    auto qreg = QuantumRegister(1, "qreg");
+    auto creg = ClassicalRegister(1, "c");
+    auto circ = QuantumCircuit(qreg, creg);
+    Parameter theta("theta");
+    circ.rx(theta, 0);
+
+    const auto actual = Qiskit::qasm3::dumps(circ, {"theta"});
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_parameter_symbol test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_parameter_expression(void) {
+    auto qreg = QuantumRegister(1, "qreg");
+    auto creg = ClassicalRegister(1, "c");
+    auto circ = QuantumCircuit(qreg, creg);
+    Parameter theta("theta");
+    circ.rx(theta + 0.5, 0);
+
+    const auto actual = Qiskit::qasm3::dumps(circ, {"theta"});
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(0.5 + theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_parameter_expression test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_parameter_declaration_order(void) {
+    auto qreg = QuantumRegister(1, "qreg");
+    auto creg = ClassicalRegister(1, "c");
+    auto circ = QuantumCircuit(qreg, creg);
+    Parameter theta("theta");
+    Parameter phi("phi");
+    circ.rx(theta, 0);
+    circ.ry(phi, 0);
+
+    const auto actual = Qiskit::qasm3::dumps(circ, {"phi", "theta"});
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] phi;\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n"
+        "ry(phi) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_parameter_declaration_order test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_numeric_parameter(void) {
+    auto qreg = QuantumRegister(1, "qreg");
+    auto creg = ClassicalRegister(1, "c");
+    auto circ = QuantumCircuit(qreg, creg);
+    circ.rz(0.5, 0);
+
+    const auto actual = Qiskit::qasm3::dumps(circ);
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rz(0.5) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_numeric_parameter test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_input_parameter_validation(void) {
+    auto parameterized = QuantumCircuit(1, 1);
+    Parameter theta("theta");
+    Parameter phi("phi");
+    parameterized.rx(theta, 0);
+    parameterized.ry(phi, 0);
+
+    try {
+        Qiskit::qasm3::dumps(parameterized);
+        return EqualityError;
+    } catch (const std::invalid_argument&) {}
+
+    try {
+        Qiskit::qasm3::dumps(parameterized, {"theta"});
+        return EqualityError;
+    } catch (const std::invalid_argument&) {}
+
+    try {
+        Qiskit::qasm3::dumps(parameterized, {"", "phi"});
+        return EqualityError;
+    } catch (const std::invalid_argument&) {}
+
+    try {
+        Qiskit::qasm3::dumps(parameterized, {"theta", "theta"});
+        return EqualityError;
+    } catch (const std::invalid_argument&) {}
+
+    auto numeric = QuantumCircuit(1, 1);
+    try {
+        Qiskit::qasm3::dumps(numeric, {"theta"});
+        return EqualityError;
+    } catch (const std::invalid_argument&) {}
 
     return Ok;
 }
@@ -651,7 +786,12 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_measure);
     num_failed += RUN_TEST(test_append);
     num_failed += RUN_TEST(test_compose);
-    num_failed += RUN_TEST(test_to_qasm3_multi_regs);
+    num_failed += RUN_TEST(test_qasm3_multi_regs);
+    num_failed += RUN_TEST(test_qasm3_parameter_symbol);
+    num_failed += RUN_TEST(test_qasm3_parameter_expression);
+    num_failed += RUN_TEST(test_qasm3_parameter_declaration_order);
+    num_failed += RUN_TEST(test_qasm3_numeric_parameter);
+    num_failed += RUN_TEST(test_qasm3_input_parameter_validation);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;

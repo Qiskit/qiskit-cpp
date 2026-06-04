@@ -24,6 +24,7 @@
 #include "transpiler/target.hpp"
 #include "primitives/containers/sampler_pub.hpp"
 #include "providers/sqc_job.hpp"
+#include "qasm3/exporter.hpp"
 
 #include "sqc_ecode.h"
 #include "sqc_api.h"
@@ -90,7 +91,7 @@ public:
     std::shared_ptr<providers::Job> run(std::vector<primitives::SamplerPub>& input_pubs, uint_t shots) override
     {
         auto circuit = input_pubs[0].circuit();
-        const auto qasm3_str = circuit.to_qasm3();
+        const auto qasm3_str = qasm3::dumps(circuit);
         std::cout << "run qasm3: \n" << qasm3_str << std::endl;
 
         // special modification of QASM3 for SQC

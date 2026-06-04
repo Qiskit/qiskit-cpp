@@ -21,6 +21,7 @@
 #include <cmath>
 
 #include "circuit/quantumcircuit.hpp"
+#include "qasm3/exporter.hpp"
 
 using namespace Qiskit::circuit;
 
@@ -37,6 +38,8 @@ int main()
     circ.rx(a, 1);
 
     circ.measure(qr, cr);
+
+    std::cout << Qiskit::qasm3::dumps(circ, {"t"}) << std::endl;
 
     circ.print();
 

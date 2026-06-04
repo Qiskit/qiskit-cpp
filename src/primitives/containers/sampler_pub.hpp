@@ -21,6 +21,7 @@
 using json = nlohmann::json;
 
 #include "circuit/quantumcircuit.hpp"
+#include "qasm3/exporter.hpp"
 
 
 namespace Qiskit {
@@ -107,9 +108,9 @@ public:
         nlohmann::ordered_json params = json::array();
 
         if (shots_ > 0) {
-            return json::array({circuit_.to_qasm3(), params, shots_});
+            return json::array({qasm3::dumps(circuit_), params, shots_});
         }
-        return json::array({circuit_.to_qasm3(), params});
+        return json::array({qasm3::dumps(circuit_), params});
     }
 
 };

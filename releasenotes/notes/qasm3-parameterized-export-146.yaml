@@ -1,0 +1,14 @@
+---
+features:
+  - |
+    Added the header-only ``Qiskit::qasm3::dumps`` API for exporting quantum
+    circuits as OpenQASM 3. Parameterized circuits can supply their ordered
+    free-parameter names so the exporter emits valid ``input float[64]``
+    declarations. Names must be supplied explicitly because the current
+    Qiskit C API exposes the number of free symbols, but cannot enumerate
+    their names.
+upgrade:
+  - |
+    Removed ``QuantumCircuit::to_qasm3``. Include ``qasm3/exporter.hpp`` and
+    call ``Qiskit::qasm3::dumps(circuit)`` instead. Parameterized circuits must
+    additionally pass the ordered names of their free parameters.
