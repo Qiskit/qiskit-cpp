@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Add ``BackendEstimatorV2``, ``EstimatorPub``, and ``BackendEstimatorJob`` for
+    Pauli expectation-value estimation via the existing sampler interface.

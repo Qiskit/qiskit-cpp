@@ -97,7 +97,7 @@ $ cmake -DQISKIT_ROOT=Path_to_qiskit ..
 $ make
 ```
 
-If you want to build sampler or transpiler example, you will need one of qiskit-ibm-runtime C or QRMI or SQC.
+If you want to build sampler, estimator, or transpiler example, you will need one of qiskit-ibm-runtime C or QRMI or SQC.
 
 Then example can be built by setting `QISKIT_IBM_RUNTIME_C_ROOT` or `QRMI_ROOT` or `SQC_ROOT` to cmake.
 
@@ -109,7 +109,7 @@ $ cmake -DQISKIT_ROOT=Path_to_qiskit -DQISKIT_IBM_RUNTIME_C_ROOT="path to qiskit
 $ make
 ```
 
-To run sampler example, set your account information in `$HOME/.qiskit/qiskit-ibm.json` (see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk) or setting following environment variables to access Quantum hardware.
+To run sampler or estimator examples, set your account information in `$HOME/.qiskit/qiskit-ibm.json` (see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk) or setting following environment variables to access Quantum hardware.
 
 ```
 QISKIT_IBM_TOKEN=<your API key>
