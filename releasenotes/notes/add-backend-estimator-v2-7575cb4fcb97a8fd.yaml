@@ -1,0 +1,11 @@
+---
+features:
+  - |
+    Add sampler-backed `BackendEstimatorV2`, `EstimatorPub`,
+    `BackendEstimatorJob`, and estimator result containers.
+
+    The estimator supports real-coefficient Pauli and identity
+    `SparseObservable` terms for circuits without existing measurements,
+    derives shots from precision, groups qubit-wise compatible measurement
+    circuits, and returns result metadata with `target_precision` and `shots`.
+    Circuits that already contain measurements raise `std::invalid_argument`.

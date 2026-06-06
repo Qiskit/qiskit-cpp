@@ -70,15 +70,14 @@ inline bool _naive_parity(uint_t x) {
 
 
 #ifdef INTRINSIC_PARITY
-bool (*hamming_parity)(uint_t) = &_intrinsic_parity;
-uint_t (*popcount)(uint_t) = &_instrinsic_weight;
+inline bool hamming_parity(uint_t x) { return _intrinsic_parity(x); }
+inline uint_t popcount(uint_t x) { return _instrinsic_weight(x); }
 #else
-bool (*hamming_parity)(uint_t) = &_naive_parity;
-uint_t (*popcount)(uint_t) = &_naive_weight;
+inline bool hamming_parity(uint_t x) { return _naive_parity(x); }
+inline uint_t popcount(uint_t x) { return _naive_weight(x); }
 #endif
 
 
 } // namespace Qiskit
 
 #endif
-

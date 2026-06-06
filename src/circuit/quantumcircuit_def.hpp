@@ -178,10 +178,9 @@ public:
 	}
 
 	/// @brief Create a new reference to Quantum Circuit
-	/// @details Copy constructor of QuantumCircuit does not copy the circuit,
-	///          but copies shared pointer to Rust's circuit
-	///          If you want to make a copy of the circuit,
-	///          please call QuantumCircuit::copy explicitly.
+	/// @details Copy constructor of QuantumCircuit creates another reference
+	///          to the same Rust circuit. Call QuantumCircuit::copy explicitly
+	///          for an independent circuit.
 	/// @param circ a Quantum Circuit to be copied the refrence in the new object
 	QuantumCircuit(const QuantumCircuit &circ)
 	{
@@ -260,7 +259,7 @@ public:
 
 	/// @brief Copy Quantum Circuit
 	/// @return copied circuit
-	QuantumCircuit copy(void)
+	QuantumCircuit copy(void) const
 	{
 		QuantumCircuit copied;
 		copied.rust_circuit_ = std::shared_ptr<rust_circuit>(qk_circuit_copy(rust_circuit_.get()), qk_circuit_free);
@@ -318,6 +317,13 @@ public:
 	/// @brief get qubits to be measured
 	/// @return a set of qubits
 	std::vector<std::pair<uint_t, uint_t>> &get_measure_map(void)
+	{
+		return measure_map_;
+	}
+
+	/// @brief get qubits to be measured
+	/// @return a set of qubits
+	const std::vector<std::pair<uint_t, uint_t>> &get_measure_map(void) const
 	{
 		return measure_map_;
 	}
@@ -1345,7 +1351,7 @@ public:
 					vclbits[j] = (std::uint32_t)clbits[op->clbits[j]];
 				}
 			}
-			QkOperationKind kind = qk_circuit_instruction_kind(rust_circuit_.get(), i);
+			QkOperationKind kind = qk_circuit_instruction_kind(circ.rust_circuit_.get(), i);
 			if (kind == QkOperationKind_Measure) {
 				qk_circuit_measure(rust_circuit_.get(), vqubits[0], vclbits[0]);
 			} else if (kind == QkOperationKind_Reset) {

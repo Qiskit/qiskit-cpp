@@ -19,6 +19,8 @@
 
 #include "qiskit.h"
 #include "utils/types.hpp"
+#include <limits>
+#include <stdexcept>
 
 namespace Qiskit
 {
@@ -37,18 +39,55 @@ public:
     {
         obs_ = nullptr;
     }
-    SparseObservable(uint_t num_qubits, std::vector<std::complex<double>> &coeffs, std::vector<QkBitTerm> &bits, reg_t &indicies, std::vector<size_t> &boundaries)
+    SparseObservable(uint_t num_qubits,
+                     std::vector<std::complex<double>> &coeffs,
+                     std::vector<QkBitTerm> &bits,
+                     reg_t &indices,
+                     std::vector<size_t> &boundaries)
     {
-        std::vector<std::uint32_t> idx32(indicies.size());
-        for (int i = 0; i < indicies.size(); i++) {
-            idx32[i] = (std::uint32_t)indicies[i];
+        if (num_qubits > std::numeric_limits<std::uint32_t>::max()) {
+            throw std::invalid_argument("SparseObservable: number of qubits exceeds QkObs limit");
         }
-        obs_ = qk_obs_new((std::uint32_t)num_qubits, coeffs.size(), bits.size(), (QkComplex64 *)coeffs.data(), bits.data(), idx32.data(), boundaries.data());
+        if (bits.size() != indices.size()) {
+            throw std::invalid_argument("SparseObservable: bits/indices size mismatch");
+        }
+        if (boundaries.size() != coeffs.size() + 1
+            || boundaries.empty()
+            || boundaries[0] != 0
+            || boundaries.back() != bits.size()) {
+            throw std::invalid_argument("SparseObservable: invalid boundaries");
+        }
+        for (uint_t i = 1; i < boundaries.size(); i++) {
+            if (boundaries[i] < boundaries[i - 1] || boundaries[i] > bits.size()) {
+                throw std::invalid_argument("SparseObservable: invalid boundaries");
+            }
+        }
+        for (uint_t term = 0; term < coeffs.size(); term++) {
+            for (size_t pos = boundaries[term] + 1; pos < boundaries[term + 1]; pos++) {
+                if (indices[pos] <= indices[pos - 1]) {
+                    throw std::invalid_argument("SparseObservable: term indices are not strictly increasing");
+                }
+            }
+        }
+        std::vector<std::uint32_t> idx32(indices.size());
+        for (uint_t i = 0; i < indices.size(); i++) {
+            if (indices[i] >= num_qubits || indices[i] > std::numeric_limits<std::uint32_t>::max()) {
+                throw std::invalid_argument("SparseObservable: index exceeds observable width");
+            }
+            idx32[i] = (std::uint32_t)indices[i];
+        }
+        obs_ = qk_obs_new((std::uint32_t)num_qubits,
+                          coeffs.size(),
+                          bits.size(),
+                          (QkComplex64 *)coeffs.data(),
+                          bits.data(),
+                          idx32.data(),
+                          boundaries.data());
     }
 
     SparseObservable(const SparseObservable &other)
     {
-        obs_ = qk_obs_copy(other.obs_);
+        obs_ = other.obs_ ? qk_obs_copy(other.obs_) : nullptr;
     }
 
     ~SparseObservable()
@@ -57,6 +96,19 @@ public:
         {
             qk_obs_free(obs_);
         }
+    }
+
+    SparseObservable &operator=(const SparseObservable &other)
+    {
+        if (this == &other) {
+            return *this;
+        }
+        if (obs_) {
+            qk_obs_free(obs_);
+            obs_ = nullptr;
+        }
+        obs_ = other.obs_ ? qk_obs_copy(other.obs_) : nullptr;
+        return *this;
     }
 
     static SparseObservable zero(uint_t num_qubits)
@@ -205,7 +257,7 @@ public:
     }
     std::vector<QkBitTerm> bit_terms(void) const
     {
-        std::vector<QkBitTerm> ret(num_terms());
+        std::vector<QkBitTerm> ret(obs_ ? qk_obs_len(obs_) : 0);
         if (obs_)
         {
             auto terms = qk_obs_bit_terms(obs_);
@@ -231,7 +283,7 @@ public:
     }
     reg_t indices(void) const
     {
-        reg_t ret(qk_obs_len(obs_));
+        reg_t ret(obs_ ? qk_obs_len(obs_) : 0);
         if (obs_)
         {
             auto idx = qk_obs_indices(obs_);
@@ -244,7 +296,7 @@ public:
     }
     reg_t boundaries(void) const
     {
-        reg_t ret(qk_obs_len(obs_));
+        reg_t ret(obs_ ? qk_obs_num_terms(obs_) + 1 : 0);
         if (obs_)
         {
             auto idx = qk_obs_boundaries(obs_);
