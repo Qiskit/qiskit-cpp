@@ -12,10 +12,13 @@
 
 #include <iostream>
 #include <cstdint>
+#include <stdexcept>
 
 #include "common.hpp"
 
 #include "circuit/quantumcircuit.hpp"
+#include "circuit/parameter.hpp"
+#include "qasm3/qasm3_exporter.hpp"
 using namespace Qiskit;
 using namespace Qiskit::circuit;
 
@@ -612,6 +615,64 @@ static int test_compose(void) {
     return Ok;
 }
 
+static int test_compose_parameterized_circuit(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+    QuantumCircuit sub(qreg, creg);
+
+    Parameter theta("theta");
+    sub.rx(theta, 0);
+
+    circ.compose(sub, reg_t({0}), reg_t({0}));
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  compose_parameterized_circuit test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_operator_index_parameter_metadata(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit src(qreg, creg);
+    QuantumCircuit dst(qreg, creg);
+
+    Parameter theta("theta");
+    Parameter phi("phi");
+    src.rx(theta, 0);
+    src.ry(phi, 0);
+
+    dst.append(src[0]);
+
+    const auto actual = dst.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  operator_index_parameter_metadata test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
 static int test_to_qasm3_multi_regs(void) {
     auto qreg1 = QuantumRegister(2, std::string("q1"));
     auto qreg2 = QuantumRegister(1, std::string("q2"));
@@ -641,6 +702,210 @@ static int test_to_qasm3_multi_regs(void) {
     return Ok;
 }
 
+static int test_to_qasm3_parameterized_circuit(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    Parameter theta("theta");
+    circ.rx(theta, 0);
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  to_qasm3_parameterized_circuit test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_to_qasm3_parameter_expression(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    Parameter theta("theta");
+    Parameter phi("phi");
+    circ.rz(theta + phi, 0);
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] phi;\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rz(phi + theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  to_qasm3_parameter_expression test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_dumps_multiple_parameters(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    Parameter phi("phi");
+    Parameter theta("theta");
+    circ.rx(phi, 0);
+    circ.ry(theta, 0);
+
+    const auto actual = qasm3::dumps(circ);
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] phi;\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(phi) q[0];\n"
+        "ry(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_dumps_multiple_parameters test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_dumps_numeric_parameter(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    circ.rx(0.25, 0);
+
+    const auto actual = qasm3::dumps(circ);
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(0.25) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_dumps_numeric_parameter test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_dumps_parameterized_u(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    Parameter theta("theta");
+    Parameter phi("phi");
+    Parameter lam("lam");
+    circ.u(theta, phi, lam, 0);
+
+    const auto actual = qasm3::dumps(circ);
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] lam;\n"
+        "input float[64] phi;\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "U(theta, phi, lam) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_dumps_parameterized_u test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_dumps_explicit_parameter_names(void) {
+    auto qreg = QuantumRegister(1, std::string("qr"));
+    auto creg = ClassicalRegister(1, std::string("c"));
+    QuantumCircuit circ(qreg, creg);
+
+    Parameter theta("theta");
+    circ.rx(theta, 0);
+
+    const auto actual = qasm3::dumps(circ, {"theta"});
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  qasm3_dumps_explicit_parameter_names test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+
+    return Ok;
+}
+
+static int test_qasm3_dumps_invalid_parameter_names(void) {
+    QuantumCircuit one_param(1, 1);
+    Parameter theta("theta");
+    one_param.rx(theta, 0);
+
+    bool threw = false;
+    try {
+        qasm3::dumps(one_param, {});
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  qasm3_dumps_invalid_parameter_names test : wrong count did not throw" << std::endl;
+        return RuntimeError;
+    }
+
+    threw = false;
+    try {
+        qasm3::dumps(one_param, {""});
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  qasm3_dumps_invalid_parameter_names test : empty name did not throw" << std::endl;
+        return RuntimeError;
+    }
+
+    QuantumCircuit two_params(1, 1);
+    Parameter phi("phi");
+    two_params.rx(theta, 0);
+    two_params.ry(phi, 0);
+
+    threw = false;
+    try {
+        qasm3::dumps(two_params, {"theta", "theta"});
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  qasm3_dumps_invalid_parameter_names test : duplicate names did not throw" << std::endl;
+        return RuntimeError;
+    }
+
+    return Ok;
+}
+
 #if defined(_WIN32)
 int test_circuit(int argc, char** const argv) {
 #else
@@ -651,7 +916,16 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_measure);
     num_failed += RUN_TEST(test_append);
     num_failed += RUN_TEST(test_compose);
+    num_failed += RUN_TEST(test_compose_parameterized_circuit);
+    num_failed += RUN_TEST(test_operator_index_parameter_metadata);
     num_failed += RUN_TEST(test_to_qasm3_multi_regs);
+    num_failed += RUN_TEST(test_to_qasm3_parameterized_circuit);
+    num_failed += RUN_TEST(test_to_qasm3_parameter_expression);
+    num_failed += RUN_TEST(test_qasm3_dumps_multiple_parameters);
+    num_failed += RUN_TEST(test_qasm3_dumps_numeric_parameter);
+    num_failed += RUN_TEST(test_qasm3_dumps_parameterized_u);
+    num_failed += RUN_TEST(test_qasm3_dumps_explicit_parameter_names);
+    num_failed += RUN_TEST(test_qasm3_dumps_invalid_parameter_names);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;
