@@ -17,152 +17,44 @@
 #ifndef __qiskitcpp_primitives_backend_estimator_job_def_hpp__
 #define __qiskitcpp_primitives_backend_estimator_job_def_hpp__
 
-#define _USE_MATH_DEFINES
-#include <cmath>
+#include <chrono>
 #include <memory>
-#include <string>
+#include <stdexcept>
+#include <thread>
 #include <vector>
 
-#include "compiler/transpiler.hpp"
-#include "primitives/backend_sampler_v2.hpp"
-#include "primitives/containers/estimator_pub.hpp"
 #include "primitives/containers/estimator_result.hpp"
-#include "primitives/containers/sampler_pub.hpp"
-#include "providers/backend.hpp"
+#include "providers/job.hpp"
 #include "providers/jobstatus.hpp"
 
 namespace Qiskit {
 namespace primitives {
 
-namespace {
-
-int bit_value_from_string(const std::string& bitstring, uint_t qubit, uint_t num_qubits)
-{
-    uint_t pos = num_qubits - 1 - qubit;
-    return bitstring[pos] == '1' ? 1 : 0;
-}
-
-double pauli_eigenvalue_from_bitstring(const std::string& pauli, const std::string& bitstring)
-{
-    double value = 1.0;
-    uint_t n = pauli.size();
-
-    for (uint_t q = 0; q < n; q++) {
-        char p = pauli[n - 1 - q];
-
-        if (p == 'I') {
-            continue;
-        }
-
-        int bit = bit_value_from_string(bitstring, q, n);
-        value *= (bit == 0) ? 1.0 : -1.0;
-    }
-
-    return value;
-}
-
-void append_basis_rotation(circuit::QuantumCircuit& circ, const std::string& pauli)
-{
-    uint_t n = pauli.size();
-
-    for (uint_t q = 0; q < n; q++) {
-        char p = pauli[n - 1 - q];
-
-        if (p == 'X') {
-            circ.h(q);
-        } else if (p == 'Y') {
-            circ.rz(-M_PI / 2.0, q);
-            circ.h(q);
-        }
-    }
-}
-
-void append_measurements(circuit::QuantumCircuit& circ, uint_t num_qubits)
-{
-    for (uint_t q = 0; q < num_qubits; q++) {
-        circ.measure(q, q);
-    }
-}
-
-EstimatorPubResult estimate_pub(providers::BackendV2& backend,
-                              uint_t default_shots,
-                              EstimatorPub& pub)
-{
-    BackendSamplerV2 sampler(backend, default_shots);
-    double total_ev = 0.0;
-    double variance_accum = 0.0;
-    uint_t shots = pub.shots() > 0 ? pub.shots() : default_shots;
-
-    for (const auto& term : pub.observables()) {
-        const std::string& pauli = term.first;
-        double coeff = term.second;
-        uint_t num_qubits = pauli.size();
-
-        auto meas_circ = pub.circuit().copy();
-        append_basis_rotation(meas_circ, pauli);
-
-        if (meas_circ.get_measure_map().empty()) {
-            append_measurements(meas_circ, num_qubits);
-        }
-
-        auto isa_circ = compiler::transpile(meas_circ, backend);
-        SamplerPub sampler_pub(isa_circ, shots);
-
-        auto job = sampler.run({sampler_pub});
-        if (job == nullptr) {
-            continue;
-        }
-
-        auto primitive_result = job->result();
-        auto pub_result = primitive_result[0];
-        auto bits = pub_result.data().get_bitstrings();
-
-        if (bits.empty()) {
-            continue;
-        }
-
-        double mean = 0.0;
-        for (const auto& b : bits) {
-            mean += pauli_eigenvalue_from_bitstring(pauli, b);
-        }
-        mean /= static_cast<double>(bits.size());
-
-        total_ev += coeff * mean;
-        variance_accum += coeff * coeff * (1.0 - mean * mean) / static_cast<double>(bits.size());
-    }
-
-    EstimatorPubResult result(pub);
-    result.set_ev(total_ev);
-    result.set_stddev(std::sqrt(variance_accum));
-    return result;
-}
-
-} // namespace
-
 /// @class BackendEstimatorJob
 /// @brief Job class for Backend Estimator primitive.
 class BackendEstimatorJob {
 protected:
-    providers::BackendV2& backend_;
-    uint_t shots_;
+    std::shared_ptr<providers::Job> job_ = nullptr;
     std::vector<EstimatorPub> pubs_;
-    EstimatorResult result_;
-    bool finished_ = false;
+
 public:
-    BackendEstimatorJob(providers::BackendV2& backend,
-                        uint_t shots,
-                        std::vector<EstimatorPub>& pubs)
-        : backend_(backend), shots_(shots), pubs_(pubs)
+    BackendEstimatorJob(std::shared_ptr<providers::Job> job, std::vector<EstimatorPub>& pubs)
     {
+        job_ = job;
+        pubs_ = pubs;
     }
 
     BackendEstimatorJob(const BackendEstimatorJob& other)
-        : backend_(other.backend_),
-          shots_(other.shots_),
-          pubs_(other.pubs_),
-          result_(other.result_),
-          finished_(other.finished_)
     {
+        job_ = other.job_;
+        pubs_ = other.pubs_;
+    }
+
+    ~BackendEstimatorJob()
+    {
+        if (job_) {
+            job_.reset();
+        }
     }
 
     const std::vector<EstimatorPub>& pubs(void) const
@@ -172,27 +64,35 @@ public:
 
     providers::JobStatus status(void)
     {
-        return finished_ ? providers::JobStatus::DONE : providers::JobStatus::RUNNING;
+        if (!job_) {
+            return providers::JobStatus::ERROR;
+        }
+        return job_->status();
     }
 
     bool running(void)
     {
-        return !finished_;
+        return status() == providers::JobStatus::RUNNING;
+    }
+
+    bool queued(void)
+    {
+        return status() == providers::JobStatus::QUEUED;
     }
 
     bool done(void)
     {
-        return finished_;
+        return status() == providers::JobStatus::DONE;
     }
 
     bool cancelled(void)
     {
-        return false;
+        return status() == providers::JobStatus::CANCELLED;
     }
 
     bool in_final_state(void)
     {
-        return finished_;
+        return is_final_state(status());
     }
 
     bool cancel(void)
@@ -200,16 +100,48 @@ public:
         return false;
     }
 
-    EstimatorResult result(void)
+    EstimatorPrimitiveResult result(void)
     {
-        if (!finished_) {
-            result_.allocate(pubs_.size());
-            for (uint_t i = 0; i < pubs_.size(); i++) {
-                result_[i] = estimate_pub(backend_, shots_, pubs_[i]);
-            }
-            finished_ = true;
+        if (!job_) {
+            throw std::runtime_error("BackendEstimatorJob has no provider job.");
         }
-        return result_;
+
+        providers::JobStatus st;
+        while (true) {
+            st = job_->status();
+            if (is_final_state(st)) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+        if (st != providers::JobStatus::DONE) {
+            throw std::runtime_error("BackendEstimatorJob did not finish successfully.");
+        }
+
+        uint_t num_results = job_->num_results();
+        if (num_results != pubs_.size()) {
+            throw std::runtime_error("BackendEstimatorJob result count does not match the submitted pubs.");
+        }
+
+        EstimatorPrimitiveResult result;
+        result.allocate(num_results);
+        for (uint_t i = 0; i < num_results; i++) {
+            result[i].set_pub(pubs_[i]);
+            if (!job_->result(i, result[i])) {
+                throw std::runtime_error("BackendEstimatorJob failed to read an estimator pub result.");
+            }
+        }
+        return result;
+    }
+
+protected:
+    static bool is_final_state(providers::JobStatus status)
+    {
+        return status == providers::JobStatus::DONE ||
+               status == providers::JobStatus::CANCELLED ||
+               status == providers::JobStatus::FAILED ||
+               status == providers::JobStatus::ERROR;
     }
 };
 

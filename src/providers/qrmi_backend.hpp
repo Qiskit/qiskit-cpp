@@ -19,6 +19,7 @@
 
 #include "utils/types.hpp"
 #include "providers/backend.hpp"
+#include "providers/qrmi_estimator_payload.hpp"
 #include "providers/qrmi_job.hpp"
 
 #include <nlohmann/json.hpp>
@@ -120,6 +121,30 @@ public:
         std::string job_id = id;
         qrmi_string_free((char *)id);
         std::cerr << " QRMI Job submitted to " << name_ << ", JOB ID = " << job_id << std::endl;
+
+        return std::make_shared<providers::QRMIJob>(qrmi_, job_id);
+    }
+
+    /// @brief Run and estimate expectation values from each pub.
+    std::shared_ptr<providers::Job> run(std::vector<primitives::EstimatorPub>& input_pubs, double precision) override
+    {
+        auto estimator = QRMIEstimatorPayload::build_estimator_input(input_pubs, precision);
+        std::string estimator_input = estimator.dump(2);
+
+        QrmiPayload payload;
+        payload.tag = QRMI_PAYLOAD_QISKIT_PRIMITIVE;
+        payload.QISKIT_PRIMITIVE.input = (char*)estimator_input.c_str();
+        payload.QISKIT_PRIMITIVE.program_id = (char*)QRMIEstimatorPayload::estimator_program_id().c_str();
+
+        char *id = NULL;
+        QrmiReturnCode rc = qrmi_resource_task_start(qrmi_.get(), &payload, &id);
+        if (rc != QRMI_RETURN_CODE_SUCCESS) {
+            std::cerr << "QRMI Error : failed to start an estimator task." << std::endl;
+            return nullptr;
+        }
+        std::string job_id = id;
+        qrmi_string_free((char *)id);
+        std::cerr << " QRMI Estimator job submitted to " << name_ << ", JOB ID = " << job_id << std::endl;
 
         return std::make_shared<providers::QRMIJob>(qrmi_, job_id);
     }

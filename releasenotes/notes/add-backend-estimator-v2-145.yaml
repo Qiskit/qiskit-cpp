@@ -2,4 +2,5 @@
 features:
   - |
     Add ``BackendEstimatorV2``, ``EstimatorPub``, and ``BackendEstimatorJob`` for
-    Pauli expectation-value estimation via the existing sampler interface.
+    IBM Runtime Estimator V2 via QRMI. ``EstimatorPub`` accepts ``SparseObservable``
+    inputs, and ``QRMIBackend`` submits native ``estimator`` program jobs on IQP.

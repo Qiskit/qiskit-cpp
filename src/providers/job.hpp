@@ -19,6 +19,7 @@
 
 #include "utils/types.hpp"
 #include "providers/jobstatus.hpp"
+#include "primitives/containers/estimator_pub_result.hpp"
 #include "primitives/containers/sampler_pub_result.hpp"
 
 namespace Qiskit {
@@ -47,6 +48,15 @@ public:
     /// @param result an output sampler pub result
     /// @return true if result is successfully set
     virtual bool result(uint_t index, primitives::SamplerPubResult& result) = 0;
+
+    /// @brief get estimator pub result
+    /// @param index an index of the result
+    /// @param result an output estimator pub result
+    /// @return true if result is successfully set
+    virtual bool result(uint_t index, primitives::EstimatorPubResult& result)
+    {
+        return false;
+    }
 };
 
 } // namespace providers

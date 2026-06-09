@@ -48,7 +48,7 @@ public:
 
     SparseObservable(const SparseObservable &other)
     {
-        obs_ = qk_obs_copy(other.obs_);
+        obs_ = other.obs_ ? qk_obs_copy(other.obs_) : nullptr;
     }
 
     ~SparseObservable()
@@ -73,7 +73,7 @@ public:
         return ret;
     }
 
-    static SparseObservable from_label(std::string &label)
+    static SparseObservable from_label(const std::string &label)
     {
         reg_t indices;
         std::vector<size_t> boundaries(2);
@@ -205,16 +205,18 @@ public:
     }
     std::vector<QkBitTerm> bit_terms(void) const
     {
-        std::vector<QkBitTerm> ret(num_terms());
         if (obs_)
         {
+            const size_t len = qk_obs_len(obs_);
+            std::vector<QkBitTerm> ret(len);
             auto terms = qk_obs_bit_terms(obs_);
-            for (int i = 0; i < ret.size(); i++)
+            for (size_t i = 0; i < len; i++)
             {
                 ret[i] = terms[i];
             }
+            return ret;
         }
-        return ret;
+        return std::vector<QkBitTerm>();
     }
     std::vector<std::complex<double>> coeffs(void) const
     {
@@ -244,15 +246,31 @@ public:
     }
     reg_t boundaries(void) const
     {
-        reg_t ret(qk_obs_len(obs_));
         if (obs_)
         {
+            reg_t ret(num_terms() + 1);
             auto idx = qk_obs_boundaries(obs_);
             for (int i = 0; i < ret.size(); i++)
             {
                 ret[i] = idx[i];
             }
+            return ret;
         }
+        return reg_t();
+    }
+
+    SparseObservable apply_layout(const reg_t& layout) const
+    {
+        if (!obs_) {
+            return SparseObservable();
+        }
+        SparseObservable ret;
+        ret.obs_ = qk_obs_copy(obs_);
+        std::vector<uint32_t> layout32(layout.size());
+        for (size_t i = 0; i < layout.size(); i++) {
+            layout32[i] = (uint32_t)layout[i];
+        }
+        qk_obs_apply_layout(ret.obs_, layout32.data(), (uint32_t)layout32.size());
         return ret;
     }
 

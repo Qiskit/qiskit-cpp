@@ -106,6 +106,9 @@ add_application(parameterized_circuit_test parameterized_circuit_test.cpp)
 
 if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR SQC_ROOT)
   add_application(sampler_test sampler_test.cpp)
-  add_application(estimator_test estimator_test.cpp)
   add_application(transpile_test transpile_test.cpp)
+endif()
+
+if(QRMI_ROOT)
+  add_application(estimator_test estimator_test.cpp)
 endif()

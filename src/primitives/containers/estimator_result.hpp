@@ -23,13 +23,13 @@
 namespace Qiskit {
 namespace primitives {
 
-/// @class EstimatorResult
+/// @class EstimatorPrimitiveResult
 /// @brief A container for multiple estimator pub results.
-class EstimatorResult {
+class EstimatorPrimitiveResult {
 protected:
     std::vector<EstimatorPubResult> pub_results_;
 public:
-    EstimatorResult() {}
+    EstimatorPrimitiveResult() {}
 
     void allocate(uint_t num_results)
     {

@@ -21,6 +21,7 @@
 
 #include "utils/types.hpp"
 
+#include "primitives/containers/estimator_pub_result.hpp"
 #include "primitives/containers/sampler_pub_result.hpp"
 #include "providers/job.hpp"
 
@@ -113,19 +114,41 @@ public:
         if (index >= num_results_)
             return false;
 
+        if (!results_.contains("results") || !results_["results"].is_array())
+            return false;
+
         result.from_json(results_["results"][index]);
         return true;
+    }
+
+    bool result(uint_t index, primitives::EstimatorPubResult& result) override
+    {
+        if (num_results_ == 0)
+            read_results();
+
+        if (index >= num_results_)
+            return false;
+
+        if (!results_.contains("results") || !results_["results"].is_array())
+            return false;
+
+        auto item = results_["results"][index];
+        return result.from_json(item);
     }
 
 protected:
     void read_results(void)
     {
+        if (num_results_ > 0)
+            return;
+
         char *result = nullptr;
         int rc = qrmi_resource_task_result(qrmi_.get(), job_id_.c_str(), &result);
         if (rc == QRMI_RETURN_CODE_SUCCESS) {
             results_ = nlohmann::ordered_json::parse(result);
-
-            num_results_ = results_["results"].size();
+            if (results_.contains("results") && results_["results"].is_array()) {
+                num_results_ = results_["results"].size();
+            }
             qrmi_string_free((char *)result);
         }
         qrmi_resource_task_stop(qrmi_.get(), job_id_.c_str());
