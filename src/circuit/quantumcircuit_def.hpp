@@ -21,10 +21,14 @@
 #include <functional>
 #include <iostream>
 #include <vector>
+#include <string>
 #include <algorithm>
 #include <iomanip>
 #include <cstring>
 #include <cassert>
+#include <cctype>
+#include <cmath>
+#include <stdexcept>
 
 #include "utils/types.hpp"
 #include "circuit/parameter.hpp"
@@ -1551,6 +1555,87 @@ public:
 
 	// qasm3
 
+	/// @brief Collect the names of the free parameter symbols used in the circuit.
+	///
+	/// Names are returned in the order in which each distinct symbol is first
+	/// encountered while scanning the instructions, and each one keeps its
+	/// original symbol string.
+	///
+	/// @note This is a temporary implementation. The Qiskit C API exposes the
+	/// number of parameter symbols in a circuit (qk_circuit_num_param_symbols)
+	/// but not the symbols themselves, nor a way to tell apart two parameters
+	/// that share a name by their UUID. Until it does, the names are recovered
+	/// from the per-instruction parameters, with two limitations: a gate
+	/// argument that is a compound expression (e.g. "2*theta") cannot be turned
+	/// into a single input name and throws std::runtime_error; and distinct
+	/// Parameter objects that reuse one name are merged by the C API into a
+	/// single symbol, so they collapse to one entry rather than being kept
+	/// apart. Replace the body with the C API once the per-symbol accessors
+	/// land.
+	/// @return The free parameter symbol names used by the circuit.
+	std::vector<std::string> parameter_symbols(void)
+	{
+		add_pending_control_flow_op();
+
+		// A valid OpenQASM 3 input identifier (and hence a bare parameter
+		// symbol) starts with a letter or underscore and continues with
+		// letters, digits or underscores.
+		auto is_symbol_name = [](const std::string& s) -> bool {
+			if (s.empty() || (!std::isalpha((unsigned char)s[0]) && s[0] != '_')) {
+				return false;
+			}
+			for (char c : s) {
+				if (!std::isalnum((unsigned char)c) && c != '_') {
+					return false;
+				}
+			}
+			return true;
+		};
+
+		std::vector<std::string> symbols;
+		uint_t nops = qk_circuit_num_instructions(rust_circuit_.get());
+		for (uint_t i = 0; i < nops; i++) {
+			QkCircuitInstruction op;
+			qk_circuit_get_instruction(rust_circuit_.get(), i, &op);
+			for (uint_t j = 0; j < op.num_params; j++) {
+				// A parameter that evaluates to a real number carries no symbol.
+				if (!std::isnan(qk_param_as_real(op.params[j]))) {
+					continue;
+				}
+				char* c_str = qk_param_str(op.params[j]);
+				std::string name(c_str);
+				qk_str_free(c_str);
+
+				if (!is_symbol_name(name)) {
+					qk_circuit_instruction_clear(&op);
+					throw std::runtime_error(
+						"Qiskit C++ cannot export the parameter expression \"" + name +
+						"\" to OpenQASM 3 yet: only bare parameter symbols are supported "
+						"until the Qiskit C API exposes per-symbol access.");
+				}
+				if (std::find(symbols.begin(), symbols.end(), name) == symbols.end()) {
+					symbols.push_back(name);
+				}
+			}
+			qk_circuit_instruction_clear(&op);
+		}
+
+		// Defensive guard: the names we recovered should account for every
+		// symbol the circuit tracks. A mismatch means a parameter is used in a
+		// way this scan does not yet handle, so we refuse rather than emit
+		// OpenQASM 3 that declares the wrong set of inputs.
+		size_t tracked = qk_circuit_num_param_symbols(rust_circuit_.get());
+		if (tracked != symbols.size()) {
+			throw std::runtime_error(
+				"Qiskit C++ could not recover all parameter symbols for OpenQASM 3 "
+				"export (the circuit tracks " + std::to_string(tracked) +
+				" symbols but " + std::to_string(symbols.size()) +
+				" distinct names were found).");
+		}
+
+		return symbols;
+	}
+
 	/// @brief Serialize a QuantumCircuit object as an OpenQASM3 string.
 	/// @return An OpenQASM3 string.
 	std::string to_qasm3(void)
@@ -1847,6 +1932,12 @@ public:
 			}
 		}
 		qk_opcounts_clear(&opcounts);
+
+		// Declare circuit parameters as OpenQASM 3 inputs so that the emitted
+		// program references symbols it actually declares.
+		for (const auto& name : parameter_symbols()) {
+			qasm3 << "input float[64] " << name << ";" << std::endl;
+		}
 
 		// save ops
 		uint_t nops;

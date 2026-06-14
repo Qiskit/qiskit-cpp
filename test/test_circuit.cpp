@@ -664,6 +664,65 @@ static int test_to_qasm3_physical_qubits(void) {
     return Ok;
 }
 
+static int test_parameter_symbols(void) {
+    auto circ = QuantumCircuit(2, 0);
+    circ.rx(Parameter("theta"), 0);
+    circ.ry(Parameter("phi"), 1);
+
+    const auto symbols = circ.parameter_symbols();
+    const std::vector<std::string> expected({"theta", "phi"});
+    if (symbols != expected) {
+        std::cerr << "  parameter_symbols test : unexpected symbols" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_to_qasm3_parameterized(void) {
+    auto circ = QuantumCircuit(2, 0);
+    circ.rx(Parameter("theta"), 0);
+    circ.ry(Parameter("phi"), 1);
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "input float[64] phi;\n"
+        "qubit[2] q;\n"
+        "rx(theta) q[0];\n"
+        "ry(phi) q[1];\n";
+    if (actual != expected) {
+        std::cerr << "  to_qasm3_parameterized test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_to_qasm3_shared_parameter(void) {
+    // A symbol reused across gates is declared exactly once.
+    auto theta = Parameter("theta");
+    auto circ = QuantumCircuit(2, 0);
+    circ.rx(theta, 0);
+    circ.rz(theta, 1);
+
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[2] q;\n"
+        "rx(theta) q[0];\n"
+        "rz(theta) q[1];\n";
+    if (actual != expected) {
+        std::cerr << "  to_qasm3_shared_parameter test : \n    expected:\n" << expected
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 #if defined(_WIN32)
 int test_circuit(int argc, char** const argv) {
 #else
@@ -676,6 +735,9 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_compose);
     num_failed += RUN_TEST(test_to_qasm3_multi_regs);
     num_failed += RUN_TEST(test_to_qasm3_physical_qubits);
+    num_failed += RUN_TEST(test_parameter_symbols);
+    num_failed += RUN_TEST(test_to_qasm3_parameterized);
+    num_failed += RUN_TEST(test_to_qasm3_shared_parameter);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;

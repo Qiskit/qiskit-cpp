@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    :meth:`.QuantumCircuit.to_qasm3` now exports parameterized circuits. Free
+    parameter symbols used by the circuit are emitted as ``input float[64]``
+    declarations, so the generated OpenQASM 3 no longer references undeclared
+    symbols.
+  - |
+    Added :meth:`.QuantumCircuit.parameter_symbols`, which returns the names of
+    the free parameter symbols used in a circuit, in first-encountered order.
+issues:
+  - |
+    Exporting a parameterized circuit to OpenQASM 3 is currently limited to
+    bare parameter symbols as gate arguments; a compound parameter expression
+    (such as ``2*theta``) raises an exception. Distinct ``Parameter`` objects
+    that share a symbol name are merged into a single symbol, since the Qiskit
+    C API does not yet expose a circuit's parameter symbols or their UUIDs.
