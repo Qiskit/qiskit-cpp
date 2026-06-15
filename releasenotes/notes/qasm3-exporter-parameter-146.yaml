@@ -1,0 +1,18 @@
+---
+features:
+  - |
+    Add OpenQASM 3 export support for parameterized circuits with explicit
+    `input float[64]` declarations.
+
+    `QuantumCircuit::to_qasm3()` and `Qiskit::qasm3::dumps(circuit)` use
+    `QuantumCircuit::parameter_symbols()` to emit original parameter symbol
+    names by default.  `Qiskit::qasm3::dumps(circuit, parameter_names)` remains
+    available for callers that need to provide names explicitly. Explicit
+    parameter names must be valid OpenQASM identifiers and must not conflict
+    with reserved OpenQASM or standard-gate identifiers.
+
+    `QuantumCircuit::parameter_symbols()` currently derives names from
+    instruction parameter expression strings and cross-checks the recovered
+    count against Qiskit C.  Until Qiskit C exposes canonical parameter names
+    or UUIDs to C++, circuits cannot contain distinct `Parameter` objects with
+    the same symbol name.
