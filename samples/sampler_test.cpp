@@ -24,6 +24,8 @@
 #include "primitives/backend_sampler_v2.hpp"
 #ifdef QRMI_ROOT
 #include "service/qiskit_runtime_service_qrmi.hpp"
+#elif defined(SQC_ROOT)
+#include "service/qiskit_runtime_service_sqc.hpp"
 #else
 #include "service/qiskit_runtime_service_c.hpp"
 #endif
@@ -39,8 +41,13 @@ using namespace Qiskit::compiler;
 
 using Sampler = BackendSamplerV2;
 
-int main()
+int main(int argc, char** argv)
 {
+    std::string backend_name = "ibm_torino";
+    if (argc > 1) {
+        backend_name = argv[1];
+    }
+
     int num_qubits = 10;
     auto qreg = QuantumRegister(num_qubits);
     auto creg = ClassicalRegister(num_qubits, std::string("meas"));
@@ -58,6 +65,9 @@ int main()
     }
     circ.measure(qreg, creg);
 
+    std::cout << " circuit : " << std::endl;
+    circ.draw();
+
     // set $HONE/.qiskit/qiskit-ibm.json
     // by using Qiskit IBM Runtime
     // see https://github.com/Qiskit/qiskit-ibm-runtime?tab=readme-ov-file#save-your-account-on-disk
@@ -66,10 +76,14 @@ int main()
     // QISKIT_IBM_TOKEN = "your API key"
     // QISKIT_IBM_INSTANCE = "your CRN"
     auto service = QiskitRuntimeService();
-    auto backend = service.backend("ibm_torino");
+    auto backend = service.backend(backend_name);
+
     auto sampler = Sampler(backend, 100);
 
     auto transpiled_circ = transpile(circ, backend);
+
+    std::cout << " transpiled circuit : " << std::endl;
+    transpiled_circ.draw();
 
     auto job = sampler.run({SamplerPub(transpiled_circ)});
     if (job == nullptr)

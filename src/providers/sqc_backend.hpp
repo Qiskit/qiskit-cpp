@@ -49,7 +49,7 @@ public:
     SQCBackend(const std::string name)
         : BackendV2(name),
           backend_type_(SQC_RPC_SCHED_QC_TYPE_IBM_DACC),
-          target_(nullptr)
+          target_()
     {}
 
     SQCBackend(const SQCBackend& other)

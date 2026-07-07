@@ -25,6 +25,8 @@
 
 #ifdef QRMI_ROOT
 #include "service/qiskit_runtime_service_qrmi.hpp"
+#elif defined(SQC_ROOT)
+#include "service/qiskit_runtime_service_sqc.hpp"
 #else
 #include "service/qiskit_runtime_service_c.hpp"
 #endif
@@ -35,10 +37,14 @@ using namespace Qiskit::providers;
 using namespace Qiskit::primitives;
 using namespace Qiskit::compiler;
 
-int main()
+int main(int argc, char** argv)
 {
+  std::string backend_name = "ibm_torino";
+  if (argc > 1) {
+      backend_name = argv[1];
+  }
   auto service = Qiskit::service::QiskitRuntimeService();
-  auto backend = service.backend("ibm_torino");
+  auto backend = service.backend(backend_name);
 
   QuantumRegister qr(10);
   ClassicalRegister cr(10);
