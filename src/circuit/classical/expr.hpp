@@ -13,11 +13,21 @@
 */
 
 // classical expression classes
+//
+// These classes build an expression tree in C++. They are not backed by the
+// Qiskit C-API: the ``qk_expr_*`` interface is read-only, with no constructor
+// for an expression, so a tree built here cannot yet be handed to a circuit.
+// To inspect an expression read back out of a circuit, use the ExprView class
+// in "circuit/classical/expr_view.hpp" instead.
 
 #ifndef __qiskitcpp_circuit_classical_expr_hpp__
 #define __qiskitcpp_circuit_classical_expr_hpp__
 
+#include <memory>
+#include <string>
+
 #include "circuit/classicalregister.hpp"
+#include "circuit/classical/expr_view.hpp"
 
 namespace Qiskit
 {
@@ -45,16 +55,61 @@ enum class OpType
     SHIFT_RIGHT,
 };
 
+/// @brief Return the symbol for an operation, e.g. "==" or "&&".
+/// @param op the operation
+/// @return the symbol, or "?" for OpType::NONE
+inline const char *op_type_name(const OpType op)
+{
+    switch (op) {
+    case OpType::BIT_NOT:
+        return "~";
+    case OpType::LOGIC_NOT:
+        return "!";
+    case OpType::BIT_AND:
+        return "&";
+    case OpType::BIT_OR:
+        return "|";
+    case OpType::BIT_XOR:
+        return "^";
+    case OpType::LOGIC_AND:
+        return "&&";
+    case OpType::LOGIC_OR:
+        return "||";
+    case OpType::EQUAL:
+        return "==";
+    case OpType::NOT_EQUAL:
+        return "!=";
+    case OpType::LESS:
+        return "<";
+    case OpType::LESS_EQUAL:
+        return "<=";
+    case OpType::GREATER:
+        return ">";
+    case OpType::GREATER_EQUAL:
+        return ">=";
+    case OpType::SHIFT_LEFT:
+        return "<<";
+    case OpType::SHIFT_RIGHT:
+        return ">>";
+    default:
+        return "?";
+    }
+}
+
 // ==================================
 // base class for expressions
 // ==================================
 /// @class Expr
 /// @brief Root base of all nodes in the expression tree.
+/// @details Nodes are held by shared pointer, so an expression can be returned
+///   from a function and copied freely. The operator overloads below take a
+///   copy of each operand into the node they build.
 class Expr
 {
 protected:
 public:
     Expr() {}
+    virtual ~Expr() {}
 
     // operator overloads
     Unary operator!(void);
@@ -73,32 +128,48 @@ public:
     Binary operator>=(ClassicalRegister &right);
     Binary operator>(ClassicalRegister &right);
 
-    Binary operator==(Expr &right);
-    Binary operator!=(Expr &right);
-    Binary operator<=(Expr &right);
-    Binary operator<(Expr &right);
-    Binary operator>=(Expr &right);
-    Binary operator>(Expr &right);
+    Binary operator==(const Expr &right);
+    Binary operator!=(const Expr &right);
+    Binary operator<=(const Expr &right);
+    Binary operator<(const Expr &right);
+    Binary operator>=(const Expr &right);
+    Binary operator>(const Expr &right);
 
-    Binary operator||(Expr &right);
-    Binary operator&&(Expr &right);
+    Binary operator||(const Expr &right);
+    Binary operator&&(const Expr &right);
 
-    virtual std::string type(void)
+    virtual std::string type(void) const
     {
         return std::string("expr");
     }
-    virtual uint_t value(void)
+    virtual uint_t value(void) const
     {
         return 0;
     }
-    virtual ClassicalRegister creg(void)
+    virtual ClassicalRegister creg(void) const
     {
         ClassicalRegister cr(0, "dummy");
         return cr;
     }
-    virtual OpType Op(void)
+    virtual OpType Op(void) const
     {
         return OpType::NONE;
+    }
+
+    /// @brief Return a copy of this node, preserving its concrete type.
+    /// @return an owning pointer to the copy
+    /// @details Needed so that an operand can be stored by value in the node
+    ///   that uses it without being sliced down to Expr.
+    virtual std::shared_ptr<Expr> clone(void) const
+    {
+        return std::shared_ptr<Expr>(new Expr(*this));
+    }
+
+    /// @brief Return this expression as a readable string.
+    /// @return an infix rendering, e.g. "(c0 == 3)"
+    virtual std::string to_string(void) const
+    {
+        return std::string("<expr>");
     }
 };
 
@@ -134,13 +205,23 @@ public:
     }
 
     /// @brief Return the type string ("var")
-    std::string type(void) override
+    std::string type(void) const override
     {
         return std::string("var");
     }
-    ClassicalRegister creg(void) override
+    ClassicalRegister creg(void) const override
     {
         return register_;
+    }
+
+    std::shared_ptr<Expr> clone(void) const override
+    {
+        return std::shared_ptr<Expr>(new Var(*this));
+    }
+
+    std::string to_string(void) const override
+    {
+        return register_.name();
     }
 };
 
@@ -172,13 +253,23 @@ public:
     }
 
     /// @brief Return the type string ("value)
-    std::string type(void) override
+    std::string type(void) const override
     {
         return std::string("value");
     }
-    uint_t value(void) override
+    uint_t value(void) const override
     {
         return value_;
+    }
+
+    std::shared_ptr<Expr> clone(void) const override
+    {
+        return std::shared_ptr<Expr>(new Value(*this));
+    }
+
+    std::string to_string(void) const override
+    {
+        return std::to_string(value_);
     }
 };
 
@@ -189,37 +280,56 @@ public:
 /// @brief A unary expression
 class Unary : public Expr
 {
-public:
-    enum Op
-    {
-    };
-
 protected:
-    Expr &operand_;
+    std::shared_ptr<Expr> operand_;
     OpType op_;
 
 public:
     /// @brief Create a new unary expression
     /// @param (op) The opcode describing which operation is being done
-    /// @param (operand) The operand of the operation
-    Unary(OpType op, Expr &operand) : op_(op), operand_(operand) {}
+    /// @param (operand) The operand of the operation, which is copied
+    Unary(OpType op, const Expr &operand) : operand_(operand.clone()), op_(op) {}
 
     /// @brief Create a new unary expression as a copy of src
     /// @param (src) copy source
-    Unary(const Unary &src) : operand_(src.operand_)
+    Unary(const Unary &src) : operand_(src.operand_), op_(src.op_) {}
+
+    /// @brief Assign a copy of src to this expression
+    /// @param (src) copy source
+    Unary &operator=(const Unary &src)
     {
-        op_ = src.op_;
+        if (this != &src) {
+            operand_ = src.operand_;
+            op_ = src.op_;
+        }
+        return *this;
     }
 
     /// @brief Return the type string ("unary)
-    std::string type(void) override
+    std::string type(void) const override
     {
         return std::string("unary");
     }
 
-    OpType Op(void) override
+    OpType Op(void) const override
     {
         return op_;
+    }
+
+    /// @brief Return the operand of this expression.
+    const Expr &operand(void) const
+    {
+        return *operand_;
+    }
+
+    std::shared_ptr<Expr> clone(void) const override
+    {
+        return std::shared_ptr<Expr>(new Unary(*this));
+    }
+
+    std::string to_string(void) const override
+    {
+        return std::string(op_type_name(op_)) + operand_->to_string();
     }
 };
 
@@ -231,279 +341,271 @@ public:
 class Binary : public Expr
 {
 protected:
-    Expr &left_;
-    Expr &right_;
+    std::shared_ptr<Expr> left_;
+    std::shared_ptr<Expr> right_;
     OpType op_;
 
 public:
     /// @brief Create a new binary expression
     /// @param (op) The opcode describing which operation is being done
-    /// @param (left) The left-hand operand
-    /// @param (right) The right-hand operand
-    Binary(OpType op, Expr &left, Expr &right) : op_(op), left_(left), right_(right) {}
+    /// @param (left) The left-hand operand, which is copied
+    /// @param (right) The right-hand operand, which is copied
+    Binary(OpType op, const Expr &left, const Expr &right)
+        : left_(left.clone()), right_(right.clone()), op_(op) {}
 
     /// @brief Create a new binary expression as a copy of src
     /// @param (src) copy source
-    Binary(const Binary &src) : left_(src.left_), right_(src.right_)
+    Binary(const Binary &src) : left_(src.left_), right_(src.right_), op_(src.op_) {}
+
+    /// @brief Assign a copy of src to this expression
+    /// @param (src) copy source
+    /// @details Declared explicitly because a user-declared copy constructor
+    ///   makes the implicit assignment operator deprecated.
+    Binary &operator=(const Binary &src)
     {
-        op_ = src.op_;
+        if (this != &src) {
+            left_ = src.left_;
+            right_ = src.right_;
+            op_ = src.op_;
+        }
+        return *this;
     }
 
     /// @brief Return the type string ("binary")
-    std::string type(void) override
+    std::string type(void) const override
     {
         return std::string("binary");
     }
-    OpType Op(void) override
+    OpType Op(void) const override
     {
         return op_;
+    }
+
+    /// @brief Return the left-hand operand of this expression.
+    const Expr &left(void) const
+    {
+        return *left_;
+    }
+
+    /// @brief Return the right-hand operand of this expression.
+    const Expr &right(void) const
+    {
+        return *right_;
+    }
+
+    std::shared_ptr<Expr> clone(void) const override
+    {
+        return std::shared_ptr<Expr>(new Binary(*this));
+    }
+
+    std::string to_string(void) const override
+    {
+        return "(" + left_->to_string() + " " + op_type_name(op_) + " "
+            + right_->to_string() + ")";
     }
 };
 
 // ==================================
 // implementations of expressions
 // ==================================
-Unary Expr::operator!(void)
+inline Unary Expr::operator!(void)
 {
     return Unary(OpType::LOGIC_NOT, *this);
 }
 
-Binary Expr::operator==(uint_t right)
+inline Binary Expr::operator==(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::EQUAL, *this, r);
+    return Binary(OpType::EQUAL, *this, Value(right));
 }
 
-Binary Expr::operator!=(uint_t right)
+inline Binary Expr::operator!=(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::NOT_EQUAL, *this, r);
+    return Binary(OpType::NOT_EQUAL, *this, Value(right));
 }
 
-Binary Expr::operator<(uint_t right)
+inline Binary Expr::operator<(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::LESS, *this, r);
+    return Binary(OpType::LESS, *this, Value(right));
 }
 
-Binary Expr::operator<=(uint_t right)
+inline Binary Expr::operator<=(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::LESS_EQUAL, *this, r);
+    return Binary(OpType::LESS_EQUAL, *this, Value(right));
 }
 
-Binary Expr::operator>(uint_t right)
+inline Binary Expr::operator>(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::GREATER, *this, r);
+    return Binary(OpType::GREATER, *this, Value(right));
 }
 
-Binary Expr::operator>=(uint_t right)
+inline Binary Expr::operator>=(uint_t right)
 {
-    Value r(right);
-    return Binary(OpType::GREATER_EQUAL, *this, r);
+    return Binary(OpType::GREATER_EQUAL, *this, Value(right));
 }
 
-Binary Expr::operator==(ClassicalRegister &right)
+inline Binary Expr::operator==(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::EQUAL, *this, r);
+    return Binary(OpType::EQUAL, *this, Var(right));
 }
 
-Binary Expr::operator!=(ClassicalRegister &right)
+inline Binary Expr::operator!=(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::NOT_EQUAL, *this, r);
+    return Binary(OpType::NOT_EQUAL, *this, Var(right));
 }
 
-Binary Expr::operator<(ClassicalRegister &right)
+inline Binary Expr::operator<(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::LESS, *this, r);
+    return Binary(OpType::LESS, *this, Var(right));
 }
 
-Binary Expr::operator<=(ClassicalRegister &right)
+inline Binary Expr::operator<=(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::LESS_EQUAL, *this, r);
+    return Binary(OpType::LESS_EQUAL, *this, Var(right));
 }
 
-Binary Expr::operator>(ClassicalRegister &right)
+inline Binary Expr::operator>(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::GREATER, *this, r);
+    return Binary(OpType::GREATER, *this, Var(right));
 }
 
-Binary Expr::operator>=(ClassicalRegister &right)
+inline Binary Expr::operator>=(ClassicalRegister &right)
 {
-    Var r(right);
-    return Binary(OpType::GREATER_EQUAL, *this, r);
+    return Binary(OpType::GREATER_EQUAL, *this, Var(right));
 }
 
-Binary Expr::operator==(Expr &r)
+inline Binary Expr::operator==(const Expr &r)
 {
     return Binary(OpType::EQUAL, *this, r);
 }
 
-Binary Expr::operator!=(Expr &r)
+inline Binary Expr::operator!=(const Expr &r)
 {
     return Binary(OpType::NOT_EQUAL, *this, r);
 }
 
-Binary Expr::operator<(Expr &r)
+inline Binary Expr::operator<(const Expr &r)
 {
     return Binary(OpType::LESS, *this, r);
 }
 
-Binary Expr::operator<=(Expr &r)
+inline Binary Expr::operator<=(const Expr &r)
 {
     return Binary(OpType::LESS_EQUAL, *this, r);
 }
 
-Binary Expr::operator>(Expr &r)
+inline Binary Expr::operator>(const Expr &r)
 {
     return Binary(OpType::GREATER, *this, r);
 }
 
-Binary Expr::operator>=(Expr &r)
+inline Binary Expr::operator>=(const Expr &r)
 {
     return Binary(OpType::GREATER_EQUAL, *this, r);
 }
 
-Binary Expr::operator&&(Expr &r)
+inline Binary Expr::operator&&(const Expr &r)
 {
     return Binary(OpType::LOGIC_AND, *this, r);
 }
 
-Binary Expr::operator||(Expr &r)
+inline Binary Expr::operator||(const Expr &r)
 {
     return Binary(OpType::LOGIC_OR, *this, r);
 }
 
-Unary ClassicalRegister::operator!(void)
+inline Unary ClassicalRegister::operator!(void)
 {
-    Var v(*this);
-    return Unary(OpType::LOGIC_NOT, v);
+    return Unary(OpType::LOGIC_NOT, Var(*this));
 }
 
-Binary ClassicalRegister::operator==(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator==(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::EQUAL, v, r);
+    return Binary(OpType::EQUAL, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator!=(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator!=(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::NOT_EQUAL, v, r);
+    return Binary(OpType::NOT_EQUAL, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator<(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator<(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::LESS, v, r);
+    return Binary(OpType::LESS, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator<=(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator<=(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::LESS_EQUAL, v, r);
+    return Binary(OpType::LESS_EQUAL, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator>(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator>(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::GREATER, v, r);
+    return Binary(OpType::GREATER, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator>=(ClassicalRegister &right)
+inline Binary ClassicalRegister::operator>=(ClassicalRegister &right)
 {
-    Var v(*this);
-    Var r(right);
-    return Binary(OpType::GREATER_EQUAL, v, r);
+    return Binary(OpType::GREATER_EQUAL, Var(*this), Var(right));
 }
 
-Binary ClassicalRegister::operator==(uint_t right)
+inline Binary ClassicalRegister::operator==(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::EQUAL, v, r);
+    return Binary(OpType::EQUAL, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator!=(uint_t right)
+inline Binary ClassicalRegister::operator!=(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::NOT_EQUAL, v, r);
+    return Binary(OpType::NOT_EQUAL, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator<(uint_t right)
+inline Binary ClassicalRegister::operator<(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::LESS, v, r);
+    return Binary(OpType::LESS, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator<=(uint_t right)
+inline Binary ClassicalRegister::operator<=(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::LESS_EQUAL, v, r);
+    return Binary(OpType::LESS_EQUAL, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator>(uint_t right)
+inline Binary ClassicalRegister::operator>(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::GREATER, v, r);
+    return Binary(OpType::GREATER, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator>=(uint_t right)
+inline Binary ClassicalRegister::operator>=(uint_t right)
 {
-    Var v(*this);
-    Value r(right);
-    return Binary(OpType::GREATER_EQUAL, v, r);
+    return Binary(OpType::GREATER_EQUAL, Var(*this), Value(right));
 }
 
-Binary ClassicalRegister::operator==(Expr &right)
+inline Binary ClassicalRegister::operator==(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::EQUAL, v, right);
+    return Binary(OpType::EQUAL, Var(*this), right);
 }
 
-Binary ClassicalRegister::operator!=(Expr &right)
+inline Binary ClassicalRegister::operator!=(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::NOT_EQUAL, v, right);
+    return Binary(OpType::NOT_EQUAL, Var(*this), right);
 }
 
-Binary ClassicalRegister::operator<(Expr &right)
+inline Binary ClassicalRegister::operator<(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::LESS, v, right);
+    return Binary(OpType::LESS, Var(*this), right);
 }
 
-Binary ClassicalRegister::operator<=(Expr &right)
+inline Binary ClassicalRegister::operator<=(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::LESS_EQUAL, v, right);
+    return Binary(OpType::LESS_EQUAL, Var(*this), right);
 }
 
-Binary ClassicalRegister::operator>(Expr &right)
+inline Binary ClassicalRegister::operator>(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::GREATER, v, right);
+    return Binary(OpType::GREATER, Var(*this), right);
 }
 
-Binary ClassicalRegister::operator>=(Expr &right)
+inline Binary ClassicalRegister::operator>=(Expr &right)
 {
-    Var v(*this);
-    return Binary(OpType::GREATER_EQUAL, v, right);
+    return Binary(OpType::GREATER_EQUAL, Var(*this), right);
 }
 
 } // namespace circuit

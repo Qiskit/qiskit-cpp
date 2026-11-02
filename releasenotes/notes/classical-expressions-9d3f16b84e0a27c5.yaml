@@ -1,0 +1,71 @@
+---
+features:
+  - |
+    Added `circuit::ExprView`, a read-only view over a classical expression
+    held by the Qiskit C-API, backed by the `qk_expr_*`, `qk_value_*`,
+    `qk_var_name` and `qk_stretch_name` functions. It reports the node kind,
+    the operator of a unary or binary node, the operands of any node, the
+    result type and constness, and the payload of a value, variable or
+    stretch. `children()` returns a node's direct operands so a tree can be
+    walked generically, and `to_string()` renders an expression in infix form
+    for inspection, e.g. `(c0 == 3)` or `!(a && b)`.
+  - |
+    Added the supporting types `circuit::ExprNodeKind`, `circuit::ExprType`,
+    `circuit::UnaryOpType`, `circuit::BinaryOpType`, `circuit::DurationType`,
+    `circuit::ExprTypeInfo` and `circuit::DurationValue`, which wrap the
+    corresponding C-API enums and structs. Each has an `Unknown` member so a
+    node kind, type or operator added by a newer Qiskit is reported rather
+    than mistaken for a known one.
+  - |
+    Added `circuit::ControlFlowInstruction`, which reads a control flow
+    instruction out of a circuit and hands back its condition or switch target
+    as an `ExprView`. This exists because an expression cannot be constructed
+    through the C-API: reading one back from a circuit is the only way to
+    obtain one. It owns the `QkControlFlowInstruction` and frees it on
+    destruction; views taken from it borrow and must not outlive it.
+  - |
+    The expression tree in `circuit/classical/expr.hpp` is now included by
+    `circuit/quantumcircuit.hpp`, so it is compiled. `Unary` and `Binary` gained
+    `operand()`, `left()` and `right()` accessors and every node gained
+    `to_string()`, `clone()` and a virtual destructor.
+fixes:
+  - |
+    Fixed `circuit::Unary` and `circuit::Binary` holding dangling references to
+    their operands. Both stored an `Expr&`, while every operator overload bound
+    that reference to a function-local temporary — for instance
+    `Expr::operator==(uint_t)` constructed a `Value` on the stack and returned a
+    `Binary` referring to it. Reading the operands of any expression built
+    through an operator was undefined behavior. Operands are now held by
+    `std::shared_ptr` and copied into the node that uses them, so an expression
+    is safe to return, copy and assign. The bug was unreachable in practice
+    because `expr.hpp` was not included by any other header.
+issues:
+  - |
+    The `qk_expr_*` C-API is read-only: it has no constructor for an
+    expression, no free function, and no way to attach one to a circuit.
+    `ExprView` therefore inspects only; the expression tree in
+    `circuit/classical/expr.hpp` builds expressions in C++ but cannot yet hand
+    them to a circuit. The two are separate and do not interoperate. The same
+    applies to control flow generally — `ControlFlowOp::add_control_flow_op`
+    remains a no-op because the C-API cannot add an if/else to a circuit.
+  - |
+    Several C-API expression accessors panic, which aborts the process, when
+    called on a node of the wrong kind or on a value of the wrong type:
+    `qk_expr_as_value`, `qk_expr_as_var`, `qk_expr_as_stretch`,
+    `qk_value_uint`, `qk_value_bool`, `qk_value_float` and
+    `qk_control_flow_condition_expr`. `ExprView` and
+    `ControlFlowInstruction` gate every one of these on the node kind or type
+    and raise `std::logic_error`, or return an empty view, rather than letting
+    a panic through.
+  - |
+    `ExprView::value_uint()` rejects a value wider than 64 bits, because the
+    C-API panics when the integer does not fit in `uint64_t`. Check
+    `type().width()` first. Such a value renders as its type rather than its
+    digits in `to_string()`.
+  - |
+    `ExprView::var_name()` returns an empty string for a variable that aliases
+    a classical register or a single bit, because only a standalone variable
+    carries a name in Qiskit's data model. Which register or bit it refers to
+    has to be recovered from the control flow instruction the expression came
+    from, through the parts of the `qk_control_flow_*` interface that are not
+    yet wrapped.
