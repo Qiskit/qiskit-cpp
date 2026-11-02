@@ -737,5 +737,7 @@ int test_estimator(int argc, char** argv)
     num_failed += RUN_TEST(test_estimator_job_rejects_provider_read_failure);
     num_failed += RUN_TEST(test_estimator_job_rejects_result_count_mismatch);
 
+    std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
+
     return num_failed;
 }
