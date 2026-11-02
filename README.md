@@ -120,6 +120,34 @@ QISKIT_IBM_INSTANCE=<your CRN>
 
 The estimator interface is available through `primitives::BackendEstimatorV2` and currently requires QRMI or another backend that implements `BackendV2::run(std::vector<EstimatorPub>&, double)`. Estimator PUB circuits must be unmeasured and can use Pauli labels, Pauli-label maps, Pauli term vectors, or `quantum_info::SparseObservable` inputs. Empty observables are rejected before backend submission, and malformed estimator result cardinality is rejected while reading provider results. Estimator job cancellation is not currently supported, so `BackendEstimatorJob::cancel()` returns `false`. (`providers::QRMIJob::cancel()` does request cancellation from QRMI, but the primitive job wrappers do not yet call it.)
 
+#### Parameterized circuits in primitive PUBs
+
+A parameterized circuit is submitted with its parameter values, which the quantum computer binds at run time. Pass the values alongside the circuit; they must be given in the order the circuit's parameters are bound, one value per parameter:
+
+```cpp
+QuantumCircuit circ(1, 1);
+auto theta = Parameter("theta");
+circ.rx(theta, 0);
+circ.measure(0, 0);
+
+auto pub = SamplerPub(circ, std::vector<double>({0.5}), shots);
+```
+
+Several value sets can be submitted as one sweep, with the server running the circuit once per set:
+
+```cpp
+std::vector<std::vector<double>> sweep;
+sweep.push_back(std::vector<double>({0.0}));
+sweep.push_back(std::vector<double>({1.57}));
+auto pub = SamplerPub(circ, sweep, shots);
+```
+
+The same applies to the estimator through `EstimatorPub::set_parameter_values()`.
+
+Values are matched to parameters **by position**, not by name. Qiskit orders a circuit's parameters alphabetically by name, which is the order `QuantumCircuit::parameter_symbols()` returns — use that list to work out which position each value fills. Insertion order into the circuit does not determine it.
+
+The number of values is checked against `QuantumCircuit::num_parameters()` when the values are set, again when the PUB is serialized, and once more by the QRMI backend before submission. A mismatch raises `std::invalid_argument` where the values were given, so it is reported before any job is sent. An unparameterized circuit needs no values.
+
 #### Circuit serialization in primitive PUBs
 
 Qiskit Runtime accepts a PUB circuit either as an OpenQASM 3 string or as a QPY payload. qiskit-cpp sends **QPY** by default when built against a Qiskit providing the QPY C-API (2.6.0 or later), because QPY round-trips the circuit losslessly, including symbolic parameters, while the OpenQASM 3 exporter has to recover parameter names from expression strings. The circuit is emitted as `{"__type__": "QuantumCircuit", "__value__": <base64 of zlib-compressed QPY>}`.

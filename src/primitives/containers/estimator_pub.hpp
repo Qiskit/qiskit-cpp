@@ -19,6 +19,7 @@
 
 #include <cmath>
 #include <complex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -28,6 +29,7 @@
 
 #include "circuit/quantumcircuit.hpp"
 #include "primitives/containers/circuit_serialization.hpp"
+#include "primitives/containers/parameter_values.hpp"
 #include "quantum_info/sparse_observable.hpp"
 
 namespace Qiskit {
@@ -42,6 +44,7 @@ protected:
     nlohmann::ordered_json parameter_values_;
     double precision_ = 0.0;
     bool has_precision_ = false;
+    uint_t num_parameter_sets_ = 0;
     CircuitSerialization serialization_ = default_circuit_serialization();
 
 public:
@@ -159,6 +162,7 @@ public:
         parameter_values_ = src.parameter_values_;
         precision_ = src.precision_;
         has_precision_ = src.has_precision_;
+        num_parameter_sets_ = src.num_parameter_sets_;
         serialization_ = src.serialization_;
     }
 
@@ -187,9 +191,49 @@ public:
 
     /// @brief Set Runtime-compatible parameter values for this estimator pub.
     /// @param parameter_values Runtime-compatible parameter-values JSON
-    void set_parameter_values(const nlohmann::ordered_json& parameter_values)
+    /// @note Takes the payload as-is. Prefer the overloads below, which take
+    ///   the values themselves and check them against the circuit.
+    /// @param num_parameter_sets the number of binding sets the payload holds,
+    ///   which cannot be recovered from the encoded payload. Leave at 1 for a
+    ///   payload that is not a sweep.
+    void set_parameter_values(const nlohmann::ordered_json& parameter_values,
+                              const uint_t num_parameter_sets = 1)
     {
         parameter_values_ = parameter_values;
+        num_parameter_sets_ = parameter_values.is_null() ? 0 : num_parameter_sets;
+    }
+
+    /// @brief Set the parameter values of this estimator pub.
+    /// @param values parameter values, in the order the circuit's parameters
+    ///   are bound. Must hold one value per parameter of the circuit.
+    /// @throws std::invalid_argument if the number of values does not match
+    ///   the circuit's parameter count
+    void set_parameter_values(const std::vector<double>& values)
+    {
+        set_parameter_values(std::vector<std::vector<double>>(1, values));
+    }
+
+    /// @brief Set the parameter values of this estimator pub as a sweep.
+    /// @param values one list of parameter values per binding set
+    /// @throws std::invalid_argument if any set does not match the circuit's
+    ///   parameter count
+    void set_parameter_values(const std::vector<std::vector<double>>& values)
+    {
+        // Checked here rather than at submission so that a mismatch is reported
+        // where the values were given.
+        ParameterValues::validate(values, circuit_.num_parameters());
+        parameter_values_ = ParameterValues::to_json(values, circuit_.num_parameters());
+        num_parameter_sets_ = values.size();
+    }
+
+    /// @brief Return the number of binding sets this pub sweeps over.
+    /// @return the number of sets; zero when no values have been set
+    /// @details Tracked separately from the payload because the payload is an
+    ///   opaque encoded array once built, and a result needs the set count to
+    ///   split the values it receives.
+    uint_t num_parameter_sets(void) const
+    {
+        return num_parameter_sets_;
     }
 
     /// @brief Return whether this pub has an explicit precision.
@@ -257,15 +301,48 @@ public:
         return validate_observable_json(observables_, circuit_.num_qubits(), message);
     }
 
+    /// @brief Validate this pub for submission.
+    /// @param message optional output error message.
+    /// @return true if the pub can be submitted.
+    /// @details Stricter than ``validate()``: it also requires parameter values
+    ///   for a parameterized circuit. Kept separate because the constructors
+    ///   validate, and values can only be set once the pub exists.
+    bool validate_for_submission(std::string* message = nullptr) const
+    {
+        if (!validate(message)) {
+            return false;
+        }
+
+        // A parameterized circuit cannot run without values to bind, and the
+        // server has no way to supply them.
+        if (circuit_.num_parameters() > 0 && parameter_values_.is_null()) {
+            std::stringstream detail;
+            detail << "EstimatorPub circuit has " << circuit_.num_parameters()
+                   << " parameters but no parameter values were set.";
+            set_message(message, detail.str());
+            return false;
+        }
+
+        return true;
+    }
+
     /// @brief Return a JSON format of this estimator pub.
     /// @return a JSON format estimator pub.
+    /// @throws std::invalid_argument if the pub is not valid
     nlohmann::ordered_json to_json(void)
     {
-        require_valid();
+        // The stricter check: a payload is only built for a pub that can
+        // actually run, which means a parameterized circuit must have values.
+        std::string message;
+        if (!validate_for_submission(&message)) {
+            throw std::invalid_argument(message);
+        }
 
         nlohmann::ordered_json ret = nlohmann::ordered_json::array();
         ret.push_back(serialize_pub_circuit(circuit_, serialization_));
         ret.push_back(observables_);
+        // An unparameterized circuit needs no values; the schema accepts null
+        // for that case, which is what the constructors leave in place.
         ret.push_back(parameter_values_);
         if (has_precision_) {
             ret.push_back(precision_);

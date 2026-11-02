@@ -124,6 +124,7 @@ add_application(qpy_test qpy_test.cpp)
 if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR SQC_ROOT)
   add_application(sampler_test sampler_test.cpp)
   add_application(transpile_test transpile_test.cpp)
+  add_application(parameterized_sampler_test parameterized_sampler_test.cpp)
 endif()
 
 if(QRMI_ROOT)

@@ -50,7 +50,9 @@ public:
         nlohmann::ordered_json estimator_pubs = nlohmann::ordered_json::array();
         for (uint_t i = 0; i < input_pubs.size(); i++) {
             std::string message;
-            if (!input_pubs[i].validate(&message)) {
+            // The stricter check, which also requires parameter values for a
+            // parameterized circuit.
+            if (!input_pubs[i].validate_for_submission(&message)) {
                 throw std::invalid_argument(message);
             }
             if (input_pubs[i].circuit().has_measurements()) {

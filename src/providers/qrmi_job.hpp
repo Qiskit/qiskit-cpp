@@ -248,7 +248,6 @@ protected:
                 << ": " << e.what() << std::endl;
             return false;
         }
-
         // A completed task needs no stop: qrmi_resource_task_stop only cancels a
         // task that is still queued or running.
 

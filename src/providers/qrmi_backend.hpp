@@ -163,7 +163,21 @@ public:
         nlohmann::ordered_json sampler;
         nlohmann::ordered_json sampler_pubs = nlohmann::ordered_json::array();
         for (int i = 0; i < input_pubs.size(); i++) {
-            sampler_pubs += input_pubs[i].to_json();
+            // A parameterized circuit is bound on the server from the values in
+            // the pub, so a count mismatch has to be caught before submitting.
+            std::string message;
+            if (!input_pubs[i].validate(&message)) {
+                std::cerr << "QRMI Error : sampler pub " << i << " is not valid : "
+                    << message << std::endl;
+                return nullptr;
+            }
+            try {
+                sampler_pubs += input_pubs[i].to_json();
+            } catch (const std::exception& exc) {
+                std::cerr << "QRMI Error : could not serialize sampler pub " << i
+                    << " : " << exc.what() << std::endl;
+                return nullptr;
+            }
         }
         sampler["pubs"] = sampler_pubs;
 
