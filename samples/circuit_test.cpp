@@ -67,6 +67,10 @@ int main()
 
   circ.append(TGate(), 2);
 
+  // Idle qubit 2 for 100 cycles of the backend's dt, then qubit 3 for 50ns.
+  circ.delay(100, (Qiskit::uint_t)2);
+  circ.delay(50, (Qiskit::uint_t)3, DelayUnit::ns);
+
   circ.barrier(0);
   circ.measure(qr, cr);
 

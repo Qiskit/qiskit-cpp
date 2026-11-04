@@ -1,0 +1,78 @@
+---
+upgrade:
+  - |
+    The QRMI backend and service interfaces now require **QRMI 0.13.0 or later**.
+    QRMI 0.13 inserted `ibm-quantum-system` into the `QrmiResourceType` enum and
+    appended `pasqal-local`, which renumbered the existing variants
+    (`qiskit-runtime-service` moved from 1 to 2 and `pasqal-cloud` from 2 to 3).
+    Because the enum is `repr(C)`, code built against an older QRMI header
+    resolves to the wrong resource type when linked against a 0.13 library.
+    Rebuild against the QRMI you link.
+  - |
+    QRMI jobs are now submitted inside an acquired session. `QRMIBackend` calls
+    `qrmi_resource_acquire()` before starting its first task and
+    `qrmi_resource_release()` once the backend and all of its jobs are gone,
+    following the ordering in QRMI's own C example. Previously neither was
+    called, so Qiskit Runtime Service jobs were created with no `session_id` and
+    `QiskitRuntimeService::set_session_mode()` had no effect; that setting now
+    takes effect. Resource types without a session concept, such as IBM Quantum
+    System and IBM Direct Access, are unaffected because QRMI implements
+    acquire and release as no-ops for them.
+features:
+  - |
+    Added `QiskitRuntimeService::set_resource_type()`, which selects the QRMI
+    resource type to connect through. `QRMI_RESOURCE_TYPE_IBM_QUANTUM_SYSTEM`
+    is now supported, configured through the `<backend>_QRMI_IBM_QS_*`
+    environment variables, alongside the existing Qiskit Runtime Service and
+    IBM Direct Access types. The default is unchanged. Also added
+    `set_url()` and `set_iam_url()` to point at a different endpoint.
+  - |
+    Added `QRMIBackend::acquire_session()`, `release_session()` and
+    `session_token()` for explicit control over the QRMI acquisition, for
+    applications that want to open a session before submitting or close one
+    early. The session is shared between a backend, its copies, and the jobs it
+    submits, so it is released exactly once.
+  - |
+    Added `QRMIJob::logs()`, which returns the execution logs of a job through
+    `qrmi_resource_task_logs()`, `QRMIJob::cancel()`, which requests
+    cancellation through `qrmi_resource_task_stop()`, and `QRMIJob::job_id()`.
+  - |
+    QRMI failures now report the cause. Every QRMI call site includes the
+    message from `qrmi_get_last_error()` alongside the return code, so a
+    failure reads
+    `QRMI Error : could not start a sampler task on ibm_torino (100) : <cause>`
+    rather than naming only the operation. Connecting to a backend also logs the
+    resource id and type that QRMI resolved.
+fixes:
+  - |
+    `QiskitRuntimeService::backend()` no longer treats `pasqal-local` as a
+    Qiskit Runtime Service resource. Only `pasqal-cloud` was rejected before, so
+    the resource type added in QRMI 0.13 fell through to the Qiskit Runtime
+    Service branch and was configured with the wrong environment variables. Both
+    Pasqal types are now rejected with a clear message, as is any unrecognized
+    type.
+  - |
+    `QiskitRuntimeService::backend()` now reports a failure from
+    `qrmi_resource_new()` instead of returning a backend holding a null resource
+    handle, and no longer prints `qrmi_ibmqrs_is_accessible() failed`, which
+    named a function that no longer exists in QRMI.
+  - |
+    `providers::QRMIJob` no longer calls `qrmi_resource_task_stop()` after
+    successfully reading a completed job's results. In QRMI 0.13 `task_stop`
+    cancels a task that is still queued or running, so the call was a redundant
+    round trip for a finished job. It is still issued when the result cannot be
+    parsed, where the task state is unknown.
+  - |
+    `providers::QRMIJob` now declares QRMI return codes as `QrmiReturnCode`
+    rather than `int`, and releases QRMI-owned strings through an RAII guard so
+    they cannot leak on an early return.
+issues:
+  - |
+    The cause appended to a QRMI error message can be stale. QRMI's
+    `qrmi_get_last_error()` is documented to clear the error state once read, but
+    as of QRMI 0.13.4 the implementation returns a borrowed pointer into
+    thread-local storage without clearing it, so a message left over from an
+    earlier failure may be reported against a later one. The return code in the
+    message is always accurate. For the same reason the string is copied rather
+    than freed: QRMI's documentation and its own C examples free it, but the
+    implementation still owns it, so freeing it would be a double free.

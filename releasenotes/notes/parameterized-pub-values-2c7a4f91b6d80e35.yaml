@@ -1,0 +1,140 @@
+---
+features:
+  - |
+    Parameterized circuits can now be run through the sampler and estimator.
+    `SamplerPub` and `EstimatorPub` carry the parameter values of their
+    circuit, which the quantum computer binds at run time, where previously an
+    empty list was always sent and a parameterized circuit could not be
+    executed. New `SamplerPub` constructors take the values alongside the
+    circuit:
+
+    ```cpp
+    auto pub = SamplerPub(circ, std::vector<double>({0.5, 1.0}), shots);
+    ```
+
+    Values are given in the order the circuit's parameters are bound, one per
+    parameter. `SamplerPub::set_parameter_values()`,
+    `parameter_values()` and `num_parameter_sets()` read and write them after
+    construction, and `EstimatorPub::set_parameter_values()` gained overloads
+    taking the values directly rather than a pre-built payload.
+  - |
+    A pub can sweep over several parameter value sets, submitted as one job
+    that the server runs once per set. Pass a
+    `std::vector<std::vector<double>>`, where each inner list holds one value
+    per circuit parameter.
+  - |
+    Added `primitives::ParameterValues`, which builds the Qiskit Runtime
+    parameter-values payload: the object
+    `{"__type__": "ndarray", "__value__": <data>}`, where `data` is the base64
+    encoding of the zlib-compressed NumPy `.npy` serialization of the value
+    array. This matches `NdarrayWrapperModel` in the `ibm-quantum-schemas`
+    package, which defines the wire format for both `SamplerPubModel` and
+    `EstimatorPubModel`. Its `to_npy()` helper writes version 1.0 of the `.npy`
+    format with a `<f8` dtype, byte-for-byte as `numpy.save` does.
+  - |
+    Added `SamplerPub::validate()`, matching the method `EstimatorPub` already
+    had. It reports a mismatch between the number of parameter values and
+    `QuantumCircuit::num_parameters()`.
+  - |
+    `SamplerPubResult` and `EstimatorPubResult` now hold one set of results per
+    parameter value set, indexed with `operator[]` as in Qiskit Python:
+
+    ```cpp
+    auto pub_result = result[0];
+    for (uint_t set = 0; set < pub_result.size(); set++) {
+        auto bits = pub_result[set].data("meas").get_bitstrings();
+    }
+    ```
+
+    `SamplerPubResult::from_json()` reads one `BitArray` per value set. For a
+    swept pub the service returns the `samples` of each classical register as an
+    array of arrays, one inner array of shots per value set; an unswept pub
+    returns a flat array, which is read as a single set. `size()` reports the
+    number of sets, and `get_counts(name)` unions the counts over all of them,
+    matching Qiskit's `get_counts()` with no location argument. The existing
+    `data()` accessors read the first set, so code for an unswept pub is
+    unchanged.
+  - |
+    `EstimatorPubResult` gained `size()`, `num_observables()`, `operator[]` and
+    `ev(set, observable)`. The expectation values are stored flat in row-major
+    `(value set, observable)` order, so `evs()` keeps returning the same
+    `std::vector<double>` and existing code is unaffected.
+  - |
+    `BitArray::from_json()` accepts both shapes the service returns for a
+    register's `samples`: a flat array of hex strings for a pub with no
+    parameter sweep, and an array of arrays with one entry per value set for a
+    swept pub. A second argument selects which value set to read, and
+    `BitArray::num_sets_in_json()` reports how many a result holds. Previously
+    only the flat shape was handled, so a swept pub failed to parse with
+    `[json.exception.type_error.302] type must be string, but is array`.
+  - |
+    `EstimatorPubResult::from_json()` accepts a nested `evs` and `stds`, which
+    is how a pub swept over parameter values reports more than one observable.
+    The values are flattened in (value set, observable) order. Nesting is
+    accepted only for a pub that actually swept over more than one value set:
+    for a single set it remains rejected, as before, since accepting it would
+    mask a result belonging to a different pub. Inner arrays must all be the
+    same length, because the values form a rectangular array.
+  - |
+    Added `BitArray::get_shot_range()`, which takes a contiguous range of shots
+    as a new `BitArray`, alongside the existing `get_subset()` for bit ranges.
+  - |
+    Added `EstimatorPub::num_parameter_sets()`, and
+    `EstimatorPub::set_parameter_values()` taking a raw payload now accepts the
+    set count alongside it, since the count cannot be recovered from the
+    encoded array but a result needs it to split the values it receives.
+upgrade:
+  - |
+    Added `EstimatorPub::validate_for_submission()`, which is `validate()` plus
+    a check that a parameterized circuit has parameter values. The submission
+    paths (`to_json()`, `BackendEstimatorV2::run()` and
+    `QRMIEstimatorPayload::build_estimator_input()`) use the stricter check and
+    raise `std::invalid_argument` for a parameterized circuit with no values,
+    rather than submitting a job the server would reject. `validate()` itself is
+    unchanged, because the `EstimatorPub` constructors call it and values can
+    only be set once the pub exists.
+  - |
+    `EstimatorPubResult::from_json()` now expects one expectation value per
+    parameter value set and observable, where it previously required exactly
+    `num_observables()` values. A result whose length does not match the
+    submitted sweep is rejected with a message naming both counts.
+  - |
+    `SamplerPub::to_json()` now raises `std::invalid_argument` when the number
+    of parameter values does not match the circuit's parameter count, including
+    when a parameterized circuit has no values at all. Previously it emitted an
+    empty list for every circuit.
+  - |
+    `QRMIBackend::run()` validates each sampler pub before submission and
+    returns `nullptr`, reporting the reason, when one is not valid. The
+    estimator path already validated each pub through
+    `QRMIEstimatorPayload::build_estimator_input`.
+  - |
+    The commented-out `SamplerPub` constructor taking separate parameter-name
+    and value lists has been removed, superseded by the constructors above.
+    Parameter values are positional, matching Qiskit's own convention that the
+    last dimension of a binding array indexes the circuit parameters, so no
+    name list is needed.
+issues:
+  - |
+    Parameter values are matched to circuit parameters by position, not by
+    name. The order is the one the Qiskit C-API reports for the circuit, which
+    qiskit-cpp cannot currently enumerate by name — `qk_circuit_num_param_symbols`
+    exposes only the count. A circuit with more than one parameter therefore
+    relies on the caller knowing the binding order. `QuantumCircuit::parameter_symbols()`
+    returns a sorted list of names, which is the order Qiskit itself uses for a
+    `BindingsArray` built from a circuit, but this is derived from the parameter
+    expression strings rather than read from the C-API and is not guaranteed to
+    match.
+  - |
+    A value set is always sent as `f64`. Qiskit Runtime's wire format supports
+    other dtypes, but a circuit parameter is a real number, so this is the only
+    one needed.
+  - |
+    `SamplerPubResult::from_json()` determines the number of parameter value
+    sets from the shape of the returned `samples` rather than from the pub, so a
+    sweep is handled even for a result whose pub was not built locally. When the
+    pub does record a sweep, a result holding a different number of sets is
+    rejected, as is a result whose classical registers disagree on the count.
+    The raw result format is not publicly specified for
+    `support_qiskit = false`; the nesting handled here was confirmed against a
+    real two-set job.

@@ -19,7 +19,9 @@
 #define __qiskitcpp_circuit_quantum_circuit_hpp__
 
 #include "circuit/quantumcircuit_def.hpp"
+#include "circuit/classical/expr.hpp"
 #include "circuit/qasm3_exporter.hpp"
+#include "circuit/qpy.hpp"
 #include "circuit/quantumcircuit_impl.hpp"
 
 #endif  // __qiskitcpp_circuit_quantum_circuit_hpp__

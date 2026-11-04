@@ -1,0 +1,72 @@
+---
+features:
+  - |
+    Added `QuantumCircuit::export_qpy()`, which serializes a circuit to a QPY
+    file, and `QuantumCircuit::to_qpy()`, which returns the same payload as a
+    `std::vector<std::uint8_t>` in memory. Static overloads of both accept a
+    `std::vector<QuantumCircuit>` to write several circuits into a single QPY
+    payload. Both take an optional QPY format version; passing 0 (the default)
+    emits the version the loaded Qiskit writes by default.
+
+    QPY is a binary format, so unlike `to_qasm3()` it round-trips losslessly
+    through Python Qiskit's `qiskit.qpy.load()`, including symbolic parameters.
+    Failures raise `std::runtime_error` carrying the exit code and the
+    diagnostic reported by the C-API.
+  - |
+    Added `QuantumCircuit::qpy_write_min_version()` and
+    `QuantumCircuit::qpy_read_min_version()`, which report the oldest QPY
+    format versions the loaded Qiskit can write and read. An explicit version
+    passed to `export_qpy()` or `to_qpy()` must be at least the value returned
+    by `qpy_write_min_version()`.
+  - |
+    Added `QuantumCircuit::import_qpy()`, which reads circuits from a QPY
+    file, and `QuantumCircuit::from_qpy()`, which reads them from an in-memory
+    payload. Both are static and return a `std::vector<QuantumCircuit>`,
+    because a QPY payload always holds a list of circuits. Together with the
+    exporter this round-trips circuits through QPY, and interoperates with
+    payloads written by Python Qiskit's `qiskit.qpy.dump()`.
+
+    The instructions, quantum and classical registers (names, sizes, and bit
+    positions), symbolic parameters, global phase, and measurement map are all
+    recovered. Failures raise `std::runtime_error`.
+  - |
+    Added the `QISKIT_CPP_HAS_QPY` feature macro in
+    `utils/capi_features.hpp`. It is defined to 1 when the Qiskit C-API
+    provides the `qk_qpy_*` functions (Qiskit 2.6.0 or later) and to 0
+    otherwise, so it is always safe to test with `#if`. Applications may
+    pre-define it to override the detection. The QPY methods above are only
+    declared when it is 1.
+upgrade:
+  - |
+    The QPY methods on `QuantumCircuit` require Qiskit 2.6.0 or later, because
+    the `qk_qpy_*` C-API functions were introduced in that release. When
+    building against an older Qiskit the methods are not declared and
+    `QISKIT_CPP_HAS_QPY` is 0; guard calls with `#if QISKIT_CPP_HAS_QPY` if
+    your application has to support both.
+issues:
+  - |
+    The Qiskit C-API cannot serialize or deserialize circuits whose contents
+    require the Python interpreter, and reports an error in that case rather
+    than falling back. The QPY methods surface this as a
+    `std::runtime_error`. Circuits built through qiskit-cpp are not expected to
+    hit this on export, since they are constructed entirely through the C-API,
+    but a payload written by Python Qiskit may fail to import.
+  - |
+    QPY carries no transpiler layout or circuit metadata when written through
+    the C-API: the payload is emitted with an empty metadata mapping and no
+    layout. A circuit exported after transpilation therefore loses its
+    `TranspileLayout` on the Python side, even though the instructions and
+    qubit indices are preserved. For the same reason `import_qpy()` and
+    `from_qpy()` leave the imported circuit's qubit map empty.
+  - |
+    `import_qpy()` and `from_qpy()` reject a circuit holding a register whose
+    bits are not a contiguous ascending range of circuit bit indices, because
+    qiskit-cpp addresses register bits as `base_index + i` and cannot
+    represent such a register. Python Qiskit permits these, so a payload
+    written there may not be importable. The error names the offending
+    register.
+  - |
+    Each imported circuit is copied out of the array returned by the C-API
+    rather than adopted, because the loaded pointers are owned by Qiskit and
+    freed as a group by `qk_qpy_loaded_circuits_clear`. Importing therefore
+    duplicates every circuit once.

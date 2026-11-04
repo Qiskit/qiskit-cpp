@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <iterator>
@@ -298,6 +299,67 @@ protected:
       names[input] = unique_identifier(input, reserved);
     }
     return names;
+  }
+
+  /// @brief Whether a global phase needs to be emitted.
+  /// @param phase the circuit's global phase
+  /// @return false if the phase is a bound value of zero, true otherwise
+  /// @details A zero phase is the identity and is left out, matching Qiskit.
+  ///   An unbound (symbolic) phase is always emitted, because its value is not
+  ///   known here and could be non-zero once bound.
+  static bool needs_global_phase(const QkParam *phase) {
+    if (phase == nullptr) {
+      return false;
+    }
+    if (qk_param_kind(phase) == QkParamKind_ParameterExpression) {
+      return true;
+    }
+    const double value = qk_param_as_real(phase);
+    // A NaN phase is not a bound zero, so it is emitted and left for the
+    // consumer to reject rather than being silently dropped here.
+    return value != 0.0;
+  }
+
+  /// @brief Format a delay instruction as an OpenQASM 3 delay statement prefix.
+  /// @param circuit the circuit holding the instruction
+  /// @param index the index of the delay instruction
+  /// @param op the instruction, already read from the circuit
+  /// @return the statement up to and including the duration, e.g. "delay[100dt]"
+  /// @note OpenQASM 3 has no picosecond literal, so a ``ps`` duration is
+  ///   emitted in nanoseconds, as Qiskit's own exporter does. A ``dt`` duration
+  ///   is emitted as an integer, since it counts backend cycles.
+  static std::string format_delay(const QkCircuit *circuit, const uint_t index,
+                                  const QkCircuitInstruction &op) {
+    const QkDelayUnit unit = qk_circuit_delay_unit(circuit, index);
+    const double duration =
+        delay_duration_value(op.num_params > 0 ? op.params[0] : nullptr, unit);
+
+    std::stringstream formatted;
+    formatted << "delay[";
+    if (unit == QkDelayUnit_DT) {
+      formatted << static_cast<std::int64_t>(duration) << "dt";
+    } else if (unit == QkDelayUnit_PS) {
+      formatted << std::setprecision(18) << (duration / 1000.0) << "ns";
+    } else {
+      formatted << std::setprecision(18) << duration;
+      switch (unit) {
+      case QkDelayUnit_S:
+        formatted << "s";
+        break;
+      case QkDelayUnit_MS:
+        formatted << "ms";
+        break;
+      case QkDelayUnit_US:
+        formatted << "us";
+        break;
+      case QkDelayUnit_NS:
+      default:
+        formatted << "ns";
+        break;
+      }
+    }
+    formatted << "]";
+    return formatted.str();
   }
 
   std::string format_parameter(
@@ -682,6 +744,16 @@ public:
             << std::endl;
     }
 
+    // Emit the circuit's global phase. It is a property of the circuit rather
+    // than an instruction, so it is not reached by the instruction loop below
+    // and has to be written out here, after the declarations it may reference
+    // and before the operations it applies to.
+    ScopedParam global_phase(qk_circuit_global_phase(circuit_.rust_circuit_.get()));
+    if (needs_global_phase(global_phase.get())) {
+      qasm3 << "gphase(" << format_parameter(global_phase.get(), input_names)
+            << ");" << std::endl;
+    }
+
     auto recover_reg_data =
         [this, &creg_names](uint_t index) -> std::pair<std::string, uint_t> {
       auto it =
@@ -699,6 +771,19 @@ public:
     for (uint_t i = 0; i < nops; i++) {
       ScopedInstruction instruction(circuit_.rust_circuit_.get(), i);
       QkCircuitInstruction &op = instruction.get();
+      if (qk_circuit_instruction_kind(circuit_.rust_circuit_.get(), i) ==
+          QkOperationKind_Delay) {
+        // A delay is a statement with its own syntax, "delay[<duration>] <qubits>;",
+        // rather than a gate call, so it cannot go through the generic path below.
+        qasm3 << format_delay(circuit_.rust_circuit_.get(), i, op) << " ";
+        for (uint_t j = 0; j < op.num_qubits; j++) {
+          qasm3 << qubit_ref(op.qubits[j]);
+          if (j != op.num_qubits - 1)
+            qasm3 << ", ";
+        }
+        qasm3 << ";" << std::endl;
+        continue;
+      }
       if (op.num_clbits > 0) {
         if (op.num_qubits == op.num_clbits) {
           for (uint_t j = 0; j < op.num_qubits; j++) {

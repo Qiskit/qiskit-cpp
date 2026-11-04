@@ -42,6 +42,11 @@ protected:
     std::string label_;
     QkGate map_ = QkGate_I;
     bool is_standard_gate_ = false;
+    // Duration of a delay instruction, in the unit given by delay_unit_. Carried
+    // on the base class rather than on Delay because CircuitInstruction stores
+    // an Instruction by value, which slices a Delay down to its base.
+    double delay_duration_ = 0.0;
+    QkDelayUnit delay_unit_ = QkDelayUnit_DT;
 public:
     /// @brief Create a new instruction
     Instruction()
@@ -72,6 +77,8 @@ public:
         label_ = other.label_;
         map_ = other.map_;
         is_standard_gate_ = other.is_standard_gate_;
+        delay_duration_ = other.delay_duration_;
+        delay_unit_ = other.delay_unit_;
     }
 
     /// @brief Return name of the instruction
@@ -152,6 +159,22 @@ public:
     virtual bool is_standard_gate(void) const
     {
         return is_standard_gate_;
+    }
+
+    /// @brief Return the duration of this instruction, for a delay
+    /// @return the duration, in the unit returned by ``delay_unit()``
+    /// @note Only meaningful for a delay instruction; zero otherwise.
+    double delay_duration(void) const
+    {
+        return delay_duration_;
+    }
+
+    /// @brief Return the duration unit of this instruction, for a delay
+    /// @return the Qiskit C-API duration unit
+    /// @note Only meaningful for a delay instruction; ``QkDelayUnit_DT`` otherwise.
+    QkDelayUnit delay_unit(void) const
+    {
+        return delay_unit_;
     }
 
 };

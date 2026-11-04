@@ -1,0 +1,56 @@
+---
+features:
+  - |
+    Added `QuantumCircuit::delay()`, which appends a delay instruction, matching
+    `qiskit.circuit.QuantumCircuit.delay()`. The duration unit is given by the
+    `circuit::DelayUnit` enum (`dt`, `s`, `ms`, `us`, `ns`, `ps`) and defaults to
+    `dt`, as in Qiskit. Overloads accept a single qubit, a list of qubits, a
+    `QuantumRegister`, or no qubit at all, which delays every qubit of the
+    circuit as Qiskit does. The unit may also be passed by name as a string:
+
+    ```cpp
+    QuantumCircuit circ(2, 0);
+    circ.delay(100, (uint_t)0);                   // 100 dt on qubit 0
+    circ.delay(250.5, (uint_t)1, DelayUnit::ns);  // 250.5 ns on qubit 1
+    circ.delay(16, (uint_t)0, std::string("us")); // unit by name
+    circ.delay(64);                               // 64 dt on every qubit
+    ```
+
+    Each method returns `false` and reports the reason if the delay could not be
+    added, rather than throwing.
+  - |
+    Added the `circuit::Delay` instruction class, so a delay can also be added
+    through `QuantumCircuit::append()`, including inside a
+    `circuit::CircuitInstruction`. Reading a circuit back with
+    `QuantumCircuit::operator[]` now returns a `Delay` for a delay instruction,
+    and `QuantumCircuit::compose()` carries delays across.
+  - |
+    `Instruction::delay_duration()` and `Instruction::delay_unit()` report the
+    duration and unit of a delay instruction. They are on the base class rather
+    than on `Delay` because `CircuitInstruction` stores an `Instruction` by
+    value, which would otherwise slice away a `Delay`'s own members.
+  - |
+    `QuantumCircuit::to_qasm3()` now emits delays as OpenQASM 3 delay
+    statements, for example `delay[100dt] q[0];`. A `dt` duration is written as
+    an integer, since it counts whole backend cycles.
+upgrade:
+  - |
+    Requires **Qiskit 2.6.0 or later**. `qk_circuit_delay` has existed since
+    Qiskit 2.4, but `qk_circuit_delay_dt`, `qk_circuit_delay_unit` and
+    `qk_param_as_int` were all added in Qiskit 2.6, and all are needed to add,
+    read back and export a delay.
+issues:
+  - |
+    A delay duration in `dt` must be a whole number, because the C-API takes it
+    as an integer. A fractional `dt` duration is rejected rather than truncated;
+    use a time unit such as `DelayUnit::ns` for a fractional duration. Negative
+    and non-finite durations are rejected for every unit.
+  - |
+    OpenQASM 3 has no picosecond duration literal, so `to_qasm3()` converts a
+    `ps` duration to nanoseconds, as Qiskit's own OpenQASM 3 exporter does. The
+    delay is unchanged in the circuit itself.
+  - |
+    A symbolic (unbound `Parameter`) delay duration is not supported. Qiskit
+    accepts a `ParameterExpression` duration, but `QuantumCircuit::delay()`
+    takes a `double`, and a duration read back from a circuit that has an
+    unbound duration reports as zero.

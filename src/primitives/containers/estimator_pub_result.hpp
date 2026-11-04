@@ -19,6 +19,8 @@
 
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -31,10 +33,17 @@ namespace primitives {
 
 /// @class EstimatorPubResult
 /// @brief Result of Estimator Pub(Primitive Unified Bloc).
+/// @details A pub submitted with several parameter value sets produces one
+///   expectation value per value set and observable. The values are stored flat
+///   in row-major order, so entry ``set * num_observables + observable``, and
+///   ``operator[]`` returns the values of one set as in Qiskit Python.
 class EstimatorPubResult {
 protected:
+    // Expectation values, flattened over (value set, observable).
     std::vector<double> evs_;
     std::vector<double> stds_;
+    // The number of parameter value sets the values are split across.
+    uint_t num_sets_ = 1;
     nlohmann::ordered_json metadata_;
     EstimatorPub pub_;
     bool has_pub_ = false;
@@ -61,6 +70,7 @@ public:
     {
         evs_ = src.evs_;
         stds_ = src.stds_;
+        num_sets_ = src.num_sets_;
         metadata_ = src.metadata_;
         pub_ = src.pub_;
         has_pub_ = src.has_pub_;
@@ -94,6 +104,93 @@ public:
         return stds_;
     }
 
+    /// @brief Return the number of parameter value sets in this result.
+    /// @return the number of sets; one for a pub with no parameter sweep
+    uint_t size(void) const
+    {
+        return num_sets_;
+    }
+
+    /// @brief Return the number of expectation values per parameter value set.
+    /// @return the number of observables each value set was evaluated against
+    uint_t num_observables(void) const
+    {
+        if (num_sets_ == 0) {
+            return 0;
+        }
+        return evs_.size() / num_sets_;
+    }
+
+    /// @class DataSet
+    /// @brief The expectation values and standard deviations of one value set.
+    /// @details Holds copies, so it stays valid independently of the result it
+    ///   came from.
+    class DataSet {
+        std::vector<double> evs_;
+        std::vector<double> stds_;
+
+    public:
+        DataSet(const std::vector<double>& evs, const std::vector<double>& stds)
+            : evs_(evs), stds_(stds) {}
+
+        /// @brief Expectation values of this value set, one per observable.
+        const std::vector<double>& evs(void) const { return evs_; }
+
+        /// @brief Standard deviations of this value set, one per observable.
+        /// @return the deviations, or an empty list if the result has none
+        const std::vector<double>& stds(void) const { return stds_; }
+
+        /// @brief Expectation value for one observable of this value set.
+        /// @param observable the index of the observable
+        /// @throws std::out_of_range if the index is past the end
+        double operator[](const uint_t observable) const
+        {
+            if (observable >= evs_.size()) {
+                std::stringstream message;
+                message << "EstimatorPubResult value set holds " << evs_.size()
+                        << " expectation values, cannot access " << observable;
+                throw std::out_of_range(message.str());
+            }
+            return evs_[observable];
+        }
+    };
+
+    /// @brief Return the results of one parameter value set.
+    /// @param index the index of the value set
+    /// @return the expectation values and deviations of that set
+    /// @throws std::out_of_range if the index is past the end
+    /// @note Mirrors indexing a Qiskit estimator result, where the index
+    ///   selects an entry of the pub's parameter sweep.
+    DataSet operator[](const uint_t index) const
+    {
+        if (index >= num_sets_) {
+            std::stringstream message;
+            message << "EstimatorPubResult has " << num_sets_
+                    << " parameter value sets, cannot access set " << index;
+            throw std::out_of_range(message.str());
+        }
+
+        const uint_t width = num_observables();
+        const uint_t begin = index * width;
+
+        std::vector<double> evs(evs_.begin() + begin, evs_.begin() + begin + width);
+        std::vector<double> stds;
+        if (stds_.size() == evs_.size()) {
+            stds.assign(stds_.begin() + begin, stds_.begin() + begin + width);
+        }
+        return DataSet(evs, stds);
+    }
+
+    /// @brief Expectation value for one observable of one value set.
+    /// @param set the index of the parameter value set
+    /// @param observable the index of the observable
+    /// @return the expectation value
+    /// @throws std::out_of_range if either index is past the end
+    double ev(const uint_t set, const uint_t observable) const
+    {
+        return (*this)[set][observable];
+    }
+
     /// @brief Result metadata for this pub.
     /// @return metadata.
     const nlohmann::ordered_json& metadata(void) const
@@ -121,6 +218,9 @@ public:
     {
         pub_ = pub;
         has_pub_ = true;
+        // Sized from the pub's sweep so that size() is right before any result
+        // has been read; from_json confirms it against the returned values.
+        num_sets_ = pub_.num_parameter_sets() > 0 ? pub_.num_parameter_sets() : 1;
     }
 
     /// @brief Set pub result from json.
@@ -144,23 +244,40 @@ public:
             return false;
         }
 
+        // A pub submitted with several parameter value sets returns one value
+        // per set and observable. Only such a pub may report its values nested,
+        // so the sweep has to be known before parsing.
+        const uint_t submitted_sets = has_pub_ && pub_.num_parameter_sets() > 0
+            ? pub_.num_parameter_sets() : 1;
+        const bool nesting_allowed = submitted_sets > 1;
+
         std::vector<double> evs;
-        if (!parse_numeric_scalar_or_1d(data["evs"], evs, "evs")) {
+        if (!parse_numeric_scalar_or_1d(data["evs"], evs, "evs", nesting_allowed)) {
             return false;
         }
 
-        if (has_pub_ && evs.size() != pub_.num_observables()) {
-            std::cerr << " EstimatorPubResult Error : evs length does not match the submitted observable count." << std::endl;
-            return false;
+        uint_t num_sets = 1;
+        if (has_pub_) {
+            const uint_t num_observables = pub_.num_observables();
+            const uint_t expected = num_observables * submitted_sets;
+
+            if (evs.size() != expected) {
+                std::cerr << " EstimatorPubResult Error : evs holds " << evs.size()
+                    << " values but the pub submitted " << submitted_sets
+                    << " parameter value set(s) against " << num_observables
+                    << " observable(s), expecting " << expected << "." << std::endl;
+                return false;
+            }
+            num_sets = submitted_sets;
         }
 
         std::vector<double> stds;
         if (data.contains("stds")) {
-            if (!parse_numeric_scalar_or_1d(data["stds"], stds, "stds")) {
+            if (!parse_numeric_scalar_or_1d(data["stds"], stds, "stds", nesting_allowed)) {
                 return false;
             }
         } else if (data.contains("ensemble_standard_error")) {
-            if (!parse_numeric_scalar_or_1d(data["ensemble_standard_error"], stds, "ensemble_standard_error")) {
+            if (!parse_numeric_scalar_or_1d(data["ensemble_standard_error"], stds, "ensemble_standard_error", nesting_allowed)) {
                 return false;
             }
         }
@@ -184,43 +301,97 @@ public:
 
         evs_ = evs;
         stds_ = stds;
+        num_sets_ = num_sets;
         metadata_ = metadata;
         return true;
     }
 
 protected:
-    static bool parse_numeric_scalar_or_1d(const nlohmann::ordered_json& value, std::vector<double>& output, const std::string& name)
+    /// @brief Read a scalar, a 1-D array, or a nested array of numbers.
+    /// @param value the JSON value to read
+    /// @param output receives the numbers, flattened row-major
+    /// @param name the field name, for diagnostics
+    /// @param nesting_allowed whether the value may be an array of arrays
+    /// @return true if parsing succeeded
+    /// @details A pub submitted with a parameter sweep over more than one
+    ///   observable reports one inner array per value set, which is flattened
+    ///   in (value set, observable) order to match how the result stores it.
+    ///   Nesting is only accepted when the pub actually swept: for a pub with a
+    ///   single value set it is malformed, and accepting it would mask a result
+    ///   that does not belong to the pub. Every inner array must be the same
+    ///   length, since the values form a rectangular array.
+    static bool parse_numeric_scalar_or_1d(const nlohmann::ordered_json& value, std::vector<double>& output, const std::string& name, const bool nesting_allowed)
     {
         output.clear();
 
         if (value.is_number()) {
-            const double number = value.get<double>();
-            if (!std::isfinite(number)) {
-                std::cerr << " EstimatorPubResult Error : " << name << " contains a non-finite value." << std::endl;
-                return false;
-            }
-            output.push_back(number);
-            return true;
+            return append_number(value, output, name);
         }
 
         if (!value.is_array()) {
-            std::cerr << " EstimatorPubResult Error : " << name << " must be a number or one-dimensional array." << std::endl;
+            std::cerr << " EstimatorPubResult Error : " << name << " must be a number or an array of numbers." << std::endl;
             return false;
         }
 
-        for (uint_t i = 0; i < value.size(); i++) {
-            if (!value[i].is_number()) {
-                std::cerr << " EstimatorPubResult Error : " << name << " must be a one-dimensional numeric array." << std::endl;
-                return false;
+        // Nesting is decided by the first element: the value is either a flat
+        // array of numbers or an array of equal-length inner arrays.
+        const bool nested = !value.empty() && value[0].is_array();
+        if (!nested) {
+            for (uint_t i = 0; i < value.size(); i++) {
+                if (!append_number(value[i], output, name)) {
+                    return false;
+                }
             }
-            const double number = value[i].get<double>();
-            if (!std::isfinite(number)) {
-                std::cerr << " EstimatorPubResult Error : " << name << " contains a non-finite value." << std::endl;
-                return false;
-            }
-            output.push_back(number);
+            return true;
         }
 
+        if (!nesting_allowed) {
+            std::cerr << " EstimatorPubResult Error : " << name
+                << " must be a number or one-dimensional array for a pub with a single"
+                   " parameter value set." << std::endl;
+            return false;
+        }
+
+        const uint_t width = value[0].size();
+        for (uint_t i = 0; i < value.size(); i++) {
+            if (!value[i].is_array()) {
+                std::cerr << " EstimatorPubResult Error : " << name
+                    << " mixes nested and plain entries." << std::endl;
+                return false;
+            }
+            if (value[i].size() != width) {
+                std::cerr << " EstimatorPubResult Error : " << name
+                    << " entry " << i << " holds " << value[i].size()
+                    << " values but entry 0 holds " << width << "." << std::endl;
+                return false;
+            }
+            for (uint_t j = 0; j < width; j++) {
+                if (!append_number(value[i][j], output, name)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// @brief Append one finite number from JSON.
+    /// @param value the JSON value, which must be a number
+    /// @param output receives the number
+    /// @param name the field name, for diagnostics
+    /// @return true if the value is a finite number
+    static bool append_number(const nlohmann::ordered_json& value, std::vector<double>& output, const std::string& name)
+    {
+        if (!value.is_number()) {
+            std::cerr << " EstimatorPubResult Error : " << name << " must contain only numbers." << std::endl;
+            return false;
+        }
+        const double number = value.get<double>();
+        if (!std::isfinite(number)) {
+            std::cerr << " EstimatorPubResult Error : " << name << " contains a non-finite value." << std::endl;
+            return false;
+        }
+        output.push_back(number);
         return true;
     }
 

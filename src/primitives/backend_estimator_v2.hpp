@@ -83,7 +83,9 @@ public:
 
         for (uint_t i = 0; i < pubs.size(); i++) {
             std::string message;
-            if (!pubs[i].validate(&message)) {
+            // The stricter check, which also requires parameter values for a
+            // parameterized circuit: this is the submission path.
+            if (!pubs[i].validate_for_submission(&message)) {
                 throw std::invalid_argument(message);
             }
 

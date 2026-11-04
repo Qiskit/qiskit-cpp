@@ -24,6 +24,7 @@
 
 #include "utils/types.hpp"
 #include "providers/qrmi_backend.hpp"
+#include "providers/qrmi_common.hpp"
 
 #ifdef _MSC_VER
 #define NOMINMAX
@@ -132,9 +133,35 @@ public:
 
     /// @brief set session mode
     /// @param mode "batch" or "dedicated"
+    /// @note Only applies to QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE; the other
+    ///   resource types have no session concept.
     void set_session_mode(std::string mode)
     {
         session_mode_ = mode;
+    }
+
+    /// @brief set the QRMI resource type to connect through
+    /// @param type one of the QRMI resource types. Supported here are
+    ///   QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE (the default),
+    ///   QRMI_RESOURCE_TYPE_IBM_QUANTUM_SYSTEM and
+    ///   QRMI_RESOURCE_TYPE_IBM_DIRECT_ACCESS (deprecated by QRMI).
+    void set_resource_type(QrmiResourceType type)
+    {
+        type_ = type;
+    }
+
+    /// @brief set the service endpoint URL
+    /// @param url the endpoint URL
+    void set_url(std::string url)
+    {
+        url_ = url;
+    }
+
+    /// @brief set the IBM Cloud IAM endpoint URL
+    /// @param url the IAM endpoint URL
+    void set_iam_url(std::string url)
+    {
+        iam_url_ = url;
     }
 
     /// @brief create a new backend object
@@ -155,52 +182,113 @@ public:
             return Qiskit::providers::QRMIBackend();
         }
 
+        // QRMI reads its configuration from environment variables named
+        // "<resource>_QRMI_<prefix>_<setting>", where the prefix identifies the
+        // resource type.
         std::string header;
-        if (type_ == QRMI_RESOURCE_TYPE_IBM_DIRECT_ACCESS) {
-            header = "_QRMI_IBM_DA_";
-        } else if (type_ == QRMI_RESOURCE_TYPE_PASQAL_CLOUD) {
-            std::cerr << " ERROR: resource type QRMI_RESOURCE_TYPE_PASQAL_CLOUD is not supported yet" << std::endl;
-            return Qiskit::providers::QRMIBackend();
-        } else {
+        bool has_session = false;
+        switch (type_) {
+        case QRMI_RESOURCE_TYPE_IBM_QUANTUM_SYSTEM:
+            header = "_QRMI_IBM_QS_";
+            break;
+        case QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE:
             header = "_QRMI_IBM_QRS_";
+            has_session = true;
+            break;
+        case QRMI_RESOURCE_TYPE_PASQAL_CLOUD:
+        case QRMI_RESOURCE_TYPE_PASQAL_LOCAL:
+            std::cerr << " ERROR: Pasqal resource types are not supported by QiskitRuntimeService" << std::endl;
+            return Qiskit::providers::QRMIBackend();
+        default:
+            std::cerr << " ERROR: unknown QRMI resource type " << type_ << std::endl;
+            return Qiskit::providers::QRMIBackend();
         }
 
-#ifdef _MSC_VER
-        std::string envEndPoint = name + header + "ENDPOINT";
-        std::string varEndPoint = url_ + "/api/v1";
-        std::string envIAMEndPoint = name + header + "IAM_ENDPOINT";
-        std::string envAPIKey = name + header + "IAM_APIKEY";
-        std::string envCRN = name + header + "SERVICE_CRN";
-        std::string envSession = name + header + "SESSION_MODE";
+        set_resource_env(name, header, "ENDPOINT", endpoint_url());
+        set_resource_env(name, header, "IAM_ENDPOINT", iam_url_);
+        set_resource_env(name, header, "IAM_APIKEY", token_);
+        set_resource_env(name, header, "SERVICE_CRN", instance_);
+        if (has_session) {
+            set_resource_env(name, header, "SESSION_MODE", session_mode_);
+        }
+        // The AWS/S3 settings that IBM Quantum System uses to deliver results are
+        // optional in QRMI and have no counterpart here, so they are left to the
+        // environment.
 
-        _putenv_s(envEndPoint.c_str(), varEndPoint.c_str());
-        _putenv_s(envIAMEndPoint.c_str(), iam_url_.c_str());
-        _putenv_s(envAPIKey.c_str(), token_.c_str());
-        _putenv_s(envCRN.c_str(), instance_.c_str());
-        _putenv_s(envSession.c_str(), session_mode_.c_str());
-#else
-        setenv((name + header + "ENDPOINT").c_str(), (url_ + "/api/v1").c_str(), 1);
-        setenv((name + header + "IAM_ENDPOINT").c_str(), iam_url_.c_str(), 1);
-        setenv((name + header + "IAM_APIKEY").c_str(), token_.c_str(), 1);
-        setenv((name + header + "SERVICE_CRN").c_str(), instance_.c_str(), 1);
-        setenv((name + header + "SESSION_MODE").c_str(), session_mode_.c_str(), 1);
-#endif
         std::shared_ptr<QrmiQuantumResource> qrmi(qrmi_resource_new(name.c_str(), type_), qrmi_resource_free);
+        if (!qrmi) {
+            std::cerr << Qiskit::providers::qrmi_error_message("could not create a resource for " + name) << std::endl;
+            return Qiskit::providers::QRMIBackend();
+        }
+
         bool is_accessible = false;
         QrmiReturnCode rc = qrmi_resource_is_accessible(qrmi.get(), &is_accessible);
-        if (rc == QRMI_RETURN_CODE_SUCCESS) {
-            if (is_accessible == false) {
-                std::cerr << "QRMI Error : " << name << " cannot be accessed." << std::endl;
-                return Qiskit::providers::QRMIBackend();
-            }
-        } else {
-            std::cerr << "qrmi_ibmqrs_is_accessible() failed." << std::endl;
+        if (rc != QRMI_RETURN_CODE_SUCCESS) {
+            std::cerr << Qiskit::providers::qrmi_error_message("could not check whether " + name + " is accessible", rc) << std::endl;
             return Qiskit::providers::QRMIBackend();
         }
-        std::cerr << "QRMI connecting : " << name << std::endl;
+        if (is_accessible == false) {
+            std::cerr << "QRMI Error : " << name << " cannot be accessed." << std::endl;
+            return Qiskit::providers::QRMIBackend();
+        }
+
+        std::cerr << "QRMI connecting : " << name << report_resource(qrmi.get()) << std::endl;
 
         Qiskit::providers::QRMIBackend backend(name, qrmi);
         return backend;
+    }
+
+protected:
+    /// @brief Return the endpoint URL to configure for the selected resource type.
+    /// @return the URL QRMI should use
+    std::string endpoint_url(void) const
+    {
+        // Qiskit Runtime Service is reached through the versioned API path; the
+        // other resource types take the endpoint as given.
+        if (type_ == QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE) {
+            return url_ + "/api/v1";
+        }
+        return url_;
+    }
+
+    /// @brief Set one QRMI configuration environment variable.
+    /// @param name the resource name the setting applies to
+    /// @param header the resource type prefix, e.g. "_QRMI_IBM_QRS_"
+    /// @param suffix the setting name, e.g. "IAM_APIKEY"
+    /// @param value the value to set
+    static void set_resource_env(const std::string& name, const std::string& header,
+                                 const std::string& suffix, const std::string& value)
+    {
+        const std::string key = name + header + suffix;
+#ifdef _MSC_VER
+        _putenv_s(key.c_str(), value.c_str());
+#else
+        setenv(key.c_str(), value.c_str(), 1);
+#endif
+    }
+
+    /// @brief Describe the resource QRMI connected to, for logging.
+    /// @param qrmi the resource handle
+    /// @return a description such as " (id=ibm_torino, type=qiskit-runtime-service)",
+    ///   or an empty string if QRMI could not report it
+    static std::string report_resource(QrmiQuantumResource* qrmi)
+    {
+        Qiskit::providers::ScopedQrmiString id;
+        if (qrmi_resource_id(qrmi, id.out()) != QRMI_RETURN_CODE_SUCCESS) {
+            return std::string();
+        }
+
+        std::string ret = " (id=" + id.str();
+        QrmiResourceType type;
+        if (qrmi_resource_type(qrmi, &type) == QRMI_RETURN_CODE_SUCCESS) {
+            Qiskit::providers::ScopedQrmiString type_str(
+                (char *)qrmi_config_resource_type_to_str(type));
+            if (type_str.valid()) {
+                ret += ", type=" + type_str.str();
+            }
+        }
+        ret += ")";
+        return ret;
     }
 
 };

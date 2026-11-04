@@ -216,9 +216,17 @@ static int test_estimator_qrmi_payload_contract(void)
 
     const auto& first_pub = payload["pubs"][0];
     const auto& second_pub = payload["pubs"][1];
+    // The circuit is a QPY payload object by default, or an OpenQASM 3 string
+    // when QPY is unavailable or has been selected against. Qiskit Runtime
+    // accepts either, so both are valid here.
+    const bool first_circuit_ok =
+        first_pub[0].is_string() ||
+        (first_pub[0].is_object() && first_pub[0].contains("__type__") &&
+         first_pub[0]["__type__"] == "QuantumCircuit" &&
+         first_pub[0].contains("__value__") && first_pub[0]["__value__"].is_string());
     if (!first_pub.is_array() || first_pub.size() != 4 ||
         !second_pub.is_array() || second_pub.size() != 4 ||
-        !first_pub[0].is_string() ||
+        !first_circuit_ok ||
         !first_pub[1].is_string() ||
         first_pub[1].get<std::string>() != "Z" ||
         !first_pub[2].is_null() ||
@@ -728,6 +736,8 @@ int test_estimator(int argc, char** argv)
     num_failed += RUN_TEST(test_estimator_job_rejects_cancelled_state);
     num_failed += RUN_TEST(test_estimator_job_rejects_provider_read_failure);
     num_failed += RUN_TEST(test_estimator_job_rejects_result_count_mismatch);
+
+    std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
 
     return num_failed;
 }

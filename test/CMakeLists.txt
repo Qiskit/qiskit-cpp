@@ -19,6 +19,10 @@ file (
     test_*.cpp
 )
 
+# Qiskit Runtime takes primitive PUB circuits as zlib-compressed QPY, so
+# serializing a circuit needs zlib.
+find_package(ZLIB REQUIRED)
+
 # install nlohmann/json
 include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
@@ -36,7 +40,7 @@ add_executable (test_driver ${source_files})
 # ...include the location of the header file...
 target_include_directories (test_driver PRIVATE ${CMAKE_SOURCE_DIR} nlohmann_json::nlohmann_json ../src deps/qiskit/dist/c/include)
 # ...and linked with the qiskit library.
-target_link_libraries (test_driver ${qiskit} common nlohmann_json::nlohmann_json)
+target_link_libraries (test_driver ${qiskit} common nlohmann_json::nlohmann_json ZLIB::ZLIB)
 
 
 # On MSVC we need to link the Python dll, we search it here and adjust the PATH in the tests below

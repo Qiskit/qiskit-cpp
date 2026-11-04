@@ -89,6 +89,8 @@ Examples are available in [this directory](./samples).
 To build application using Qiskit C++, add path to Qiskit C-API, include path to `qiskit.h` (installed in `dist/c/include`) and library `libqiskit.so` (installed in `dist/c/lib`) or `qiskit_cext.dll.lib` (generated in `target/release`) for Windows.
 See ./samples/CMakeLists.txt for example to make test program.
 
+You also need to link **zlib**. Primitive PUB circuits are submitted to Qiskit Runtime as zlib-compressed QPY, so serializing a circuit requires it. The sample and test CMake configurations locate it with `find_package(ZLIB REQUIRED)`.
+
 ```shell-session
 $ cd samples
 $ mkdir build
@@ -116,7 +118,64 @@ QISKIT_IBM_TOKEN=<your API key>
 QISKIT_IBM_INSTANCE=<your CRN>
 ```
 
-The estimator interface is available through `primitives::BackendEstimatorV2` and currently requires QRMI or another backend that implements `BackendV2::run(std::vector<EstimatorPub>&, double)`. Estimator PUB circuits must be unmeasured and can use Pauli labels, Pauli-label maps, Pauli term vectors, or `quantum_info::SparseObservable` inputs. Empty observables are rejected before backend submission, and malformed estimator result cardinality is rejected while reading provider results. Estimator job cancellation is not currently supported, so `BackendEstimatorJob::cancel()` returns `false`.
+The estimator interface is available through `primitives::BackendEstimatorV2` and currently requires QRMI or another backend that implements `BackendV2::run(std::vector<EstimatorPub>&, double)`. Estimator PUB circuits must be unmeasured and can use Pauli labels, Pauli-label maps, Pauli term vectors, or `quantum_info::SparseObservable` inputs. Empty observables are rejected before backend submission, and malformed estimator result cardinality is rejected while reading provider results. Estimator job cancellation is not currently supported, so `BackendEstimatorJob::cancel()` returns `false`. (`providers::QRMIJob::cancel()` does request cancellation from QRMI, but the primitive job wrappers do not yet call it.)
+
+#### Parameterized circuits in primitive PUBs
+
+A parameterized circuit is submitted with its parameter values, which the quantum computer binds at run time. Pass the values alongside the circuit; they must be given in the order the circuit's parameters are bound, one value per parameter:
+
+```cpp
+QuantumCircuit circ(1, 1);
+auto theta = Parameter("theta");
+circ.rx(theta, 0);
+circ.measure(0, 0);
+
+auto pub = SamplerPub(circ, std::vector<double>({0.5}), shots);
+```
+
+Several value sets can be submitted as one sweep, with the server running the circuit once per set:
+
+```cpp
+std::vector<std::vector<double>> sweep;
+sweep.push_back(std::vector<double>({0.0}));
+sweep.push_back(std::vector<double>({1.57}));
+auto pub = SamplerPub(circ, sweep, shots);
+```
+
+The same applies to the estimator through `EstimatorPub::set_parameter_values()`.
+
+Values are matched to parameters **by position**, not by name. Qiskit orders a circuit's parameters alphabetically by name, which is the order `QuantumCircuit::parameter_symbols()` returns — use that list to work out which position each value fills. Insertion order into the circuit does not determine it.
+
+The number of values is checked against `QuantumCircuit::num_parameters()` when the values are set, again when the PUB is serialized, and once more by the QRMI backend before submission. A mismatch raises `std::invalid_argument` where the values were given, so it is reported before any job is sent. An unparameterized circuit needs no values.
+
+#### Circuit serialization in primitive PUBs
+
+Qiskit Runtime accepts a PUB circuit either as an OpenQASM 3 string or as a QPY payload. qiskit-cpp sends **QPY** by default when built against a Qiskit providing the QPY C-API (2.6.0 or later), because QPY round-trips the circuit losslessly, including symbolic parameters, while the OpenQASM 3 exporter has to recover parameter names from expression strings. The circuit is emitted as `{"__type__": "QuantumCircuit", "__value__": <base64 of zlib-compressed QPY>}`.
+
+To send OpenQASM 3 instead for a given pub:
+
+```cpp
+auto pub = SamplerPub(circ, shots);
+pub.set_serialization(CircuitSerialization::qasm3);
+```
+
+The QPY format version is pinned to 17, the only version both Qiskit's C-API (which will not write below 17) and Qiskit Runtime (which rejects above 17) accept.
+
+#### QRMI resource types
+
+The QRMI interfaces require **QRMI 0.13.0 or later**. QRMI 0.13 added the `ibm-quantum-system` and `pasqal-local` resource types, which renumbered the `QrmiResourceType` enum, so older QRMI releases are not supported.
+
+`QiskitRuntimeService` connects through `QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE` by default. Call `set_resource_type()` to select another, and `set_url()` / `set_iam_url()` to point at a different endpoint:
+
+| Resource type | Environment variable prefix |
+| ---- | ---- |
+| `QRMI_RESOURCE_TYPE_QISKIT_RUNTIME_SERVICE` | `<backend>_QRMI_IBM_QRS_` |
+| `QRMI_RESOURCE_TYPE_IBM_QUANTUM_SYSTEM` | `<backend>_QRMI_IBM_QS_` |
+| `QRMI_RESOURCE_TYPE_IBM_DIRECT_ACCESS` | `<backend>_QRMI_IBM_DA_` (deprecated by QRMI) |
+
+The `ENDPOINT`, `IAM_ENDPOINT`, `IAM_APIKEY` and `SERVICE_CRN` variables are set for you from the account information above. `SESSION_MODE` is set only for Qiskit Runtime Service, which is the only type with a session concept. The AWS/S3 variables that IBM Quantum System uses to deliver results (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`) have no counterpart in `QiskitRuntimeService` and must be exported yourself. The Pasqal resource types are not supported through `QiskitRuntimeService`.
+
+Jobs now run inside an acquired QRMI session, so `set_session_mode("batch")` or `set_session_mode("dedicated")` takes effect. The session is opened when the first job is submitted — constructing a backend only to transpile does not open one — and closed when the backend and all of its jobs are released. `QRMIBackend::acquire_session()` and `release_session()` control it explicitly if needed.
 
 To run the sample example with SQC, you also need to set the library options to the environment variable `SQC_LIBS`, which is automatically set by a provided script (see [here](https://github.com/jhpc-quantum/documents/blob/main/SQC_JHPC_Quantum_user_guide.md)), before running cmake. In SQC 0.10.0, `backend_setup.sh` configures `SQC_LIBS` as follows:
 

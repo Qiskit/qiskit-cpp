@@ -19,7 +19,9 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <unordered_map>
+#include <vector>
 #include "utils/bitvector.hpp"
 
 
@@ -128,6 +130,27 @@ public:
         return ret;
     }
 
+    /// @brief Return a contiguous range of shots as a new BitArray
+    /// @param start_shot index of the first shot to take
+    /// @param num_shots number of shots to take
+    /// @return A new BitArray holding those shots
+    /// @details Used to split the shots of a pub submitted with several
+    ///   parameter value sets into one BitArray per set. A range that runs past
+    ///   the end is truncated.
+    BitArray get_shot_range(const uint_t start_shot, const uint_t num_shots)
+    {
+        BitArray ret;
+        ret.num_bits_ = num_bits_;
+
+        if (start_shot >= array_.size()) {
+            return ret;
+        }
+        const uint_t available = std::min(num_shots, (uint_t)array_.size() - start_shot);
+        ret.array_.assign(array_.begin() + start_shot,
+                          array_.begin() + start_shot + available);
+        return ret;
+    }
+
     /// @brief Return a list of bitstrings.
     /// @return A list of bitstrings.
     std::vector<std::string> get_bitstrings(void)
@@ -209,19 +232,68 @@ public:
         return ret;
     }
 
+    /// @brief Return the number of parameter value sets a result holds
+    /// @param input JSON input for one classical register
+    /// @return the number of sets
+    /// @details A pub submitted with a parameter sweep returns ``samples`` as
+    ///   an array of arrays, one inner array of hex samples per value set. A
+    ///   pub with no sweep returns a flat array of hex samples, which counts as
+    ///   a single set.
+    static uint_t num_sets_in_json(const nlohmann::ordered_json& input)
+    {
+        if (!input.contains("samples") || !input["samples"].is_array()) {
+            return 0;
+        }
+        const auto& samples = input["samples"];
+        if (samples.empty()) {
+            return 0;
+        }
+        return samples[0].is_array() ? samples.size() : 1;
+    }
+
     /// @brief Set pub samples from json
     /// @param input JSON input
+    /// @note For a result holding several parameter value sets, this reads the
+    ///   first set. Use the two-argument form to select another.
     void from_json(nlohmann::ordered_json& input)
     {
-        auto samples = input["samples"];
-        auto num_bits = input["num_bits"];
-        auto num_shots = samples.size();
-        if (num_bits_ == 0)
-            num_bits_ = num_bits;
-        allocate(num_shots, num_bits_);
-        for (uint_t i = 0; i < num_shots; i++) {
-            array_[i].from_hex_string(samples[i]);
+        from_json(input, 0);
+    }
+
+    /// @brief Set pub samples from json, for one parameter value set
+    /// @param input JSON input for one classical register
+    /// @param set the index of the parameter value set to read
+    /// @details Accepts both shapes the service returns: a flat array of hex
+    ///   samples for a pub with no parameter sweep, and an array of arrays with
+    ///   one entry per value set for a swept pub.
+    void from_json(nlohmann::ordered_json& input, const uint_t set)
+    {
+        if (num_bits_ == 0 && input.contains("num_bits")) {
+            num_bits_ = input["num_bits"];
         }
+
+        if (!input.contains("samples") || !input["samples"].is_array()) {
+            allocate(0, num_bits_);
+            return;
+        }
+
+        auto& samples = input["samples"];
+        // A flat array is a single value set; anything else is indexed by set.
+        const bool nested = !samples.empty() && samples[0].is_array();
+        if (!nested) {
+            if (set > 0) {
+                allocate(0, num_bits_);
+                return;
+            }
+            read_hex_array(samples);
+            return;
+        }
+
+        if (set >= samples.size()) {
+            allocate(0, num_bits_);
+            return;
+        }
+        read_hex_array(samples[set]);
     }
 
     /// @brief Set pub sample from hexstring
@@ -233,6 +305,18 @@ public:
             array_[index].from_hex_string(input);
     }
 
+protected:
+    /// @brief Fill this array from a JSON array of hex samples, one per shot.
+    /// @param samples the array of hex strings
+    void read_hex_array(const nlohmann::ordered_json& samples)
+    {
+        allocate(samples.size(), num_bits_);
+        for (uint_t i = 0; i < samples.size(); i++) {
+            array_[i].from_hex_string(samples[i]);
+        }
+    }
+
+public:
     /// @brief Return a list of bit counts
     /// @return A list of interger counts of bits appears in each shot
     reg_t bitcount(void)

@@ -1,0 +1,52 @@
+---
+upgrade:
+  - |
+    Primitive PUB circuits are now serialized as QPY rather than OpenQASM 3
+    when the loaded Qiskit provides the QPY C-API (Qiskit 2.6.0 or later).
+    `SamplerPub::to_json()` and `EstimatorPub::to_json()` emit the circuit as
+    `{"__type__": "QuantumCircuit", "__value__": <base64 of zlib-compressed
+    QPY>}` instead of an OpenQASM 3 string. This is the
+    `TypedQpyCircuitModel` form that `ibm-quantum-schemas` defines for Qiskit
+    Runtime, which accepts either representation. When built against an older
+    Qiskit the OpenQASM 3 string is still produced.
+
+    QPY round-trips a circuit losslessly, including symbolic parameters, so it
+    avoids the limitations of the OpenQASM 3 exporter, which has to recover
+    parameter names from expression strings and cannot disambiguate distinct
+    `Parameter` objects sharing a name.
+  - |
+    Building now requires zlib, because the QPY payload is zlib-compressed. The
+    sample and test CMake configurations locate it with `find_package(ZLIB
+    REQUIRED)` and link `ZLIB::ZLIB`. Applications that build against
+    qiskit-cpp directly must link zlib themselves.
+features:
+  - |
+    Added `primitives::CircuitSerialization`, which selects how a PUB
+    serializes its circuit, together with
+    `SamplerPub::set_serialization()`/`serialization()` and the same pair on
+    `EstimatorPub`. The default is `CircuitSerialization::qpy` where QPY is
+    available and `CircuitSerialization::qasm3` otherwise; passing
+    `CircuitSerialization::qasm3` explicitly restores the previous behavior for
+    a given pub.
+  - |
+    Added `primitives::QpyCircuitPayload`, which builds the Qiskit Runtime QPY
+    circuit payload. Its `compress()` and `base64_encode()` helpers are
+    public, producing a zlib stream (RFC 1950) and standard base64 (RFC 4648
+    section 4) respectively, matching Python's `zlib.compress` and
+    `base64.b64encode`.
+issues:
+  - |
+    The QPY format version is pinned to 17 by
+    `QpyCircuitPayload::runtime_qpy_version` rather than left to Qiskit's
+    default. This is the only version both ends accept: Qiskit's C-API refuses
+    to write below `qk_qpy_write_min_version()` (17 as of Qiskit 2.6) and
+    writes 18 by default, while Qiskit Runtime validates PUB circuits against
+    `TypedQpyCircuitModelV13to17`, which rejects anything above 17. If a future
+    Qiskit raises its write floor above 17 before the service widens its
+    accepted range, QPY submission will stop working and the constant will need
+    revisiting; selecting `CircuitSerialization::qasm3` is the workaround.
+  - |
+    A QPY payload written through the C-API carries no circuit metadata or
+    transpiler layout, because the C-API emits an empty metadata mapping and no
+    layout. This does not affect sampler or estimator submission, which do not
+    rely on either.

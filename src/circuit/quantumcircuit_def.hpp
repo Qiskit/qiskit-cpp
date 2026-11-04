@@ -25,8 +25,10 @@
 #include <iomanip>
 #include <cstring>
 #include <cassert>
+#include <cmath>
 
 #include "utils/types.hpp"
+#include "utils/capi_features.hpp"
 #include "circuit/parameter.hpp"
 //#include "circuit/classical/expr.hpp"
 #include "circuit/classicalregister.hpp"
@@ -35,6 +37,7 @@
 #include "circuit/circuitinstruction.hpp"
 
 #include "circuit/barrier.hpp"
+#include "circuit/delay.hpp"
 #include "circuit/measure.hpp"
 #include "circuit/reset.hpp"
 
@@ -59,6 +62,7 @@ namespace circuit
 class ControlFlowOp;
 class IfElseOp;
 class Qasm3Exporter;
+class QpyImporter;
 
 static Parameter null_param;
 
@@ -67,10 +71,11 @@ static Parameter null_param;
 class QuantumCircuit
 {
 	friend class Qasm3Exporter;
+	friend class QpyImporter;
 protected:
 	uint_t num_qubits_;			// number of qubits
 	uint_t num_clbits_;			// number of classical bits
-	double global_phase_ = 0.0; // initial global phase
+	Parameter global_phase_;    // global phase for this circuit
 
 	std::vector<QuantumRegister> qregs_;   // quantum registers
 	std::vector<ClassicalRegister> cregs_; // classical registers
@@ -113,7 +118,7 @@ public:
 	{
 		num_qubits_ = num_qubits;
 		num_clbits_ = num_clbits;
-		global_phase_ = global_phase;
+		global_phase_ = Parameter(global_phase);
 
 		qregs_.resize(1);
 		cregs_.resize(1);
@@ -128,7 +133,7 @@ public:
 		qk_circuit_add_classical_register(rust_circuit_.get(), cregs_[0].get_register().get());
 
 		if (global_phase != 0.0) {
-			qk_circuit_gate(rust_circuit_.get(), QkGate_GlobalPhase, nullptr, &global_phase_);
+			qk_circuit_set_global_phase(rust_circuit_.get(), global_phase_.qiskit_param_.get());
 		}
 	}
 
@@ -140,7 +145,7 @@ public:
 	{
 		num_qubits_ = qreg.size();
 		num_clbits_ = creg.size();
-		global_phase_ = global_phase;
+		global_phase_ = Parameter(global_phase);
 
 		qregs_.resize(1);
 		cregs_.resize(1);
@@ -154,7 +159,7 @@ public:
 		qk_circuit_add_classical_register(rust_circuit_.get(), cregs_[0].get_register().get());
 
 		if (global_phase != 0.0) {
-			qk_circuit_gate(rust_circuit_.get(), QkGate_GlobalPhase, nullptr, &global_phase_);
+			qk_circuit_set_global_phase(rust_circuit_.get(), global_phase_.qiskit_param_.get());
 		}
 	}
 
@@ -166,7 +171,7 @@ public:
 	{
 		num_qubits_ = 0;
 		num_clbits_ = 0;
-		global_phase_ = global_phase;
+		global_phase_ = Parameter(global_phase);
 
 		qregs_.resize(qregs.size());
 		cregs_.resize(cregs.size());
@@ -195,7 +200,7 @@ public:
 		}
 
 		if (global_phase != 0.0) {
-			qk_circuit_gate(rust_circuit_.get(), QkGate_GlobalPhase, nullptr, &global_phase_);
+			qk_circuit_set_global_phase(rust_circuit_.get(), global_phase_.qiskit_param_.get());
 		}
 	}
 
@@ -360,10 +365,34 @@ public:
 
 	/// @brief set global phase
 	/// @param phase global phase value
+	/// @details Sets the circuit's global phase property, replacing any phase
+	///   already set. This is not the same as appending a GlobalPhase gate: the
+	///   property is what Qiskit's ``QuantumCircuit.global_phase`` holds, and
+	///   setting it twice does not accumulate.
 	void global_phase(const double phase)
 	{
+		global_phase(Parameter(phase));
+	}
+
+	/// @brief set global phase
+	/// @param phase global phase, which may be an unbound Parameter
+	void global_phase(const Parameter &phase)
+	{
 		global_phase_ = phase;
-		qk_circuit_gate(rust_circuit_.get(), QkGate_GlobalPhase, nullptr, &global_phase_);
+		QkExitCode ret = qk_circuit_set_global_phase(rust_circuit_.get(),
+			global_phase_.qiskit_param_.get());
+		if (ret != QkExitCode_Success) {
+			// A new symbol whose name collides with one already in the circuit
+			// is reported as QkExitCode_ParameterNameConflict.
+			std::cerr << " global_phase : could not set the global phase (" << ret << ")" << std::endl;
+		}
+	}
+
+	/// @brief Return the global phase of this circuit
+	/// @return the global phase
+	const Parameter &global_phase(void) const
+	{
+		return global_phase_;
 	}
 
 	/// @brief Apply HGate
@@ -1257,6 +1286,118 @@ public:
 		qk_circuit_barrier(rust_circuit_.get(), qubits32.data(), (uint32_t)qubits32.size());
 	}
 
+	/// @brief Apply Delay on a single qubit
+	/// @param duration The duration of the delay. Must be finite and
+	///   non-negative; a ``dt`` duration must also be an integer value.
+	/// @param qubit The qubit to apply the delay to.
+	/// @param unit The unit of the duration, DelayUnit::dt by default.
+	/// @return true if the delay was added
+	bool delay(const double duration, const uint_t qubit, const DelayUnit unit = DelayUnit::dt)
+	{
+		return delay(duration, reg_t({qubit}), unit);
+	}
+
+	/// @brief Apply Delay on the specified qubits
+	/// @param duration The duration of the delay. Must be finite and
+	///   non-negative; a ``dt`` duration must also be an integer value.
+	/// @param qubits The qubits to apply the delay to. Each qubit gets its own
+	///   delay of the same duration, as in Qiskit.
+	/// @param unit The unit of the duration, DelayUnit::dt by default.
+	/// @return true if the delay was added to every qubit
+	bool delay(const double duration, const reg_t &qubits, const DelayUnit unit = DelayUnit::dt)
+	{
+		if (!std::isfinite(duration) || duration < 0.0) {
+			std::cerr << " Delay : duration must be finite and non-negative, got " << duration << std::endl;
+			return false;
+		}
+		// The C-API takes a dt duration as an integer, so a fractional value
+		// cannot be represented and is rejected rather than silently truncated.
+		if (unit == DelayUnit::dt && duration != std::floor(duration)) {
+			std::cerr << " Delay : a duration in dt must be an integer, got " << duration << std::endl;
+			return false;
+		}
+
+		pre_add_gate();
+		for (uint_t i = 0; i < qubits.size(); i++) {
+			const std::uint32_t qubit = (std::uint32_t)qubits[i];
+			QkExitCode ret;
+			if (unit == DelayUnit::dt) {
+				ret = qk_circuit_delay_dt(rust_circuit_.get(), qubit, (std::int64_t)duration);
+			} else {
+				ret = qk_circuit_delay(rust_circuit_.get(), qubit, duration, delay_unit_map(unit));
+			}
+			if (ret != QkExitCode_Success) {
+				std::cerr << " Delay : could not add a delay of " << duration
+					<< delay_unit_name(unit) << " on qubit " << qubits[i]
+					<< " (" << ret << ")" << std::endl;
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// @brief Apply Delay on every qubit of the circuit
+	/// @param duration The duration of the delay. Must be finite and
+	///   non-negative; a ``dt`` duration must also be an integer value.
+	/// @param unit The unit of the duration, DelayUnit::dt by default.
+	/// @return true if the delay was added to every qubit
+	/// @note Matches Qiskit, where omitting the qubit argument delays all qubits.
+	bool delay(const double duration, const DelayUnit unit = DelayUnit::dt)
+	{
+		reg_t qubits(num_qubits_);
+		for (uint_t i = 0; i < num_qubits_; i++) {
+			qubits[i] = i;
+		}
+		return delay(duration, qubits, unit);
+	}
+
+	/// @brief Apply Delay on the qubits of a quantum register
+	/// @param duration The duration of the delay. Must be finite and
+	///   non-negative; a ``dt`` duration must also be an integer value.
+	/// @param qreg The register whose qubits the delay is applied to.
+	/// @param unit The unit of the duration, DelayUnit::dt by default.
+	/// @return true if the delay was added to every qubit of the register
+	bool delay(const double duration, QuantumRegister &qreg, const DelayUnit unit = DelayUnit::dt)
+	{
+		reg_t qubits(qreg.size());
+		for (uint_t i = 0; i < qreg.size(); i++) {
+			qubits[i] = qreg[i];
+		}
+		return delay(duration, qubits, unit);
+	}
+
+	/// @brief Apply Delay with the duration unit given by name
+	/// @param duration The duration of the delay.
+	/// @param qubit The qubit to apply the delay to.
+	/// @param unit The name of the unit, one of "dt", "s", "ms", "us", "ns" or "ps".
+	/// @return true if the delay was added
+	bool delay(const double duration, const uint_t qubit, const std::string &unit)
+	{
+		DelayUnit parsed;
+		if (!delay_unit_from_name(unit, parsed)) {
+			std::cerr << " Delay : unknown duration unit \"" << unit
+				<< "\", expected one of dt, s, ms, us, ns, ps" << std::endl;
+			return false;
+		}
+		return delay(duration, reg_t({qubit}), parsed);
+	}
+
+	/// @brief Apply Delay on the specified qubits with the unit given by name
+	/// @param duration The duration of the delay.
+	/// @param qubits The qubits to apply the delay to.
+	/// @param unit The name of the unit, one of "dt", "s", "ms", "us", "ns" or "ps".
+	/// @return true if the delay was added to every qubit
+	bool delay(const double duration, const reg_t &qubits, const std::string &unit)
+	{
+		DelayUnit parsed;
+		if (!delay_unit_from_name(unit, parsed)) {
+			std::cerr << " Delay : unknown duration unit \"" << unit
+				<< "\", expected one of dt, s, ms, us, ns, ps" << std::endl;
+			return false;
+		}
+		return delay(duration, qubits, parsed);
+	}
+
 
 	// control flow ops
 
@@ -1388,6 +1529,17 @@ public:
 				qk_circuit_reset(rust_circuit_.get(), vqubits[0]);
 			} else if (kind == QkOperationKind_Barrier) {
 				qk_circuit_barrier(rust_circuit_.get(), vqubits.data(), (uint32_t)vqubits.size());
+			} else if (kind == QkOperationKind_Delay) {
+				// A delay carries its duration as its single parameter and its
+				// unit on the instruction itself.
+				const QkDelayUnit unit = qk_circuit_delay_unit(circ.rust_circuit_.get(), i);
+				const double duration = delay_duration_value(
+					op.num_params > 0 ? op.params[0] : nullptr, unit);
+				if (unit == QkDelayUnit_DT) {
+					qk_circuit_delay_dt(rust_circuit_.get(), vqubits[0], (std::int64_t)duration);
+				} else {
+					qk_circuit_delay(rust_circuit_.get(), vqubits[0], duration, unit);
+				}
 			} else if (kind == QkOperationKind_Gate) {
 				qk_circuit_parameterized_gate(rust_circuit_.get(), name_map[op.name].gate_map(), vqubits.data(), op.params);
 			} else if (kind == QkOperationKind_Unitary) {
@@ -1433,6 +1585,9 @@ public:
 					qk_circuit_measure(rust_circuit_.get(), vqubits[0], vqubits[0]);
 					measure_map_.push_back(std::pair<uint_t, uint_t>(qubits[0], qubits[0]));
 				}
+				else if (std::string("delay") == op.name()) {
+					delay(op.delay_duration(), qubits, delay_unit_unmap(op.delay_unit()));
+				}
 			}
 		}
 	}
@@ -1461,6 +1616,13 @@ public:
 				else if (std::string("measure") == op.name()) {
 					qk_circuit_measure(rust_circuit_.get(), qubits[0], qubits[0]);
 					measure_map_.push_back(std::pair<uint_t, uint_t>((uint_t)qubits[0], (uint_t)qubits[0]));
+				}
+				else if (std::string("delay") == op.name()) {
+					reg_t delay_qubits(qubits.size());
+					for (uint_t i = 0; i < qubits.size(); i++) {
+						delay_qubits[i] = (uint_t)qubits[i];
+					}
+					delay(op.delay_duration(), delay_qubits, delay_unit_unmap(op.delay_unit()));
 				}
 			}
 		}
@@ -1495,6 +1657,10 @@ public:
 			else if (std::string("measure") == inst.instruction().name()) {
 				qk_circuit_measure(rust_circuit_.get(), vqubits[0], (std::uint32_t)inst.clbits()[0]);
 				measure_map_.push_back(std::pair<uint_t, uint_t>(inst.qubits()[0], inst.clbits()[0]));
+			}
+			else if (std::string("delay") == inst.instruction().name()) {
+				delay(inst.instruction().delay_duration(), inst.qubits(),
+					delay_unit_unmap(inst.instruction().delay_unit()));
 			}
 		}
 	}
@@ -1555,6 +1721,14 @@ public:
 			} else if (kind == QkOperationKind_Barrier) {
 				auto inst = Barrier();
 				return CircuitInstruction(inst, qubits, clbits);
+			} else if (kind == QkOperationKind_Delay) {
+				// The duration is the single parameter; the unit is carried on
+				// the instruction and read separately.
+				const QkDelayUnit unit = qk_circuit_delay_unit(rust_circuit_.get(), i);
+				const double duration = delay_duration_value(
+					params.size() > 0 ? params[0].qiskit_param_.get() : nullptr, unit);
+				auto inst = Delay(duration, delay_unit_unmap(unit));
+				return CircuitInstruction(inst, qubits, clbits);
 			}
 
 			// standard gates
@@ -1593,6 +1767,86 @@ public:
 	/// @brief Serialize a QuantumCircuit object as an OpenQASM3 string.
 	/// @return An OpenQASM3 string.
 	std::string to_qasm3(void);
+
+	// qpy
+
+#if QISKIT_CPP_HAS_QPY
+	/// @brief Serialize this circuit to a QPY file.
+	/// @param filename The path of the file to write.
+	/// @param version The QPY format version to emit, or 0 (the default) to use
+	///   the version the loaded Qiskit writes by default. A non-zero value must
+	///   be at least ``qpy_write_min_version()``.
+	/// @throws std::runtime_error if the circuit cannot be serialized or the
+	///   file cannot be written.
+	/// @note Unlike ``to_qasm3()``, QPY is a binary format that round-trips
+	///   losslessly through Python Qiskit's ``qiskit.qpy.load()``.
+	/// @note Requires Qiskit 2.6.0 or later.
+	void export_qpy(const std::string &filename, const std::uint8_t version = 0);
+
+	/// @brief Serialize this circuit as a QPY payload.
+	/// @param version The QPY format version to emit, or 0 (the default) to use
+	///   the version the loaded Qiskit writes by default. A non-zero value must
+	///   be at least ``qpy_write_min_version()``.
+	/// @return The QPY payload bytes.
+	/// @throws std::runtime_error if the circuit cannot be serialized.
+	/// @note Requires Qiskit 2.6.0 or later.
+	std::vector<std::uint8_t> to_qpy(const std::uint8_t version = 0);
+
+	/// @brief Serialize several circuits to a single QPY file.
+	/// @param circuits The circuits to serialize, written in the order given.
+	/// @param filename The path of the file to write.
+	/// @param version The QPY format version to emit, or 0 (the default) to use
+	///   the version the loaded Qiskit writes by default. A non-zero value must
+	///   be at least ``qpy_write_min_version()``.
+	/// @throws std::runtime_error if the circuits cannot be serialized or the
+	///   file cannot be written.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static void export_qpy(std::vector<QuantumCircuit> &circuits,
+		const std::string &filename, const std::uint8_t version = 0);
+
+	/// @brief Serialize several circuits as a single QPY payload.
+	/// @param circuits The circuits to serialize, written in the order given.
+	/// @param version The QPY format version to emit, or 0 (the default) to use
+	///   the version the loaded Qiskit writes by default. A non-zero value must
+	///   be at least ``qpy_write_min_version()``.
+	/// @return The QPY payload bytes.
+	/// @throws std::runtime_error if the circuits cannot be serialized.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static std::vector<std::uint8_t> to_qpy(std::vector<QuantumCircuit> &circuits,
+		const std::uint8_t version = 0);
+
+	/// @brief Return the oldest QPY format version this Qiskit can write.
+	/// @return The minimum version accepted by the ``version`` arguments above.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static std::uint8_t qpy_write_min_version(void);
+
+	/// @brief Return the oldest QPY format version this Qiskit can read.
+	/// @return The minimum version that can be deserialized.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static std::uint8_t qpy_read_min_version(void);
+
+	/// @brief Read circuits from a QPY file.
+	/// @param filename The path of the file to read.
+	/// @return The circuits stored in the file, in the order they appear in it.
+	///   A QPY payload always holds a list, so this returns a vector even when
+	///   the file holds a single circuit.
+	/// @throws std::runtime_error if the file cannot be read, does not hold
+	///   supported QPY, or holds a register that qiskit-cpp cannot represent.
+	/// @note The transpiler layout and circuit metadata are not recovered,
+	///   because QPY written through the C-API does not carry them. The
+	///   instructions, registers, global phase, and qubit indices are.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static std::vector<QuantumCircuit> import_qpy(const std::string &filename);
+
+	/// @brief Read circuits from a QPY payload.
+	/// @param payload The QPY bytes to read.
+	/// @return The circuits stored in the payload, in the order they appear in
+	///   it.
+	/// @throws std::runtime_error if the payload is not supported QPY or holds
+	///   a register that qiskit-cpp cannot represent.
+	/// @note Requires Qiskit 2.6.0 or later.
+	static std::vector<QuantumCircuit> from_qpy(const std::vector<std::uint8_t> &payload);
+#endif // QISKIT_CPP_HAS_QPY
 
 	/// @brief print circuit (this is for debug)
 	void print(void) const

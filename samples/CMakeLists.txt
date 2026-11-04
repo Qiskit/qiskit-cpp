@@ -16,6 +16,10 @@ set(QISKIT_CPP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+# Qiskit Runtime takes primitive PUB circuits as zlib-compressed QPY, so
+# serializing a circuit needs zlib.
+find_package(ZLIB REQUIRED)
+
 include(FetchContent)
 
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
@@ -79,6 +83,16 @@ function(add_application APP_NAME CPP_FILE)
     endif()
   endif()
 
+  # zlib is needed by every configuration, so it is linked once here rather
+  # than repeated in each branch above. The signature has to match the branch
+  # taken: CMake rejects mixing the plain and keyword forms on one target, and
+  # the MSVC branches above use the plain form.
+  if (MSVC)
+    target_link_libraries(${APP_NAME} ZLIB::ZLIB)
+  else()
+    target_link_libraries(${APP_NAME} PRIVATE ZLIB::ZLIB)
+  endif()
+
   # path to headerfile
   target_include_directories(${APP_NAME}
     PRIVATE
@@ -103,10 +117,14 @@ add_application(circuit_test circuit_test.cpp)
 add_application(observable_test observable_test.cpp)
 add_application(target_test target_test.cpp)
 add_application(parameterized_circuit_test parameterized_circuit_test.cpp)
+# Reports an error at run time when built against a Qiskit older than 2.6.0,
+# which does not provide the QPY C-API.
+add_application(qpy_test qpy_test.cpp)
 
 if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR SQC_ROOT)
   add_application(sampler_test sampler_test.cpp)
   add_application(transpile_test transpile_test.cpp)
+  add_application(parameterized_sampler_test parameterized_sampler_test.cpp)
 endif()
 
 if(QRMI_ROOT)
