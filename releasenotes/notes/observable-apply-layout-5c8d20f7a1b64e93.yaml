@@ -1,0 +1,44 @@
+---
+features:
+  - |
+    `SparseObservable::apply_layout()` gained an optional second argument
+    giving the number of qubits the result acts on, so an observable can be
+    widened to a layout that is not the length of the layout array:
+
+    ```cpp
+    auto obs = SparseObservable::from_label(std::string("X"));
+    reg_t layout;
+    layout.push_back(4);
+    auto mapped = obs.apply_layout(layout, 10);  // X on qubit 4 of 10
+    ```
+
+    The default is the layout's length, which is what a transpiler layout
+    gives, so `observable.apply_layout(transpiled.get_qubit_map())` continues
+    to behave as before.
+fixes:
+  - |
+    `SparseObservable::apply_layout()` now checks its arguments and the exit
+    code of `qk_obs_apply_layout`, where it previously discarded the exit code
+    and returned a silently unmodified observable on failure. It raises
+    `std::invalid_argument` when the layout holds fewer entries than the
+    observable has qubits (the C-API reads exactly that many regardless of how
+    many are supplied, so a short layout read past the end of the array), when
+    the output width would narrow the observable, when the layout maps a qubit
+    out of range, when it maps two qubits to the same index, and when the
+    observable holds nothing, which would reach the C-API as a null pointer.
+  - |
+    `SparseObservable::apply_layout()` is now `const`, as it only reads the
+    observable it is called on and returns a new one.
+issues:
+  - |
+    Qiskit validates every entry of the layout it is given, not only the
+    `num_qubits()` entries it uses, so each entry must be a distinct index
+    below the output width. A transpiler layout satisfies this, being a
+    permutation of the device's qubits, but a hand-built layout padded with
+    arbitrary values is rejected.
+  - |
+    The C-API documentation for `qk_obs_apply_layout` contains an example with
+    a three-element layout for a four-qubit observable, which contradicts its
+    own statement that the array must hold `qk_obs_num_qubits(obs)` elements.
+    The implementation reads `qk_obs_num_qubits(obs)` elements, which is what
+    this wrapper follows.

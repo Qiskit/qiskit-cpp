@@ -438,6 +438,17 @@ protected:
         return false;
     }
 
+    /// @brief Convert a list of Pauli label terms into a Runtime observables value.
+    /// @param observable the terms to sum
+    /// @return a JSON object mapping each distinct label to its total coefficient
+    /// @throws std::invalid_argument if the list is empty or a coefficient is
+    ///   not finite
+    /// @details A label repeated in the list has its coefficients **summed**,
+    ///   so ``{{"Z", 0.5}, {"Z", 0.25}}`` gives ``0.75 * Z``. This matches
+    ///   ``SparseObservable::from_list``, which appends a separate term per
+    ///   entry, and Qiskit Python, whose estimator coerces a mapping through
+    ///   ``SparseObservable.from_list`` so that the terms sum as well. The
+    ///   terms keep the order in which their labels first appear.
     static nlohmann::ordered_json pauli_terms_to_json(const std::vector<std::pair<std::string, double>>& observable)
     {
         if (observable.empty()) {
@@ -450,7 +461,18 @@ protected:
             if (!std::isfinite(coeff)) {
                 throw std::invalid_argument("Estimator observable coefficients must be finite.");
             }
-            ret[observable[i].first] = coeff;
+            // Accumulate rather than assign: a repeated label is another term
+            // of the same sum, not a correction to the earlier one.
+            const auto found = ret.find(observable[i].first);
+            if (found == ret.end()) {
+                ret[observable[i].first] = coeff;
+            } else {
+                const double total = found->get<double>() + coeff;
+                if (!std::isfinite(total)) {
+                    throw std::invalid_argument("Estimator observable coefficients must be finite.");
+                }
+                *found = total;
+            }
         }
         return ret;
     }

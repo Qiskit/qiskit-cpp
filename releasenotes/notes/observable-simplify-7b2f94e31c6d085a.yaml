@@ -1,0 +1,38 @@
+---
+features:
+  - |
+    Added `SparseObservable::simplify(tol = 1e-8)`, backed by
+    `qk_obs_canonicalize`. It sums terms acting on the same qubits with the
+    same operators, drops any whose summed coefficient has absolute value
+    within `tol` of zero, and sorts the result into canonical order. This
+    matches `SparseObservable.simplify` in Qiskit Python, which is the same
+    operation with the same default tolerance. The operation is idempotent and
+    returns a new observable, leaving the original untouched.
+
+    This is what makes two mathematically equal observables comparable, since
+    `operator==` compares term by term and so reports observables built in a
+    different order as unequal:
+
+    ```cpp
+    auto a = SparseObservable::identity(2);
+    a += SparseObservable::identity(2);   // two terms
+    auto simplified = a.simplify();        // one term, coefficient 2
+    ```
+
+    Previously there was no way to simplify an observable from C++ at all.
+issues:
+  - |
+    `SparseObservable::simplify()` rejects a tolerance that is negative or not
+    finite, where Qiskit Python accepts either silently. The C-API keeps a
+    coefficient when `norm_sqr() > tol * tol`, so a NaN tolerance makes every
+    comparison false and discards every term, and a negative tolerance acts as
+    its own magnitude. Both raise `std::invalid_argument`, as does simplifying
+    an observable that holds nothing, which would reach the C-API as a null
+    pointer.
+  - |
+    As Qiskit's own documentation notes, floating-point rounding and the
+    non-associativity of addition mean the summed coefficients of two
+    mathematically equal observables may still compare unequal after
+    simplifying. Comparing the simplified difference against the zero
+    observable is more robust than comparing two simplified observables
+    directly.

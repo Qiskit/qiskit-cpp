@@ -1,0 +1,32 @@
+---
+upgrade:
+  - |
+    `quantum_info::SparseObservable::operator+=` and `operator*=` now mutate
+    the observable through `qk_obs_add_inplace` and
+    `qk_obs_multiply_inplace`, where they previously built a whole new
+    observable with `qk_obs_add` / `qk_obs_multiply` and swapped it in. The
+    results are unchanged; accumulating into an observable no longer allocates
+    and frees a copy of it on every step.
+  - |
+    Both operators now take their right-hand side by `const` reference, so a
+    `const SparseObservable` can be added and a literal or `const` coefficient
+    can be used for scaling. Previously `operator*=` took
+    `std::complex<double>&`, which rejected a literal. Existing calls are
+    unaffected.
+fixes:
+  - |
+    `SparseObservable::operator+=` and `operator*=` no longer reach the Qiskit
+    C-API with a null observable when either side holds none, which a
+    default-constructed or moved-from `SparseObservable` does. The C-API
+    documents such a call as undefined behavior. Adding to an observable that
+    holds none now adopts a copy of the right-hand side, adding one that holds
+    none leaves the left side alone, and scaling one that holds none does
+    nothing.
+issues:
+  - |
+    `SparseObservable::operator+`, `operator*`, `operator==` and `compose()`
+    still take non-`const` references and are non-`const` methods, even though
+    they only read their operands, so they cannot be used with a `const`
+    observable. `obs * 2.0` also does not compile, because `operator*` takes
+    `std::complex<double>&` and a literal cannot bind to it. Only the in-place
+    operators were changed here.

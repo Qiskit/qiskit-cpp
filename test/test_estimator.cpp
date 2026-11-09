@@ -270,6 +270,104 @@ static int test_estimator_qrmi_payload_rejects_measured_circuit(void)
     return EqualityError;
 }
 
+static int test_estimator_pub_sums_duplicate_labels(void)
+{
+    // Issue #163: a label repeated in the term list is another term of the same
+    // sum, so its coefficients add. Before the fix the last one won and this
+    // observable was 0.25 * Z rather than 0.75 * Z.
+    auto circ = QuantumCircuit(1, 0);
+    std::vector<std::pair<std::string, double>> terms;
+    terms.push_back(std::make_pair(std::string("Z"), 0.5));
+    terms.push_back(std::make_pair(std::string("Z"), 0.25));
+
+    auto payload = EstimatorPub(circ, terms).to_json();
+    if (payload[1].size() != 1) {
+        std::cerr << "  estimator pub duplicate labels test : " << payload[1].size()
+            << " observable terms, expected 1." << std::endl;
+        return EqualityError;
+    }
+    if (std::abs(payload[1]["Z"].get<double>() - 0.75) > 1e-12) {
+        std::cerr << "  estimator pub duplicate labels test : coefficient is "
+            << payload[1]["Z"].get<double>() << ", expected 0.75." << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_estimator_pub_duplicate_labels_match_observable(void)
+{
+    // The two input paths must agree: a repeated label through the term list
+    // must give what the same sum gives through SparseObservable, which already
+    // summed the duplicates.
+    auto circ = QuantumCircuit(1, 0);
+    std::vector<std::pair<std::string, double>> terms;
+    terms.push_back(std::make_pair(std::string("Z"), 0.5));
+    terms.push_back(std::make_pair(std::string("Z"), 0.25));
+
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("Z"), std::complex<double>(0.5, 0.0)));
+    list.push_back(std::make_pair(std::string("Z"), std::complex<double>(0.25, 0.0)));
+
+    auto from_terms = EstimatorPub(circ, terms).to_json();
+    auto from_observable = EstimatorPub(circ, SparseObservable::from_list(list)).to_json();
+
+    if (from_terms[1] != from_observable[1]) {
+        std::cerr << "  estimator pub duplicate labels match test : term list gave "
+            << from_terms[1].dump() << " but SparseObservable gave "
+            << from_observable[1].dump() << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_estimator_pub_sums_duplicate_complex_labels(void)
+{
+    // The complex overload forwards to the real one, so it must sum as well.
+    auto circ = QuantumCircuit(1, 0);
+    std::vector<std::pair<std::string, std::complex<double>>> terms;
+    terms.push_back(std::make_pair(std::string("X"), std::complex<double>(1.5, 0.0)));
+    terms.push_back(std::make_pair(std::string("Z"), std::complex<double>(1.0, 0.0)));
+    terms.push_back(std::make_pair(std::string("X"), std::complex<double>(-0.5, 0.0)));
+
+    auto payload = EstimatorPub(circ, terms).to_json();
+    if (payload[1].size() != 2) {
+        std::cerr << "  estimator pub duplicate complex labels test : " << payload[1].size()
+            << " observable terms, expected 2." << std::endl;
+        return EqualityError;
+    }
+    if (std::abs(payload[1]["X"].get<double>() - 1.0) > 1e-12 ||
+        std::abs(payload[1]["Z"].get<double>() - 1.0) > 1e-12) {
+        std::cerr << "  estimator pub duplicate complex labels test : unexpected coefficients "
+            << payload[1].dump() << std::endl;
+        return EqualityError;
+    }
+    // The terms keep the order their labels first appeared in.
+    if (payload[1].begin().key() != "X") {
+        std::cerr << "  estimator pub duplicate complex labels test : the first term is \""
+            << payload[1].begin().key() << "\", expected \"X\"." << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_estimator_pub_duplicate_labels_cancel(void)
+{
+    // Summing to zero leaves the term in place with a zero coefficient, as
+    // Qiskit does: dropping it is simplify's job, not the pub's.
+    auto circ = QuantumCircuit(1, 0);
+    std::vector<std::pair<std::string, double>> terms;
+    terms.push_back(std::make_pair(std::string("Z"), 1.0));
+    terms.push_back(std::make_pair(std::string("Z"), -1.0));
+
+    auto payload = EstimatorPub(circ, terms).to_json();
+    if (payload[1].size() != 1 || std::abs(payload[1]["Z"].get<double>()) > 1e-12) {
+        std::cerr << "  estimator pub duplicate labels cancel test : expected a single zero "
+            << "term, got " << payload[1].dump() << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 static int test_estimator_pub_sparse_observable(void)
 {
     auto circ = QuantumCircuit(2, 0);
@@ -713,6 +811,10 @@ int test_estimator(int argc, char** argv)
     num_failed += RUN_TEST(test_estimator_pub_to_json);
     num_failed += RUN_TEST(test_estimator_qrmi_payload_contract);
     num_failed += RUN_TEST(test_estimator_qrmi_payload_rejects_measured_circuit);
+    num_failed += RUN_TEST(test_estimator_pub_sums_duplicate_labels);
+    num_failed += RUN_TEST(test_estimator_pub_duplicate_labels_match_observable);
+    num_failed += RUN_TEST(test_estimator_pub_sums_duplicate_complex_labels);
+    num_failed += RUN_TEST(test_estimator_pub_duplicate_labels_cancel);
     num_failed += RUN_TEST(test_estimator_pub_sparse_observable);
     num_failed += RUN_TEST(test_estimator_rejects_empty_json_observable_map);
     num_failed += RUN_TEST(test_estimator_rejects_nested_observable_array);

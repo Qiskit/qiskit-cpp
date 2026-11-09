@@ -1800,6 +1800,8 @@ public:
 	///   be at least ``qpy_write_min_version()``.
 	/// @throws std::runtime_error if the circuits cannot be serialized or the
 	///   file cannot be written.
+	/// @throws std::invalid_argument if the list is empty, which Qiskit's QPY
+	///   writer cannot serialize.
 	/// @note Requires Qiskit 2.6.0 or later.
 	static void export_qpy(std::vector<QuantumCircuit> &circuits,
 		const std::string &filename, const std::uint8_t version = 0);
@@ -1811,6 +1813,8 @@ public:
 	///   be at least ``qpy_write_min_version()``.
 	/// @return The QPY payload bytes.
 	/// @throws std::runtime_error if the circuits cannot be serialized.
+	/// @throws std::invalid_argument if the list is empty, which Qiskit's QPY
+	///   writer cannot serialize.
 	/// @note Requires Qiskit 2.6.0 or later.
 	static std::vector<std::uint8_t> to_qpy(std::vector<QuantumCircuit> &circuits,
 		const std::uint8_t version = 0);

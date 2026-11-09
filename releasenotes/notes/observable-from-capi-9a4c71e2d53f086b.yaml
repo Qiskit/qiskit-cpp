@@ -1,0 +1,52 @@
+---
+features:
+  - |
+    Added `SparseObservable::from_obs()` and an equivalent explicit
+    constructor, both taking a `const QkObs *` and holding a copy of it. This
+    addresses issue #162: an observable assembled with the C-API can be wrapped
+    without unpacking its coefficients, boundaries, operators and indices by
+    hand. The caller keeps ownership of the handle and still frees it:
+
+    ```cpp
+    QkObs *obs = qk_obs_zero(3);
+    // ... build the observable with the C-API ...
+    auto wrapped = SparseObservable::from_obs(obs);
+    qk_obs_free(obs);   // the wrapper holds its own copy
+    ```
+  - |
+    Added `SparseObservable::from_owned_obs()`, which takes over a `QkObs *`
+    rather than copying it, so the caller must not free it. Use this to avoid
+    the copy when handing a freshly built observable straight to C++.
+  - |
+    Added an explicit `Term` constructor taking a `QkObsTerm`, which copies the
+    operators and indices out of it. This matters when the term came from
+    `qk_obs_term`, whose arrays point into the observable's own buffers, so the
+    resulting `Term` is independent of the observable it was read from.
+    `SparseObservable::operator[]` now uses this constructor rather than
+    unpacking the term itself.
+  - |
+    Added `Term::to_obsterm()`, the reverse direction, which fills a
+    `QkObsTerm` pointing at caller-owned scratch arrays for passing a term back
+    to the C-API. `SparseObservable::add_term()` now uses it.
+upgrade:
+  - |
+    The constructor taking a `QkObs *` **copies** the handle and leaves the
+    caller's ownership unchanged, which is what issue #162's usage requires.
+    Note this differs from `circuit::Parameter`'s constructor taking a
+    `QkParam *`, which adopts the handle and frees it. The two are deliberately
+    spelled differently here: `from_owned_obs()` is the adopting form, so
+    neither a leak nor a double free can happen by picking the wrong one
+    silently.
+issues:
+  - |
+    Both the `QkObs *` constructor and the `QkObsTerm` constructor are
+    `explicit`, so neither converts implicitly. A null `QkObs *` gives an
+    observable holding nothing rather than an error, matching a
+    default-constructed `SparseObservable`.
+  - |
+    The `QkObsTerm` constructor rejects a term whose length is non-zero but
+    whose operator or index array is null, which the C-API only permits at
+    length zero, and rejects an index that is not below the term's qubit count.
+    It does not check that the indices are sorted and free of duplicates, which
+    Qiskit also requires; that is reported when the term is added to an
+    observable.
