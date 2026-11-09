@@ -380,6 +380,24 @@ protected:
     return handles.empty() ? &fallback : handles.data();
   }
 
+  /// @brief Reject a request to serialize no circuits at all.
+  /// @param handles the C-API circuits to serialize
+  /// @throws std::invalid_argument if the list is empty
+  /// @details Qiskit's QPY writer sizes its circuit offset table from the
+  ///   number of circuits and then writes the first entry unconditionally
+  ///   (``offsets[0] = circuits_start_offset`` in ``crates/qpy/src/interface.rs``),
+  ///   which indexes an empty vector and aborts the process with "index out of
+  ///   bounds: the len is 0 but the index is 0". The request is refused here
+  ///   rather than passed on.
+  /// @note A zero-circuit payload has no consumer in any case: Qiskit Runtime
+  ///   validates a PUB circuit payload as holding exactly one circuit.
+  static void require_circuits(const std::vector<const QkCircuit *> &handles) {
+    if (handles.empty()) {
+      throw std::invalid_argument(
+          "QPY export failed : cannot serialize an empty list of circuits.");
+    }
+  }
+
   /// @brief Throw a ``std::runtime_error`` describing a failed QPY call.
   /// @param context what was being attempted, used as the message prefix
   /// @param code the exit code returned by the C-API
@@ -436,6 +454,8 @@ public:
   static void dump_file(const std::vector<const QkCircuit *> &handles,
                         const std::string &filename,
                         const std::uint8_t version) {
+    require_circuits(handles);
+
     ScopedQpyError error;
     const QkCircuit *empty = nullptr;
     const QkCircuit *const *data = handle_data(handles, empty);
@@ -458,6 +478,8 @@ public:
   static std::vector<std::uint8_t>
   dump_buffer(const std::vector<const QkCircuit *> &handles,
               const std::uint8_t version) {
+    require_circuits(handles);
+
     ScopedQpyError error;
     ScopedQpyBuffer buffer;
     const QkCircuit *empty = nullptr;

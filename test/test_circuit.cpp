@@ -1717,9 +1717,52 @@ static int test_to_qpy_multiple_circuits(void) {
 }
 
 static int test_to_qpy_empty_list(void) {
+    // Serializing no circuits is refused rather than passed to Qiskit, whose
+    // QPY writer sizes its offset table from the circuit count and then writes
+    // the first entry unconditionally, aborting on an empty list.
     std::vector<QuantumCircuit> circuits;
-    const auto payload = QuantumCircuit::to_qpy(circuits);
-    return check_qpy_header("to_qpy_empty_list", payload, 0, 0);
+
+    bool threw = false;
+    try {
+        QuantumCircuit::to_qpy(circuits);
+    } catch (const std::invalid_argument &err) {
+        threw = true;
+        if (std::string(err.what()).find("empty list") == std::string::npos) {
+            std::cerr << "  to_qpy_empty_list test : unexpected error: " << err.what()
+                << std::endl;
+            return EqualityError;
+        }
+    }
+    if (!threw) {
+        std::cerr << "  to_qpy_empty_list test : an empty list was accepted" << std::endl;
+        return EqualityError;
+    }
+
+    // The file path must refuse it too, and must not leave a file behind.
+    const std::string filename = "test_to_qpy_empty_list.qpy";
+    std::remove(filename.c_str());
+    threw = false;
+    try {
+        QuantumCircuit::export_qpy(circuits, filename);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  to_qpy_empty_list test : an empty list was written to a file"
+            << std::endl;
+        std::remove(filename.c_str());
+        return EqualityError;
+    }
+    std::ifstream file(filename.c_str(), std::ios::binary);
+    if (file) {
+        std::cerr << "  to_qpy_empty_list test : \"" << filename
+            << "\" was created for an empty list" << std::endl;
+        file.close();
+        std::remove(filename.c_str());
+        return EqualityError;
+    }
+
+    return Ok;
 }
 
 static int test_export_qpy(void) {
@@ -2117,14 +2160,24 @@ static int test_from_qpy_empty_payload(void) {
     return RuntimeError;
 }
 
-static int test_from_qpy_no_circuits(void) {
-    // A payload holding zero circuits is valid QPY and must import as an empty
-    // list rather than an error.
-    std::vector<QuantumCircuit> none;
-    const auto loaded = QuantumCircuit::from_qpy(QuantumCircuit::to_qpy(none));
-    if (!loaded.empty()) {
-        std::cerr << "  from_qpy_no_circuits test : loaded " << loaded.size()
-            << " circuits, expected 0" << std::endl;
+static int test_from_qpy_single_circuit_list(void) {
+    // A payload is always a list, so a single circuit still imports as a
+    // one-element list. A zero-circuit payload is not tested because it cannot
+    // be produced: to_qpy refuses an empty list, since Qiskit's QPY writer
+    // aborts on one.
+    auto circ = make_bell_circuit();
+    std::vector<QuantumCircuit> one;
+    one.push_back(circ);
+
+    const auto loaded = QuantumCircuit::from_qpy(QuantumCircuit::to_qpy(one));
+    if (loaded.size() != 1) {
+        std::cerr << "  from_qpy_single_circuit_list test : loaded " << loaded.size()
+            << " circuits, expected 1" << std::endl;
+        return EqualityError;
+    }
+    if (!(loaded[0] == circ)) {
+        std::cerr << "  from_qpy_single_circuit_list test : the circuit differs from the "
+            << "original" << std::endl;
         return EqualityError;
     }
     return Ok;
@@ -2227,7 +2280,7 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_import_qpy_missing_file);
     num_failed += RUN_TEST(test_from_qpy_invalid_payload);
     num_failed += RUN_TEST(test_from_qpy_empty_payload);
-    num_failed += RUN_TEST(test_from_qpy_no_circuits);
+    num_failed += RUN_TEST(test_from_qpy_single_circuit_list);
     num_failed += RUN_TEST(test_from_qpy_qasm3_agrees);
 #endif
 

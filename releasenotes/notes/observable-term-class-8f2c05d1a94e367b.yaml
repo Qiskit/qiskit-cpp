@@ -1,0 +1,60 @@
+---
+features:
+  - |
+    Added `quantum_info::Term`, a C++ counterpart to
+    `SparseObservable.Term` in Qiskit Python. It holds the coefficient of a
+    single observable term together with the non-identity single-qubit
+    operators and the qubits they act on, and exposes `num_qubits()`,
+    `coeff()`, `bit_terms()`, `indices()`, `len()`, `bit_labels()`,
+    `to_label()`, `to_string()`, `to_observable()` and comparison operators.
+
+    `bit_labels()` matches the Python method of the same name: one character
+    per operator, in the order of `indices()`. `to_label()` renders the term as
+    a dense label over all its qubits with identities written as `_`, ordered
+    with qubit 0 rightmost, matching `SparseObservable::from_label`.
+  - |
+    Added `SparseObservable::operator[]`, which returns the `Term` at an index,
+    backed by `qk_obs_term`. This replaces reading the four parallel arrays
+    (`coeffs()`, `bit_terms()`, `indices()`, `boundaries()`) and recovering
+    term boundaries by hand. `SparseObservable::terms()` returns every term at
+    once.
+  - |
+    Added `SparseObservable::from_terms()`, which builds an observable from a
+    `std::vector<Term>` through `qk_obs_add_term`, matching
+    `SparseObservable.from_terms` in Qiskit Python. All terms must act on the
+    same number of qubits; an optional second argument gives the qubit count
+    for an empty list. Terms are appended without being combined, so
+    `canonicalize` is still needed to collapse duplicates.
+  - |
+    Added `SparseObservable::add_term()`, which appends a single `Term` and
+    returns the `QkExitCode` the C-API reported, so a mismatched qubit count
+    (`QkExitCode_MismatchedQubits`) or a repeated qubit index
+    (`QkExitCode_DuplicateIndexError`) can be handled rather than aborting.
+    Previously the only way to build an observable was the all-at-once
+    flat-array constructor, so adding one term meant rebuilding it entirely.
+  - |
+    Added `quantum_info::bit_term_label()`, which returns the one-character
+    label of a `QkBitTerm` through `qk_bitterm_label`. The character-to-term
+    mapping was previously hand-coded in `from_label` and `from_list` with no
+    inverse, so `bit_terms()` returned raw enum values the caller had to decode.
+issues:
+  - |
+    `SparseObservable::operator[]` checks the index itself rather than relying
+    on the C-API. As of this writing `qk_obs_term` bounds-checks with
+    `index > num_terms()` where it needs `index >= num_terms()`, so calling it
+    with `index == num_terms()` reads past the end of the observable's
+    `coeffs` and `boundaries` arrays instead of returning
+    `QkExitCode_IndexError`. The wrapper rejects that index before the call.
+  - |
+    `Term` owns copies of its operators and indices. The C-API's `qk_obs_term`
+    returns pointers into the observable's own buffers, which its
+    documentation warns can be used to leave the observable in an incoherent
+    state; copying avoids exposing them. A `Term` is therefore independent of
+    the observable it came from, and modifying one does not affect the other.
+  - |
+    `Term`'s constructor checks that the operator and index lists are the same
+    length and that every index is below `num_qubits`, but not that the indices
+    are sorted and free of duplicates, which Qiskit also requires. A term
+    violating that is reported when it is added to an observable, as
+    `QkExitCode_DuplicateIndexError` from `add_term()` or a thrown
+    `std::invalid_argument` from `from_terms()`.

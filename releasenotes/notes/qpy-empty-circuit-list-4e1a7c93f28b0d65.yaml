@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    `QuantumCircuit::to_qpy()` and `QuantumCircuit::export_qpy()` now raise
+    `std::invalid_argument` when given an empty list of circuits, instead of
+    aborting the process. Qiskit's QPY writer sizes its circuit offset table
+    from the number of circuits and then writes the first entry
+    unconditionally (`offsets[0] = circuits_start_offset` in
+    `crates/qpy/src/interface.rs`), which indexes a zero-length vector and
+    panics with "index out of bounds: the len is 0 but the index is 0". The
+    request is refused before it reaches the C-API.
+
+    A zero-circuit payload has no consumer in any case: Qiskit Runtime
+    validates a PUB circuit payload as holding exactly one circuit, and the
+    single-circuit `to_qpy()` and `export_qpy()` overloads always pass one.
+    Only the `std::vector<QuantumCircuit>` overloads are affected.
