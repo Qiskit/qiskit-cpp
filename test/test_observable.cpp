@@ -491,6 +491,186 @@ static int test_observable_from_terms(void) {
     return Ok;
 }
 
+static int test_from_list_rejects_mismatched_width(void) {
+    // Issue #163: a label of the wrong length must be reportable, not abort the
+    // process. If this regresses the test binary dies here rather than failing.
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("ZZ"), std::complex<double>(1.0, 0.0)));
+    list.push_back(std::make_pair(std::string("Z"), std::complex<double>(1.0, 0.0)));
+
+    bool threw = false;
+    try {
+        SparseObservable::from_list(list);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_list_rejects_mismatched_width test : labels of different "
+            << "lengths were accepted" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_list_rejects_mismatch_against_num_qubits(void) {
+    // The same check applies to the first label when the width was given.
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("ZZ"), std::complex<double>(1.0, 0.0)));
+
+    bool threw = false;
+    try {
+        SparseObservable::from_list(list, 3);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_list_rejects_mismatch_against_num_qubits test : a 2-character "
+            << "label was accepted for a 3-qubit observable" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_list_rejects_bad_character(void) {
+    // A character outside "IXYZ+-rl01" used to be read as an identity, which
+    // silently gave a different observable than the caller wrote.
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("ZQ"), std::complex<double>(1.0, 0.0)));
+
+    bool threw = false;
+    try {
+        SparseObservable::from_list(list);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_list_rejects_bad_character test : \"ZQ\" was accepted"
+            << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_label_rejects_bad_character(void) {
+    bool threw = false;
+    try {
+        SparseObservable::from_label(std::string("ZQ"));
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_label_rejects_bad_character test : \"ZQ\" was accepted"
+            << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_label_accepts_identity_characters(void) {
+    // 'I' is Qiskit's identity character and '_' is what Term::to_label writes,
+    // so a label must read back from either.
+    auto with_i = SparseObservable::from_label(std::string("IZI"));
+    auto with_underscore = SparseObservable::from_label(std::string("_Z_"));
+
+    if (with_i.num_qubits() != 3 || with_i.num_terms() != 1) {
+        std::cerr << "  from_label_accepts_identity_characters test : \"IZI\" gave "
+            << with_i.num_qubits() << " qubits and " << with_i.num_terms() << " terms"
+            << std::endl;
+        return EqualityError;
+    }
+    // SparseObservable has no operator!=, and its operator== takes a non-const
+    // reference, so both operands have to be named lvalues.
+    if (!(with_i == with_underscore)) {
+        std::cerr << "  from_label_accepts_identity_characters test : \"IZI\" and \"_Z_\" "
+            << "gave different observables" << std::endl;
+        return EqualityError;
+    }
+    // The single operator must sit on qubit 1, not on a qubit an identity took.
+    Term term = with_i[0];
+    if (term.indices().size() != 1 || term.indices()[0] != 1) {
+        std::cerr << "  from_label_accepts_identity_characters test : the operator is not "
+            << "on qubit 1" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_list_term_round_trip(void) {
+    // A term read back out of the observable must hold what the label said.
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("IXZ"), std::complex<double>(2.0, -1.0)));
+    auto obs = SparseObservable::from_list(list);
+
+    if (obs.num_qubits() != 3 || obs.num_terms() != 1) {
+        std::cerr << "  from_list_term_round_trip test : " << obs.num_qubits()
+            << " qubits, " << obs.num_terms() << " terms, expected 3 and 1" << std::endl;
+        return EqualityError;
+    }
+    Term term = obs[0];
+    if (term.coeff() != std::complex<double>(2.0, -1.0)) {
+        std::cerr << "  from_list_term_round_trip test : the coefficient is wrong"
+            << std::endl;
+        return EqualityError;
+    }
+    // "IXZ" is Z on qubit 0 and X on qubit 1, with qubit 2 an identity.
+    if (term.to_label() != "_XZ") {
+        std::cerr << "  from_list_term_round_trip test : dense label is \""
+            << term.to_label() << "\", expected \"_XZ\"" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_list_rejects_empty_without_width(void) {
+    // An empty list leaves the qubit count unknown, as in Qiskit Python.
+    bool threw = false;
+    try {
+        SparseObservable::from_list(
+            std::vector<std::pair<std::string, std::complex<double>>>());
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_list_rejects_empty_without_width test : an empty list with no "
+            << "qubit count was accepted" << std::endl;
+        return EqualityError;
+    }
+
+    // With the count given it is the zero observable.
+    auto obs = SparseObservable::from_list(
+        std::vector<std::pair<std::string, std::complex<double>>>(), 4);
+    if (obs.num_qubits() != 4 || obs.num_terms() != 0) {
+        std::cerr << "  from_list_rejects_empty_without_width test : " << obs.num_qubits()
+            << " qubits, " << obs.num_terms() << " terms, expected 4 and 0" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_list_keeps_duplicate_terms(void) {
+    // A repeated label gives a separate term, so the coefficients sum rather
+    // than one replacing the other. This is what EstimatorPub must match.
+    std::vector<std::pair<std::string, std::complex<double>>> list;
+    list.push_back(std::make_pair(std::string("Z"), std::complex<double>(0.5, 0.0)));
+    list.push_back(std::make_pair(std::string("Z"), std::complex<double>(0.25, 0.0)));
+    auto obs = SparseObservable::from_list(list);
+
+    if (obs.num_terms() != 2) {
+        std::cerr << "  from_list_keeps_duplicate_terms test : " << obs.num_terms()
+            << " terms, expected 2" << std::endl;
+        return EqualityError;
+    }
+    // Collapsing them must give the sum, not the last coefficient.
+    auto simplified = obs.simplify();
+    if (simplified.num_terms() != 1
+        || std::abs(simplified[0].coeff() - std::complex<double>(0.75, 0.0)) > 1e-12) {
+        std::cerr << "  from_list_keeps_duplicate_terms test : the duplicates did not sum "
+            << "to 0.75" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 static int test_observable_from_terms_empty(void) {
     // An empty list needs the qubit count given explicitly, as in Qiskit.
     auto obs = SparseObservable::from_terms(std::vector<Term>(), 5);
@@ -1578,6 +1758,14 @@ int test_observable(int argc, char** argv) {
     num_failed += RUN_TEST(test_observable_index_out_of_range);
     num_failed += RUN_TEST(test_observable_index_multi_term);
     num_failed += RUN_TEST(test_observable_from_terms);
+    num_failed += RUN_TEST(test_from_list_rejects_mismatched_width);
+    num_failed += RUN_TEST(test_from_list_rejects_mismatch_against_num_qubits);
+    num_failed += RUN_TEST(test_from_list_rejects_bad_character);
+    num_failed += RUN_TEST(test_from_label_rejects_bad_character);
+    num_failed += RUN_TEST(test_from_label_accepts_identity_characters);
+    num_failed += RUN_TEST(test_from_list_term_round_trip);
+    num_failed += RUN_TEST(test_from_list_rejects_empty_without_width);
+    num_failed += RUN_TEST(test_from_list_keeps_duplicate_terms);
     num_failed += RUN_TEST(test_observable_from_terms_empty);
     num_failed += RUN_TEST(test_observable_from_terms_rejects_mismatch);
     num_failed += RUN_TEST(test_observable_from_terms_matches_from_label);

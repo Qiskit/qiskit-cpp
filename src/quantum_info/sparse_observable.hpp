@@ -43,6 +43,59 @@ inline char bit_term_label(const QkBitTerm bit_term)
     return (char)qk_bitterm_label(bit_term);
 }
 
+/// @brief Convert one character of a dense label into a single-qubit term.
+/// @param label_char a character of the alphabet ``"IXYZ+-rl01"``, or '_'
+/// @param bit_term set to the term the character denotes, untouched for an
+///   identity
+/// @return true if the character is a non-identity operator and ``bit_term``
+///   was set, false if it is an identity
+/// @throws std::invalid_argument if the character is outside the alphabet
+/// @details Both 'I' and '_' are read as the identity: Qiskit's dense labels
+///   use 'I', while ``Term::to_label`` writes '_', so a label can be read back
+///   from either. Anything else is rejected rather than silently treated as an
+///   identity, which would quietly change the observable.
+inline bool bit_term_from_label(const char label_char, QkBitTerm &bit_term)
+{
+    switch (label_char) {
+    case 'I':
+    case '_':
+        return false;
+    case 'X':
+        bit_term = QkBitTerm_X;
+        return true;
+    case 'Y':
+        bit_term = QkBitTerm_Y;
+        return true;
+    case 'Z':
+        bit_term = QkBitTerm_Z;
+        return true;
+    case '+':
+        bit_term = QkBitTerm_Plus;
+        return true;
+    case '-':
+        bit_term = QkBitTerm_Minus;
+        return true;
+    case 'l':
+        bit_term = QkBitTerm_Left;
+        return true;
+    case 'r':
+        bit_term = QkBitTerm_Right;
+        return true;
+    case '0':
+        bit_term = QkBitTerm_Zero;
+        return true;
+    case '1':
+        bit_term = QkBitTerm_One;
+        return true;
+    default:
+        break;
+    }
+    std::stringstream message;
+    message << "SparseObservable : the character '" << label_char
+            << "' is not in the alphabet \"IXYZ+-rl01\" of a dense label.";
+    throw std::invalid_argument(message.str());
+}
+
 /// @class Term
 /// @brief A single term of a SparseObservable.
 /// @details Mirrors ``SparseObservable.Term`` in Qiskit Python: a coefficient
@@ -373,6 +426,14 @@ public:
         return ret;
     }
 
+    /// @brief Build a single-term observable from a dense label.
+    /// @param label a label over the alphabet ``"IXYZ+-rl01"``, qubit 0
+    ///   rightmost, whose length sets the number of qubits
+    /// @return the observable, with a coefficient of 1
+    /// @throws std::invalid_argument if the label holds a character outside the
+    ///   alphabet
+    /// @details Matches ``SparseObservable.from_label`` in Qiskit Python. Both
+    ///   'I' and '_' are read as the identity.
     static SparseObservable from_label(const std::string &label)
     {
         reg_t indices;
@@ -382,109 +443,96 @@ public:
         std::vector<std::complex<double>> coeff(1);
         coeff[0] = 1.0;
 
-        for (int i = 0; i < num_qubits; i++)
+        for (uint_t i = 0; i < num_qubits; i++)
         {
-            switch (label[num_qubits - 1 - i])
+            QkBitTerm bit_term;
+            if (bit_term_from_label(label[num_qubits - 1 - i], bit_term))
             {
-            case 'X':
-                terms.push_back(QkBitTerm_X);
-                break;
-            case 'Y':
-                terms.push_back(QkBitTerm_Y);
-                break;
-            case 'Z':
-                terms.push_back(QkBitTerm_Z);
-                break;
-            case '+':
-                terms.push_back(QkBitTerm_Plus);
-                break;
-            case '-':
-                terms.push_back(QkBitTerm_Minus);
-                break;
-            case 'l':
-                terms.push_back(QkBitTerm_Left);
-                break;
-            case 'r':
-                terms.push_back(QkBitTerm_Right);
-                break;
-            case '0':
-                terms.push_back(QkBitTerm_Zero);
-                break;
-            case '1':
-                terms.push_back(QkBitTerm_One);
-                break;
-            default:
-                break;
-            }
-            if (indices.size() < terms.size())
+                terms.push_back(bit_term);
                 indices.push_back(i);
+            }
         }
         boundaries[0] = 0;
         boundaries[1] = terms.size();
         return SparseObservable(num_qubits, coeff, terms, indices, boundaries);
     }
 
+    /// @brief Build an observable by summing a list of dense labels.
+    /// @param list the labels and their coefficients, each label over the
+    ///   alphabet ``"IXYZ+-rl01"`` with qubit 0 rightmost
+    /// @param num_qubits_in the number of qubits, which may be left 0 to take
+    ///   it from the first label; required when ``list`` is empty
+    /// @return the observable, holding one term per entry
+    /// @throws std::invalid_argument if the labels disagree on their length,
+    ///   if a label holds a character outside the alphabet, if ``list`` is
+    ///   empty and ``num_qubits_in`` is 0, or if the observable could not be
+    ///   built
+    /// @details Matches ``SparseObservable.from_list`` in Qiskit Python. A
+    ///   label repeated in the list gives a separate term rather than being
+    ///   combined, so the coefficients of the repeats sum; call ``simplify``
+    ///   to collapse them into one term.
     static SparseObservable from_list(const std::vector<std::pair<std::string, std::complex<double>>> &list, uint_t num_qubits_in = 0)
     {
+        if (list.empty() && num_qubits_in == 0)
+        {
+            throw std::invalid_argument(
+                "SparseObservable : cannot build an observable from an empty list "
+                "without knowing the number of qubits.");
+        }
+
         reg_t indices;
         std::vector<size_t> boundaries;
         uint_t num_qubits = num_qubits_in;
+        // Tracked separately from ``num_qubits``, which cannot distinguish "not
+        // known yet" from a width of zero: an empty label would otherwise leave
+        // the sentinel in place and let the next label set a different width.
+        bool width_known = num_qubits_in != 0;
         std::vector<QkBitTerm> terms;
         std::vector<std::complex<double>> coeffs;
         boundaries.push_back(0);
 
-        for (int i = 0; i < list.size(); i++)
+        for (uint_t i = 0; i < list.size(); i++)
         {
-            if (num_qubits == 0)
+            if (!width_known)
             {
                 num_qubits = list[i].first.length();
+                width_known = true;
             }
             else if (num_qubits != list[i].first.length())
             {
-                std::cerr << " SparseObservable : Error label with length " << list[i].first.length() << "cannot be added to a " << num_qubits << "-qubits operator" << std::endl;
-                abort();
+                // Reported rather than aborting the process: a caller building
+                // an observable from input it does not control needs to be able
+                // to recover from this.
+                std::stringstream message;
+                message << "SparseObservable : a label of length "
+                        << list[i].first.length() << " (entry " << i
+                        << ") cannot be added to a " << num_qubits
+                        << "-qubit operator.";
+                throw std::invalid_argument(message.str());
             }
-            for (int j = 0; j < num_qubits; j++)
+            for (uint_t j = 0; j < num_qubits; j++)
             {
-                switch (list[i].first[num_qubits - 1 - j])
+                QkBitTerm bit_term;
+                if (bit_term_from_label(list[i].first[num_qubits - 1 - j], bit_term))
                 {
-                case 'X':
-                    terms.push_back(QkBitTerm_X);
-                    break;
-                case 'Y':
-                    terms.push_back(QkBitTerm_Y);
-                    break;
-                case 'Z':
-                    terms.push_back(QkBitTerm_Z);
-                    break;
-                case '+':
-                    terms.push_back(QkBitTerm_Plus);
-                    break;
-                case '-':
-                    terms.push_back(QkBitTerm_Minus);
-                    break;
-                case 'l':
-                    terms.push_back(QkBitTerm_Left);
-                    break;
-                case 'r':
-                    terms.push_back(QkBitTerm_Right);
-                    break;
-                case '0':
-                    terms.push_back(QkBitTerm_Zero);
-                    break;
-                case '1':
-                    terms.push_back(QkBitTerm_One);
-                    break;
-                default:
-                    break;
-                }
-                if (indices.size() < terms.size())
+                    terms.push_back(bit_term);
                     indices.push_back(j);
+                }
             }
             boundaries.push_back(terms.size());
             coeffs.push_back(list[i].second);
         }
-        return SparseObservable(num_qubits, coeffs, terms, indices, boundaries);
+
+        SparseObservable ret(num_qubits, coeffs, terms, indices, boundaries);
+        if (ret.obs_ == nullptr)
+        {
+            // qk_obs_new reports incoherent data by returning null rather than
+            // by panicking, so it has to be checked here.
+            throw std::invalid_argument(
+                "SparseObservable : the labels and coefficients could not be "
+                "assembled into an observable.");
+        }
+        return ret;
     }
 
     /// @brief Build an observable from a list of terms.
