@@ -101,6 +101,40 @@ public:
         indices_ = indices;
     }
 
+    /// @brief Create a new term from a C-API term.
+    /// @param cterm the term to copy
+    /// @throws std::invalid_argument if the term holds operators but a null
+    ///   operator or index array, or if an index is not below its qubit count
+    /// @details Copies the operators and indices out of ``cterm``, so the
+    ///   result is independent of it. This matters when the term came from
+    ///   ``qk_obs_term``, whose arrays point into the observable's own buffers.
+    /// @note Explicit so that a ``QkObsTerm`` is never silently converted.
+    explicit Term(const QkObsTerm &cterm)
+    {
+        // The C-API allows a null array only when the length is zero.
+        if (cterm.len > 0 && (cterm.bit_terms == nullptr || cterm.indices == nullptr)) {
+            throw std::invalid_argument(
+                "Term holds operators but a null operator or index array.");
+        }
+
+        num_qubits_ = (uint_t)cterm.num_qubits;
+        coeff_ = std::complex<double>(cterm.coeff.re, cterm.coeff.im);
+
+        bit_terms_.resize(cterm.len);
+        indices_.resize(cterm.len);
+        for (uint_t i = 0; i < cterm.len; i++) {
+            if (cterm.indices[i] >= cterm.num_qubits) {
+                std::stringstream message;
+                message << "Term index " << cterm.indices[i]
+                        << " is out of range for a term on " << cterm.num_qubits
+                        << " qubits.";
+                throw std::invalid_argument(message.str());
+            }
+            bit_terms_[i] = cterm.bit_terms[i];
+            indices_[i] = (uint_t)cterm.indices[i];
+        }
+    }
+
     /// @brief Return the number of qubits this term is defined on.
     uint_t num_qubits(void) const { return num_qubits_; }
 
@@ -117,6 +151,39 @@ public:
 
     /// @brief Return the number of non-identity operators in this term.
     uint_t len(void) const { return bit_terms_.size(); }
+
+    /// @brief Fill a C-API term pointing at caller-owned scratch arrays.
+    /// @param cterm the term to fill
+    /// @param bit_terms receives a copy of this term's operators, which
+    ///   ``cterm`` points at
+    /// @param indices receives this term's indices widened to ``uint32_t``,
+    ///   which ``cterm`` points at
+    /// @details ``cterm`` borrows the two arrays, so both must outlive it. They
+    ///   are outputs rather than borrowed from this term because ``QkObsTerm``
+    ///   holds non-const pointers and ``uint32_t`` indices, where ``Term``
+    ///   holds ``uint_t``.
+    /// @note The C-API reads through the pointers but does not keep them, so
+    ///   scratch arrays are enough for passing a term to ``qk_obs_add_term``.
+    void to_obsterm(QkObsTerm &cterm, std::vector<QkBitTerm> &bit_terms,
+                    std::vector<std::uint32_t> &indices) const
+    {
+        bit_terms = bit_terms_;
+        indices.resize(indices_.size());
+        for (uint_t i = 0; i < indices_.size(); i++) {
+            indices[i] = (std::uint32_t)indices_[i];
+        }
+
+        // Set member-wise rather than by reinterpreting the std::complex, so
+        // this does not depend on the two types sharing a layout.
+        cterm.coeff.re = coeff_.real();
+        cterm.coeff.im = coeff_.imag();
+        cterm.len = bit_terms.size();
+        // The C-API allows a null array only when the length is zero, and
+        // std::vector::data() may return null for an empty vector either way.
+        cterm.bit_terms = bit_terms.empty() ? nullptr : bit_terms.data();
+        cterm.indices = indices.empty() ? nullptr : indices.data();
+        cterm.num_qubits = (std::uint32_t)num_qubits_;
+    }
 
     /// @brief Return the labels of this term's operators.
     /// @return one character per operator, in the order of ``indices()``
@@ -209,6 +276,41 @@ public:
             idx32[i] = (std::uint32_t)indicies[i];
         }
         obs_ = qk_obs_new((std::uint32_t)num_qubits, coeffs.size(), bits.size(), (QkComplex64 *)coeffs.data(), bits.data(), idx32.data(), boundaries.data());
+    }
+
+    /// @brief Create a new SparseObservable holding a copy of a C-API observable.
+    /// @param obs the observable to copy, which may be null
+    /// @details The caller keeps ownership of ``obs`` and must still free it
+    ///   with ``qk_obs_free``. Use ``from_owned_obs`` to hand ownership over
+    ///   instead and save the copy.
+    /// @note Explicit so that a ``QkObs *`` is never silently converted; the
+    ///   copy is deliberate and the ownership of the argument is unchanged.
+    explicit SparseObservable(const QkObs *obs)
+    {
+        obs_ = obs ? qk_obs_copy(obs) : nullptr;
+    }
+
+    /// @brief Create a new SparseObservable holding a copy of a C-API observable.
+    /// @param obs the observable to copy, which may be null
+    /// @return the new observable
+    /// @details The caller keeps ownership of ``obs``. This is the spelling
+    ///   asked for in issue #162, equivalent to the constructor above.
+    static SparseObservable from_obs(const QkObs *obs)
+    {
+        return SparseObservable(obs);
+    }
+
+    /// @brief Create a new SparseObservable that takes over a C-API observable.
+    /// @param obs the observable to adopt, which may be null
+    /// @return the new observable
+    /// @details Ownership of ``obs`` passes to the returned object, which frees
+    ///   it when destroyed, so the caller must not free it as well. Saves the
+    ///   copy that ``from_obs`` makes.
+    static SparseObservable from_owned_obs(QkObs *obs)
+    {
+        SparseObservable ret;
+        ret.obs_ = obs;
+        return ret;
     }
 
     SparseObservable(const SparseObservable &other)
@@ -449,24 +551,12 @@ public:
             }
         }
 
-        // The C-API reads through these pointers but does not keep them, so
-        // local copies are enough. They must be non-null only when the term
-        // holds operators.
-        std::vector<QkBitTerm> bit_terms = term.bit_terms();
-        std::vector<std::uint32_t> indices(term.indices().size());
-        for (uint_t i = 0; i < term.indices().size(); i++) {
-            indices[i] = (std::uint32_t)term.indices()[i];
-        }
-
+        // The C-API reads through the term's pointers but does not keep them,
+        // so these scratch arrays only have to outlive the call.
+        std::vector<QkBitTerm> bit_terms;
+        std::vector<std::uint32_t> indices;
         QkObsTerm cterm;
-        // Set member-wise rather than by reinterpreting the std::complex, so
-        // this does not depend on the two types sharing a layout.
-        cterm.coeff.re = term.coeff().real();
-        cterm.coeff.im = term.coeff().imag();
-        cterm.len = bit_terms.size();
-        cterm.bit_terms = bit_terms.empty() ? nullptr : bit_terms.data();
-        cterm.indices = indices.empty() ? nullptr : indices.data();
-        cterm.num_qubits = (std::uint32_t)term.num_qubits();
+        term.to_obsterm(cterm, bit_terms, indices);
 
         return qk_obs_add_term(obs_, &cterm);
     }
@@ -501,16 +591,9 @@ public:
             throw std::out_of_range(message.str());
         }
 
-        std::vector<QkBitTerm> bit_terms(cterm.len);
-        reg_t indices(cterm.len);
-        for (uint_t i = 0; i < cterm.len; i++) {
-            bit_terms[i] = cterm.bit_terms[i];
-            indices[i] = cterm.indices[i];
-        }
-
-        return Term((uint_t)cterm.num_qubits,
-                    std::complex<double>(cterm.coeff.re, cterm.coeff.im),
-                    bit_terms, indices);
+        // Term copies the arrays out, which matters here because they point
+        // into this observable's own buffers.
+        return Term(cterm);
     }
 
     /// @brief Return every term of this observable.

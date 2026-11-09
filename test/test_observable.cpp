@@ -10,8 +10,11 @@
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
 
+#include <cmath>
 #include <complex>
+#include <cstdint>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -1326,6 +1329,232 @@ static int test_apply_layout_accepts_const(void) {
     return Ok;
 }
 
+// ===========================================================================
+// Construction from the C-API types
+// ===========================================================================
+
+static int test_observable_from_obs_copies(void) {
+    // The caller keeps ownership, so the wrapper must hold its own copy. This
+    // is the usage from issue #162: build with the C-API, wrap, then free.
+    QkObs *raw = qk_obs_identity(3);
+    if (raw == nullptr) {
+        std::cerr << "  observable_from_obs_copies test : could not create a C-API "
+            << "observable" << std::endl;
+        return RuntimeError;
+    }
+
+    auto wrapped = SparseObservable::from_obs(raw);
+    qk_obs_free(raw);
+
+    // Still usable after the original was freed, which only holds if it copied.
+    if (wrapped.num_qubits() != 3 || wrapped.num_terms() != 1) {
+        std::cerr << "  observable_from_obs_copies test : " << wrapped.num_qubits()
+            << " qubits, " << wrapped.num_terms() << " terms, expected 3 and 1"
+            << std::endl;
+        return EqualityError;
+    }
+    if (wrapped.to_string().empty()) {
+        std::cerr << "  observable_from_obs_copies test : the copy could not be rendered"
+            << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_constructor_from_obs(void) {
+    // The constructor is the same operation as from_obs.
+    QkObs *raw = qk_obs_identity(2);
+    SparseObservable wrapped(raw);
+    qk_obs_free(raw);
+
+    if (wrapped.num_qubits() != 2 || wrapped.num_terms() != 1) {
+        std::cerr << "  observable_constructor_from_obs test : " << wrapped.num_qubits()
+            << " qubits, " << wrapped.num_terms() << " terms, expected 2 and 1"
+            << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_from_obs_null(void) {
+    // A null handle gives an observable holding nothing, rather than a crash.
+    auto wrapped = SparseObservable::from_obs(nullptr);
+    if (wrapped.num_qubits() != 0 || wrapped.num_terms() != 0) {
+        std::cerr << "  observable_from_obs_null test : a null handle did not give an "
+            << "empty observable" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_from_owned_obs(void) {
+    // Ownership passes to the wrapper, so the caller must not free it. If the
+    // wrapper did not take it, this would leak; if it took it twice, the
+    // destructor would double-free.
+    QkObs *raw = qk_obs_identity(4);
+    {
+        auto wrapped = SparseObservable::from_owned_obs(raw);
+        if (wrapped.num_qubits() != 4 || wrapped.num_terms() != 1) {
+            std::cerr << "  observable_from_owned_obs test : " << wrapped.num_qubits()
+                << " qubits, " << wrapped.num_terms() << " terms, expected 4 and 1"
+                << std::endl;
+            return EqualityError;
+        }
+    }
+    // wrapped is gone and has freed raw; nothing more to do here.
+
+    // A null handle is accepted and leaves the observable holding nothing.
+    auto empty = SparseObservable::from_owned_obs(nullptr);
+    if (empty.num_terms() != 0) {
+        std::cerr << "  observable_from_owned_obs test : a null handle did not give an "
+            << "empty observable" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_from_obs_term_round_trip(void) {
+    // Build a term with the C-API, wrap it, and check it survives.
+    const QkBitTerm bits[] = {QkBitTerm_Z, QkBitTerm_X};
+    std::uint32_t indices[] = {0, 2};
+
+    QkObsTerm cterm;
+    cterm.coeff.re = 1.5;
+    cterm.coeff.im = -0.5;
+    cterm.len = 2;
+    cterm.bit_terms = const_cast<QkBitTerm *>(bits);
+    cterm.indices = indices;
+    cterm.num_qubits = 3;
+
+    Term term(cterm);
+    if (term.num_qubits() != 3 || term.len() != 2) {
+        std::cerr << "  observable_from_obs_term_round_trip test : " << term.num_qubits()
+            << " qubits, " << term.len() << " operators, expected 3 and 2" << std::endl;
+        return EqualityError;
+    }
+    if (term.coeff() != std::complex<double>(1.5, -0.5)) {
+        std::cerr << "  observable_from_obs_term_round_trip test : the coefficient did "
+            << "not survive" << std::endl;
+        return EqualityError;
+    }
+    const reg_t expected({0, 2});
+    if (term.indices() != expected || term.bit_labels() != "ZX") {
+        std::cerr << "  observable_from_obs_term_round_trip test : term is \""
+            << term.to_string() << "\", expected Z on qubit 0 and X on qubit 2"
+            << std::endl;
+        return EqualityError;
+    }
+
+    // The term must own its data: changing the source arrays must not affect it.
+    indices[0] = 1;
+    if (term.indices()[0] != 0) {
+        std::cerr << "  observable_from_obs_term_round_trip test : the term aliased the "
+            << "source index array" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_from_obs_term_identity(void) {
+    // A term with no operators may carry null arrays.
+    QkObsTerm cterm;
+    cterm.coeff.re = 2.0;
+    cterm.coeff.im = 0.0;
+    cterm.len = 0;
+    cterm.bit_terms = nullptr;
+    cterm.indices = nullptr;
+    cterm.num_qubits = 5;
+
+    Term term(cterm);
+    if (term.num_qubits() != 5 || term.len() != 0) {
+        std::cerr << "  observable_from_obs_term_identity test : " << term.num_qubits()
+            << " qubits, " << term.len() << " operators, expected 5 and 0" << std::endl;
+        return EqualityError;
+    }
+    if (term.coeff() != std::complex<double>(2.0, 0.0)) {
+        std::cerr << "  observable_from_obs_term_identity test : the coefficient did not "
+            << "survive" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_from_obs_term_rejects_bad(void) {
+    // Operators with a null array, which the C-API only allows at length zero.
+    QkObsTerm cterm;
+    cterm.coeff.re = 1.0;
+    cterm.coeff.im = 0.0;
+    cterm.len = 2;
+    cterm.bit_terms = nullptr;
+    cterm.indices = nullptr;
+    cterm.num_qubits = 2;
+
+    bool threw = false;
+    try {
+        Term bad(cterm);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  observable_from_obs_term_rejects_bad test : a null array with a "
+            << "non-zero length was accepted" << std::endl;
+        return EqualityError;
+    }
+
+    // An index at or past the term's qubit count.
+    const QkBitTerm bits[] = {QkBitTerm_X};
+    std::uint32_t out_of_range[] = {2};
+    cterm.len = 1;
+    cterm.bit_terms = const_cast<QkBitTerm *>(bits);
+    cterm.indices = out_of_range;
+    cterm.num_qubits = 2;
+
+    threw = false;
+    try {
+        Term bad(cterm);
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  observable_from_obs_term_rejects_bad test : an out-of-range index "
+            << "was accepted" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_observable_term_to_obsterm(void) {
+    // The reverse direction: a Term handed back to the C-API must survive a
+    // round trip through an observable.
+    std::vector<QkBitTerm> bits;
+    bits.push_back(QkBitTerm_Y);
+    reg_t indices;
+    indices.push_back(1);
+    Term original(3, std::complex<double>(0.0, 2.0), bits, indices);
+
+    std::vector<QkBitTerm> scratch_bits;
+    std::vector<std::uint32_t> scratch_indices;
+    QkObsTerm cterm;
+    original.to_obsterm(cterm, scratch_bits, scratch_indices);
+
+    if (cterm.num_qubits != 3 || cterm.len != 1
+        || cterm.coeff.re != 0.0 || cterm.coeff.im != 2.0
+        || cterm.bit_terms[0] != QkBitTerm_Y || cterm.indices[0] != 1) {
+        std::cerr << "  observable_term_to_obsterm test : the C-API term does not match "
+            << "the source" << std::endl;
+        return EqualityError;
+    }
+
+    // Reading it back through Term must give the original.
+    Term round_tripped(cterm);
+    if (round_tripped != original) {
+        std::cerr << "  observable_term_to_obsterm test : the term did not round-trip"
+            << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 #if defined(_WIN32)
 int test_observable(int argc, char** const argv) {
 #else
@@ -1382,6 +1611,14 @@ int test_observable(int argc, char** argv) {
     num_failed += RUN_TEST(test_apply_layout_rejects_duplicate);
     num_failed += RUN_TEST(test_apply_layout_rejects_unset);
     num_failed += RUN_TEST(test_apply_layout_accepts_const);
+    num_failed += RUN_TEST(test_observable_from_obs_copies);
+    num_failed += RUN_TEST(test_observable_constructor_from_obs);
+    num_failed += RUN_TEST(test_observable_from_obs_null);
+    num_failed += RUN_TEST(test_observable_from_owned_obs);
+    num_failed += RUN_TEST(test_observable_from_obs_term_round_trip);
+    num_failed += RUN_TEST(test_observable_from_obs_term_identity);
+    num_failed += RUN_TEST(test_observable_from_obs_term_rejects_bad);
+    num_failed += RUN_TEST(test_observable_term_to_obsterm);
 
     std::cerr << "=== Number of failed subtests: " << num_failed << std::endl;
     return num_failed;
