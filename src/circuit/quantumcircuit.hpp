@@ -21,6 +21,7 @@
 #include "circuit/quantumcircuit_def.hpp"
 #include "circuit/classical/expr.hpp"
 #include "circuit/qasm3_exporter.hpp"
+#include "circuit/qasm3_importer.hpp"
 #include "circuit/qpy.hpp"
 #include "circuit/quantumcircuit_impl.hpp"
 
