@@ -1,0 +1,43 @@
+---
+features:
+  - |
+    Added `SparseObservable::compose(other, qargs)`, which composes an
+    observable with another one acting on a subset of its qubits, backed by
+    `qk_obs_compose_map`. The `qargs` map says which qubit of this observable
+    each qubit of `other` acts on: qubit `i` of `other` maps to qubit
+    `qargs[i]` here, so the map holds one entry per qubit of `other`.
+
+    The existing single-argument `compose()` requires both observables to act
+    on the same qubits, so composing a two-qubit observable into a
+    hundred-qubit one was not expressible:
+
+    ```cpp
+    auto big = SparseObservable::identity(100);
+    auto small = SparseObservable::from_label(std::string("ZX"));
+
+    reg_t qargs;
+    qargs.push_back(7);   // small's qubit 0 acts on big's qubit 7
+    qargs.push_back(42);  // small's qubit 1 acts on big's qubit 42
+    auto composed = big.compose(small, qargs);
+    ```
+
+    The map may also reorder qubits rather than only place them. The result is
+    `this.compose(other)`, which equals `other @ this` as matrix
+    multiplication, matching the C-API and Qiskit Python.
+issues:
+  - |
+    `SparseObservable::compose(other, qargs)` validates every precondition
+    before calling the C-API, because `qk_obs_compose_map` aborts the process
+    rather than reporting an error. It panics if `other` acts on more qubits
+    than the base observable, if the map sends a qubit to an index at or beyond
+    the base observable's qubit count, or if it sends two qubits to the same
+    index. It also reads exactly `qk_obs_num_qubits(other)` entries from the
+    map, so a short map would read past the end of the array. Each of these
+    raises `std::invalid_argument` instead, as does composing an observable
+    that holds nothing, which would reach the C-API as a null pointer.
+  - |
+    The new overload takes its operand by `const` reference and is itself
+    `const`, so it works with a `const` observable. The single-argument
+    `compose()` still takes a non-`const` reference and is non-`const`, as do
+    `operator+`, `operator*` and `operator==`, so those remain unusable with a
+    `const` observable.

@@ -1,0 +1,97 @@
+---
+features:
+  - |
+    Added `QuantumCircuit::from_qasm3()` and `QuantumCircuit::import_qasm3()`,
+    which build a circuit from an OpenQASM 3 program and from an OpenQASM 3
+    file respectively. These are the counterpart to `to_qasm3()`:
+
+    ```cpp
+    auto circuit = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "bit[1] c;\n"
+        "h q[0];\n"
+        "cx q[0], q[1];\n"
+        "c[0] = measure q[0];\n");
+    ```
+
+    Only the gates qiskit-cpp knows are accepted -- those in
+    `get_standard_gate_name_mapping()`, plus `measure`, `reset`, `barrier` and
+    `delay`. Anything outside that is reported as a `std::invalid_argument`
+    naming the line it appears on, rather than being skipped, so an unsupported
+    program fails instead of importing as a different circuit.
+
+    Gate parameters are parsed as full expressions, so the output of `to_qasm3()`
+    for a parameterized circuit reads back: literals, the constants `pi`, `tau`
+    and `euler`, `input`-declared parameter symbols, `+ - * / **`, unary minus,
+    parentheses, and the functions `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
+    `log`, `exp`, `abs`, `sign`, `conj`, `sqrt` and `pow`.
+  - |
+    Added the single-argument functions to `circuit::Parameter`: `sin()`,
+    `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `log()`, `exp()`, `abs()`,
+    `sign()`, `conjugate()` and `sqrt()`, each wrapping the matching
+    `qk_param_*` call alongside the existing `pow()`. `sqrt()` is `pow(x, 0.5)`,
+    as the C-API has no `qk_param_sqrt`.
+issues:
+  - |
+    The importer validates a gate's parameter and qubit counts against
+    `qk_gate_num_params()` and `qk_gate_num_qubits()` rather than against the
+    `Instruction` from `get_standard_gate_name_mapping()`. That mapping stores
+    its values **by value** as `Instruction`, so an entry such as
+    `name_mapping["rx"] = RXGate()` slices the derived gate down to its base and
+    loses the `num_params()` override; the base version returns
+    `params_.size()`, and the gate classes never populate `params_`, so every
+    parameterized gate read out of that map reports zero parameters.
+
+    The qubit count is also not always what the gate's constructor set:
+    `MCXGate` sets 3 while mapping to `QkGate_RC3X`, which Qiskit defines as a
+    4-qubit gate, and `QuantumCircuit::mcx(0, 1, 2, 3)` does add a 4-qubit gate.
+    Two parameter-count overrides disagree with Qiskit as well: `RGate` returns
+    1 where Qiskit's `r` takes 2, and `CUGate` returns 3 where `cu` takes 4.
+    Reading both counts from the C-API avoids all of these.
+  - |
+    The Qiskit C-API has no OpenQASM entry point -- it exposes QPY through
+    `qk_qpy_load_*` but nothing for OpenQASM -- so unlike `from_qpy()`, which
+    hands the work to Qiskit, the importer is a parser written in qiskit-cpp
+    and matched by hand to the exporter beside it. Prefer QPY when both ends are
+    under your control: it round-trips losslessly and is read by Qiskit's own
+    code. The round-trip tests in `test/test_circuit.cpp` are what keep the two
+    QASM3 halves in agreement.
+  - |
+    Not every circuit survives a `to_qasm3()` round trip exactly, because the
+    exporter does not write everything a circuit holds:
+
+    * Several quantum registers are exported as one merged `qubit[n]` register,
+      so they import as one. A program declaring two quantum registers is
+      rejected rather than silently merged.
+    * A transpiled circuit is exported with physical qubit references (`$n`)
+      that carry no layout, so the imported circuit has no layout either, as is
+      already the case for `from_qpy()`. The width is inferred from the highest
+      index used, which under-counts when the highest qubits carry no
+      operation.
+    * A zero-width classical register is not written by the exporter, so it
+      cannot be recovered.
+    * A delay in picoseconds is exported in nanoseconds; the duration is equal
+      but the unit differs.
+    * A numeric gate parameter is re-exported in Qiskit's own float formatting
+      via `qk_param_str`, which need not match the way it was written in the
+      input.
+  - |
+    Control flow is not supported and cannot be: every `qk_control_flow_*` and
+    `qk_expr_*` function in the C-API is an accessor, with no constructors, so a
+    control-flow operation cannot be built through it. This is the same reason
+    `ControlFlowOp::add_control_flow_op` is a no-op. `to_qasm3()` does not emit
+    control flow either, so the round trip is unaffected. An `if`, `for`,
+    `while`, `switch` or `box` statement is reported rather than skipped.
+  - |
+    A `gate` definition block is accepted only when it names a gate the
+    exporter itself writes a definition for, in which case the body is skipped
+    because the gate is already known. A definition of any other gate is
+    rejected: honouring it would mean inlining the body, and accepting it while
+    skipping it would silently drop every call to that gate.
+  - |
+    A `gphase` statement before the first operation sets the circuit's global
+    phase property; one after any operation appends a `GlobalPhaseGate`. The
+    exporter writes the property immediately after the declarations, so position
+    is the only thing that distinguishes the two in the format.
