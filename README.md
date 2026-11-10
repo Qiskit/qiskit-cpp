@@ -21,6 +21,7 @@ This interface is based on Qiskit C-API introduced in Qiskit 2.1.
   * Sequoia 15.1 or above
 
 * Windows
+  * WSL2
 
 
 ## Jump To:
@@ -46,12 +47,11 @@ $ make c
 
 Qiskit C++ requires one of the following APIs to access IBM Quantum Platform to run the quantum circuits.
 
-- qiskit-ibm-runtime C (https://github.com/Qiskit/qiskit-ibm-runtime-c)
 - QRMI (https://github.com/qiskit-community/qrmi)
+- qiskit-ibm-runtime C (https://github.com/Qiskit/qiskit-ibm-runtime-c)
 - SQC 0.10.0 (https://github.com/jhpc-quantum/SQC)
 
 Before building your application with Qiskit C++, build one of these APIs.
-
 
 If you want to use QRMI, build as following.
 

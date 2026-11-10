@@ -1,6 +1,4 @@
-qiskit
-qiskit_ibm_runtime
-qiskit_qasm3_import
+qiskit>=2.1.0,<3
 
 # Style and Lint: Following Qiskit 1.2
 black[jupyter]~=24.1
