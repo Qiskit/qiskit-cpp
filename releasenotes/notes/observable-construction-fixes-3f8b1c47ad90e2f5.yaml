@@ -1,0 +1,54 @@
+---
+fixes:
+  - |
+    Fixed `EstimatorPub` silently dropping terms when a Pauli label appeared
+    more than once in a `std::vector<std::pair<std::string, double>>`
+    observable. The coefficients are now summed, so
+
+    ```cpp
+    std::vector<std::pair<std::string, double>> terms;
+    terms.push_back(std::make_pair(std::string("Z"), 0.5));
+    terms.push_back(std::make_pair(std::string("Z"), 0.25));
+    EstimatorPub(circuit, terms);
+    ```
+
+    gives `0.75 * Z` rather than the `0.25 * Z` it gave before, which kept only
+    the last coefficient. This matches the `SparseObservable` input path, which
+    already summed the duplicates, and Qiskit Python, whose estimator coerces a
+    mapping of labels through `SparseObservable.from_list`. The terms keep the
+    order in which their labels first appear. Part of issue #163.
+  - |
+    `SparseObservable::from_list()` now throws `std::invalid_argument` when the
+    labels disagree on their length, rather than writing to `std::cerr` and
+    calling `abort()`. Aborting took the whole process down, so a caller
+    building an observable from input it did not control had no way to recover.
+    Part of issue #163.
+  - |
+    `SparseObservable::from_list()` and `SparseObservable::from_label()` now
+    reject a character outside the alphabet `"IXYZ+-rl01"` instead of reading it
+    as an identity. A typo such as `"ZQ"` previously built a valid observable
+    that was quietly not the one the caller wrote.
+  - |
+    `SparseObservable::from_list()` now reports a failure from the underlying
+    `qk_obs_new()`, which signals incoherent data by returning a null pointer
+    rather than by panicking. The observable returned previously held nothing,
+    and the failure only surfaced later as an unrelated error from whichever
+    method was called on it next.
+  - |
+    `SparseObservable::from_list()` now throws when given an empty list without
+    a qubit count, which it previously accepted while building an observable on
+    zero qubits. Qiskit Python raises here for the same reason: the width cannot
+    be inferred. Passing the count explicitly, as in
+    `SparseObservable::from_list({}, 4)`, still gives the zero observable.
+upgrade:
+  - |
+    `SparseObservable::from_list()` and `SparseObservable::from_label()` now
+    throw `std::invalid_argument` on input they previously accepted or aborted
+    on. Code that relied on an unknown label character being read as an identity
+    will now see an exception. Note that `from_list()` no longer aborts, so a
+    caller that depended on the process dying to signal bad input must catch
+    the exception instead.
+  - |
+    Both label parsers accept `'_'` as well as `'I'` for an identity, since
+    `Term::to_label()` writes `'_'`. A label read back from `to_label()` can
+    therefore be passed straight to `from_label()`.
