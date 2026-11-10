@@ -1403,6 +1403,769 @@ static int test_to_qasm3_global_phase_gate(void) {
     return Ok;
 }
 
+// ---------------------------------------------------------------------------
+// QASM3 importer
+// ---------------------------------------------------------------------------
+
+/// Parse a program and re-export it, returning the round-tripped text. The
+/// round trip is what actually pins the importer to the exporter: the two are
+/// separate hand-written halves, so agreement has to be asserted rather than
+/// assumed.
+static std::string qasm3_round_trip(const std::string &source) {
+    auto circ = QuantumCircuit::from_qasm3(source);
+    return circ.to_qasm3();
+}
+
+static int check_round_trip(const char *test_name, const std::string &source) {
+    std::string actual;
+    try {
+        actual = qasm3_round_trip(source);
+    } catch (const std::exception &e) {
+        std::cerr << "  " << test_name << " test : threw \"" << e.what()
+            << "\"\n    input:\n" << source << std::endl;
+        return EqualityError;
+    }
+    if (actual != source) {
+        std::cerr << "  " << test_name << " test : \n    expected:\n" << source
+            << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+/// Assert that importing and re-exporting is stable: the text the exporter
+/// writes for the imported circuit must survive another round trip.
+///
+/// This is the weaker check, for programs holding a numeric gate parameter.
+/// The exported text for a float comes from `qk_param_str`, so it is Qiskit's
+/// formatting rather than something this test can predict -- a hand-written
+/// "0.5" may come back as "0.500000000000000000". Comparing a second export
+/// against the first still catches the importer and exporter disagreeing,
+/// which is the point, without pinning the float format.
+static int check_round_trip_stable(const char *test_name,
+                                   const std::string &source) {
+    std::string once;
+    std::string twice;
+    try {
+        once = qasm3_round_trip(source);
+        twice = qasm3_round_trip(once);
+    } catch (const std::exception &e) {
+        std::cerr << "  " << test_name << " test : threw \"" << e.what()
+            << "\"\n    input:\n" << source << std::endl;
+        return EqualityError;
+    }
+    if (once != twice) {
+        std::cerr << "  " << test_name << " test : the round trip is not stable\n"
+            << "    first:\n" << once << "\n    second:\n" << twice << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+/// Assert that a program is rejected, and that the message names a line.
+static int check_rejected(const char *test_name, const std::string &source) {
+    try {
+        QuantumCircuit::from_qasm3(source);
+    } catch (const std::invalid_argument &e) {
+        const std::string message(e.what());
+        if (message.find("line") == std::string::npos) {
+            std::cerr << "  " << test_name
+                << " test : the message does not name a line : " << message
+                << std::endl;
+            return EqualityError;
+        }
+        return Ok;
+    } catch (const std::exception &e) {
+        std::cerr << "  " << test_name << " test : threw " << e.what()
+            << ", expected std::invalid_argument" << std::endl;
+        return EqualityError;
+    }
+    std::cerr << "  " << test_name << " test : the program was accepted:\n"
+        << source << std::endl;
+    return EqualityError;
+}
+
+static int test_from_qasm3_basic(void) {
+    return check_round_trip("from_qasm3_basic",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "bit[1] c;\n"
+        "h q[0];\n"
+        "cx q[0], q[1];\n"
+        "c[0] = measure q[0];\n");
+}
+
+static int test_from_qasm3_round_trips_multi_regs(void) {
+    // The exporter merges the quantum registers into one but keeps the
+    // classical ones separate, so the text it writes must come back unchanged.
+    return check_round_trip("from_qasm3_round_trips_multi_regs",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "bit[2] c1;\n"
+        "bit[1] c2;\n"
+        "c2[0] = measure q[2];\n"
+        "c1[0] = measure q[0];\n"
+        "c1[1] = measure q[1];\n");
+}
+
+static int test_from_qasm3_round_trips_parameterized(void) {
+    // "rz(phi + theta)" exercises the expression parser and the input
+    // declarations together.
+    return check_round_trip("from_qasm3_round_trips_parameterized",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] phi;\n"
+        "input float[64] theta;\n"
+        "qubit[2] q;\n"
+        "bit[1] c;\n"
+        "rx(theta) q[0];\n"
+        "rz(phi + theta) q[1];\n"
+        "c[0] = measure q[0];\n");
+}
+
+static int test_from_qasm3_round_trips_delay(void) {
+    return check_round_trip("from_qasm3_round_trips_delay",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "delay[100dt] q[0];\n"
+        "delay[250.5ns] q[1];\n"
+        "h q[0];\n");
+}
+
+static int test_from_qasm3_delay_units(void) {
+    // Every unit the exporter can write must parse. ps is not among them: the
+    // exporter converts a ps duration to ns, so it never appears in output.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[4] q;\n"
+        "delay[1s] q[0];\n"
+        "delay[2ms] q[1];\n"
+        "delay[3us] q[2];\n"
+        "delay[4ns] q[3];\n");
+    if (circ.num_instructions() != 4) {
+        std::cerr << "  from_qasm3_delay_units test : " << circ.num_instructions()
+            << " instructions, expected 4" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_round_trips_global_phase(void) {
+    // A gphase before any operation is the circuit's global phase property.
+    return check_round_trip("from_qasm3_round_trips_global_phase",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "gphase(0.5);\n"
+        "h q[0];\n");
+}
+
+static int test_from_qasm3_global_phase_gate(void) {
+    // A gphase *after* an operation is a GlobalPhaseGate instruction instead.
+    // Position is the only thing that distinguishes the two in the format, so
+    // this is the counterpart to the test above.
+    const std::string source =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "h q[0];\n"
+        "gphase(0.5);\n";
+    auto circ = QuantumCircuit::from_qasm3(source);
+    if (circ.num_instructions() != 2) {
+        std::cerr << "  from_qasm3_global_phase_gate test : "
+            << circ.num_instructions() << " instructions, expected 2 (the "
+            << "gphase should be an instruction, not the circuit property)"
+            << std::endl;
+        return EqualityError;
+    }
+    // global_phase() returns a const reference and as_real() is not const, so
+    // the parameter has to be copied to be read.
+    Parameter phase = circ.global_phase();
+    if (phase.as_real() != 0.0) {
+        std::cerr << "  from_qasm3_global_phase_gate test : the circuit property "
+            << "was set to " << phase.as_real()
+            << ", expected it to stay 0" << std::endl;
+        return EqualityError;
+    }
+    return check_round_trip("from_qasm3_global_phase_gate", source);
+}
+
+static int test_from_qasm3_round_trips_custom_gate_definitions(void) {
+    // The exporter writes a definition block for a gate that is not in
+    // stdgates.inc. The gate is in qiskit-cpp's own mapping, so the body is
+    // redundant and skipped -- but it must be accepted, and re-exporting must
+    // write the same block back. The parameter is a plain literal here: an
+    // expression over constants folds, so "pi/4" would come back as its value
+    // and the text would not match for a reason that is not the point of this
+    // test.
+    const std::string source =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "gate rzz(p0) _gate_q_0, _gate_q_1 {\n"
+        "  cx _gate_q_0, _gate_q_1;\n"
+        "  rz(p0) _gate_q_1;\n"
+        "  cx _gate_q_0, _gate_q_1;\n"
+        "}\n"
+        "qubit[2] q;\n"
+        "rzz(0.5) q[0], q[1];\n";
+    // The definition block must come back, which is the point of this test.
+    const auto once = qasm3_round_trip(source);
+    if (once.find("gate rzz(p0) _gate_q_0, _gate_q_1 {") == std::string::npos) {
+        std::cerr << "  from_qasm3_round_trips_custom_gate_definitions test : the "
+            << "definition block was not re-emitted:\n" << once << std::endl;
+        return EqualityError;
+    }
+    return check_round_trip_stable("from_qasm3_round_trips_custom_gate_definitions",
+                                   source);
+}
+
+static int test_from_qasm3_physical_qubits(void) {
+    // A transpiled circuit exports bare "$n" with no qubit declaration, so the
+    // width has to come from the references. It is not a text round trip: the
+    // layout is not recoverable, so re-exporting writes "q[n]".
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "h $1;\n"
+        "cx $1, $2;\n");
+    if (circ.num_qubits() != 3) {
+        std::cerr << "  from_qasm3_physical_qubits test : " << circ.num_qubits()
+            << " qubits, expected 3 (the highest index plus one)" << std::endl;
+        return EqualityError;
+    }
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "h q[1];\n"
+        "cx q[1], q[2];\n";
+    if (actual != expected) {
+        std::cerr << "  from_qasm3_physical_qubits test : \n    expected:\n"
+            << expected << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_expression_precedence(void) {
+    // "1 + 2 * 3" must be 7, not 9. Checked through the circuit's own
+    // re-export rather than by reading the parameter back, since a bound
+    // expression is folded to a literal.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "rz(1 + 2 * 3) q[0];\n");
+    const auto actual = circ.to_qasm3();
+    if (actual.find("rz(7") == std::string::npos) {
+        std::cerr << "  from_qasm3_expression_precedence test : expected rz(7), got:\n"
+            << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_expression_forms(void) {
+    // The shapes the exporter actually writes: a negated constant, a
+    // parenthesized negative coefficient, a division by a literal, and a
+    // power.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] p0;\n"
+        "qubit[1] q;\n"
+        "p(-pi/8) q[0];\n"
+        "ry((-0.5)*p0) q[0];\n"
+        "rz(2 ** 3) q[0];\n"
+        "rx(sqrt(4)) q[0];\n");
+    if (circ.num_instructions() != 4) {
+        std::cerr << "  from_qasm3_expression_forms test : " << circ.num_instructions()
+            << " instructions, expected 4" << std::endl;
+        return EqualityError;
+    }
+    const auto actual = circ.to_qasm3();
+    // 2 ** 3 folds to 8 and sqrt(4) to 2, both being literal.
+    if (actual.find("rz(8") == std::string::npos) {
+        std::cerr << "  from_qasm3_expression_forms test : expected rz(8) from 2 ** 3:\n"
+            << actual << std::endl;
+        return EqualityError;
+    }
+    if (actual.find("rx(2") == std::string::npos) {
+        std::cerr << "  from_qasm3_expression_forms test : expected rx(2) from sqrt(4):\n"
+            << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_expression_functions(void) {
+    // A function applied to a symbol cannot fold, so it survives into the
+    // exported expression and is the way to check the call was built at all.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] theta;\n"
+        "qubit[1] q;\n"
+        "rz(sin(theta)) q[0];\n");
+    const auto actual = circ.to_qasm3();
+    if (actual.find("sin(theta)") == std::string::npos) {
+        std::cerr << "  from_qasm3_expression_functions test : expected sin(theta):\n"
+            << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_barrier_and_reset(void) {
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "reset q[0];\n"
+        "barrier q[0], q[1], q[2];\n"
+        "h q[0];\n");
+    const auto actual = circ.to_qasm3();
+    const std::string expected =
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "reset q[0];\n"
+        "barrier q[0], q[1], q[2];\n"
+        "h q[0];\n";
+    if (actual != expected) {
+        std::cerr << "  from_qasm3_barrier_and_reset test : \n    expected:\n"
+            << expected << "\n    actual:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_comments_and_whitespace(void) {
+    // Comments are not something the exporter writes, but a hand-edited file
+    // will have them, and a mis-skipped comment would corrupt the line numbers
+    // every error message depends on.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "// a line comment\n"
+        "include \"stdgates.inc\";\n"
+        "/* a block\n"
+        "   comment */\n"
+        "qubit[1] q;\n"
+        "\n"
+        "   h    q[0]  ;\n");
+    if (circ.num_qubits() != 1 || circ.num_instructions() != 1) {
+        std::cerr << "  from_qasm3_comments_and_whitespace test : "
+            << circ.num_qubits() << " qubits and " << circ.num_instructions()
+            << " instructions, expected 1 and 1" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_reports_line_numbers(void) {
+    // The line of the offending statement, not of the end of the program.
+    try {
+        QuantumCircuit::from_qasm3(
+            "OPENQASM 3.0;\n"
+            "include \"stdgates.inc\";\n"
+            "qubit[1] q;\n"
+            "not_a_gate q[0];\n"
+            "h q[0];\n");
+    } catch (const std::invalid_argument &e) {
+        const std::string message(e.what());
+        if (message.find("line 4") == std::string::npos) {
+            std::cerr << "  from_qasm3_reports_line_numbers test : expected line 4 in : "
+                << message << std::endl;
+            return EqualityError;
+        }
+        return Ok;
+    }
+    std::cerr << "  from_qasm3_reports_line_numbers test : an unknown gate was accepted"
+        << std::endl;
+    return EqualityError;
+}
+
+static int test_from_qasm3_rejects_unknown_gate(void) {
+    return check_rejected("from_qasm3_rejects_unknown_gate",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "flubber q[0];\n");
+}
+
+static int test_from_qasm3_rejects_wrong_qubit_count(void) {
+    return check_rejected("from_qasm3_rejects_wrong_qubit_count",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "h q[0], q[1];\n");
+}
+
+static int test_from_qasm3_rejects_wrong_param_count(void) {
+    return check_rejected("from_qasm3_rejects_wrong_param_count",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "rz(0.1, 0.2) q[0];\n");
+}
+
+static int test_from_qasm3_rejects_missing_params(void) {
+    return check_rejected("from_qasm3_rejects_missing_params",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "rz q[0];\n");
+}
+
+static int test_from_qasm3_rejects_out_of_range_qubit(void) {
+    return check_rejected("from_qasm3_rejects_out_of_range_qubit",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "h q[5];\n");
+}
+
+static int test_from_qasm3_rejects_unknown_register(void) {
+    return check_rejected("from_qasm3_rejects_unknown_register",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "h r[0];\n");
+}
+
+static int test_from_qasm3_rejects_undeclared_parameter(void) {
+    // Without this an undeclared name would silently become a fresh symbol,
+    // turning a typo into a parameterized circuit.
+    return check_rejected("from_qasm3_rejects_undeclared_parameter",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "rz(thetta) q[0];\n");
+}
+
+static int test_from_qasm3_rejects_repeated_qubit(void) {
+    return check_rejected("from_qasm3_rejects_repeated_qubit",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n"
+        "cx q[0], q[0];\n");
+}
+
+static int test_from_qasm3_rejects_unknown_gate_definition(void) {
+    // A user-defined gate would have to be inlined to be honoured; accepting
+    // and skipping it would silently drop every call to it.
+    return check_rejected("from_qasm3_rejects_unknown_gate_definition",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "gate my_gate a, b {\n"
+        "  cx a, b;\n"
+        "}\n"
+        "qubit[2] q;\n"
+        "my_gate q[0], q[1];\n");
+}
+
+static int test_from_qasm3_rejects_control_flow(void) {
+    // Control flow cannot be built through the C-API at all, so it must be
+    // reported rather than skipped.
+    return check_rejected("from_qasm3_rejects_control_flow",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "if (c[0] == 1) {\n"
+        "  x q[0];\n"
+        "}\n");
+}
+
+static int test_from_qasm3_rejects_bad_header(void) {
+    bool threw = false;
+    try {
+        QuantumCircuit::from_qasm3("qubit[1] q;\nh q[0];\n");
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_qasm3_rejects_bad_header test : a program with no "
+            << "OPENQASM header was accepted" << std::endl;
+        return EqualityError;
+    }
+
+    // OpenQASM 2 is a different language and must not be read as 3.
+    threw = false;
+    try {
+        QuantumCircuit::from_qasm3(
+            "OPENQASM 2.0;\n"
+            "include \"qelib1.inc\";\n"
+            "qreg q[1];\n");
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw) {
+        std::cerr << "  from_qasm3_rejects_bad_header test : an OpenQASM 2 program "
+            << "was accepted" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_rejects_unterminated(void) {
+    return check_rejected("from_qasm3_rejects_unterminated",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "rz(1 + ) q[0];\n");
+}
+
+static int test_from_qasm3_rejects_second_quantum_register(void) {
+    // The exporter never writes two, and importing them would silently merge
+    // them and change what every later index means.
+    return check_rejected("from_qasm3_rejects_second_quantum_register",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] a;\n"
+        "qubit[2] b;\n"
+        "h a[0];\n");
+}
+
+static int test_from_qasm3_rejects_measure_without_target(void) {
+    return check_rejected("from_qasm3_rejects_measure_without_target",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "measure q[0];\n");
+}
+
+static int test_from_qasm3_measure_arrow_form(void) {
+    // "measure q -> c" is the other spelling OpenQASM allows. The exporter
+    // writes the assignment form, so this is for hand-written input.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "bit[1] c;\n"
+        "measure q[0] -> c[0];\n");
+    const auto actual = circ.to_qasm3();
+    if (actual.find("c[0] = measure q[0];") == std::string::npos) {
+        std::cerr << "  from_qasm3_measure_arrow_form test : expected the measurement:\n"
+            << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_measure_into_second_register(void) {
+    // The clbit index is the register's base plus the offset, so a measurement
+    // into a later register is the test that the layout is right.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[3] q;\n"
+        "bit[2] c1;\n"
+        "bit[1] c2;\n"
+        "c2[0] = measure q[2];\n");
+    if (circ.num_clbits() != 3) {
+        std::cerr << "  from_qasm3_measure_into_second_register test : "
+            << circ.num_clbits() << " clbits, expected 3" << std::endl;
+        return EqualityError;
+    }
+    const auto actual = circ.to_qasm3();
+    if (actual.find("c2[0] = measure q[2];") == std::string::npos) {
+        std::cerr << "  from_qasm3_measure_into_second_register test : the measurement "
+            << "did not land in c2:\n" << actual << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_every_parameterized_gate(void) {
+    // Every parameterized gate must accept its parameters. This regressed
+    // because get_standard_gate_name_mapping stores Instruction *by value*, so
+    // name_mapping["rx"] = RXGate() slices away the num_params() override and
+    // the base version reports 0 (the gate classes never populate params_).
+    // The parameter count now comes from qk_gate_num_params instead, so this
+    // test covers every arity rather than just the one the sample happened to
+    // use.
+    struct GateCase {
+        const char *call;
+        uint_t num_qubits;
+    };
+    // One parameter.
+    static const GateCase one_param[] = {
+        {"p", 1}, {"rx", 1}, {"ry", 1}, {"rz", 1}, {"u1", 1},
+        {"cp", 2}, {"crx", 2}, {"cry", 2}, {"crz", 2}, {"cu1", 2},
+        {"rxx", 2}, {"ryy", 2}, {"rzz", 2}, {"rzx", 2},
+    };
+    // Two parameters.
+    static const GateCase two_params[] = {
+        {"r", 1}, {"u2", 1}, {"xx_minus_yy", 2}, {"xx_plus_yy", 2},
+    };
+    // Three parameters.
+    static const GateCase three_params[] = {
+        {"u3", 1}, {"cu3", 2},
+    };
+    // Four parameters.
+    static const GateCase four_params[] = {
+        {"cu", 2},
+    };
+
+    struct Group {
+        const GateCase *cases;
+        std::size_t count;
+        const char *args;
+    };
+    const Group groups[] = {
+        {one_param, sizeof(one_param) / sizeof(one_param[0]), "(0.5)"},
+        {two_params, sizeof(two_params) / sizeof(two_params[0]), "(0.5, 0.25)"},
+        {three_params, sizeof(three_params) / sizeof(three_params[0]),
+         "(0.5, 0.25, 0.125)"},
+        {four_params, sizeof(four_params) / sizeof(four_params[0]),
+         "(0.5, 0.25, 0.125, 0.0625)"},
+    };
+
+    for (std::size_t g = 0; g < sizeof(groups) / sizeof(groups[0]); g++) {
+        for (std::size_t i = 0; i < groups[g].count; i++) {
+            const GateCase &gate = groups[g].cases[i];
+            std::string source =
+                "OPENQASM 3.0;\n"
+                "include \"stdgates.inc\";\n"
+                "qubit[2] q;\n";
+            source += gate.call;
+            source += groups[g].args;
+            source += gate.num_qubits == 1 ? " q[0];\n" : " q[0], q[1];\n";
+
+            try {
+                auto circ = QuantumCircuit::from_qasm3(source);
+                if (circ.num_instructions() != 1) {
+                    std::cerr << "  from_qasm3_every_parameterized_gate test : \""
+                        << gate.call << "\" gave " << circ.num_instructions()
+                        << " instructions, expected 1" << std::endl;
+                    return EqualityError;
+                }
+            } catch (const std::exception &e) {
+                std::cerr << "  from_qasm3_every_parameterized_gate test : \""
+                    << gate.call << "\" was rejected : " << e.what() << std::endl;
+                return EqualityError;
+            }
+        }
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_parameterized_gate_round_trip(void) {
+    // The shape samples/qasm3_test.cpp exercises: a parameter expression on an
+    // rx, alongside two classical registers. This is the case that reported
+    // "rx takes 0 parameter(s)".
+    return check_round_trip("from_qasm3_parameterized_gate_round_trip",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "input float[64] t_0;\n"
+        "qubit[3] q;\n"
+        "bit[3] meas;\n"
+        "bit[3] test;\n"
+        "h q[0];\n"
+        "cx q[0], q[1];\n"
+        "rx(0.5 + t_0) q[1];\n"
+        "meas[0] = measure q[0];\n"
+        "meas[1] = measure q[1];\n"
+        "meas[2] = measure q[2];\n");
+}
+
+static int test_from_qasm3_wide_gates(void) {
+    // The 3- and 4-qubit gates. mcx is the interesting one: MCXGate's
+    // constructor sets num_qubits_ = 3 while mapping to QkGate_RC3X, which
+    // Qiskit defines as 4 qubits, and QuantumCircuit::mcx(0, 1, 2, 3) does add
+    // a 4-qubit gate. The importer validates against the C-API, so it accepts
+    // 4 here; taking the gate's own count would have rejected it, and appending
+    // with a count that disagrees would have silently dropped it.
+    struct GateCase {
+        const char *name;
+        uint_t num_qubits;
+    };
+    static const GateCase cases[] = {
+        {"ccx", 3}, {"ccz", 3}, {"cswap", 3}, {"rccx", 3},
+        {"mcx", 4}, {"c3sx", 4}, {"rcccx", 4},
+    };
+
+    for (std::size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        std::string source =
+            "OPENQASM 3.0;\n"
+            "include \"stdgates.inc\";\n"
+            "qubit[4] q;\n";
+        source += cases[i].name;
+        source += " q[0], q[1], q[2]";
+        if (cases[i].num_qubits == 4) {
+            source += ", q[3]";
+        }
+        source += ";\n";
+
+        try {
+            auto circ = QuantumCircuit::from_qasm3(source);
+            if (circ.num_instructions() != 1) {
+                std::cerr << "  from_qasm3_wide_gates test : \"" << cases[i].name
+                    << "\" gave " << circ.num_instructions()
+                    << " instructions, expected 1" << std::endl;
+                return EqualityError;
+            }
+            // The gate must come back with the qubits it was given, which is
+            // what confirms it was actually appended rather than dropped.
+            auto op = circ[0];
+            if (op.qubits().size() != cases[i].num_qubits) {
+                std::cerr << "  from_qasm3_wide_gates test : \"" << cases[i].name
+                    << "\" was added on " << op.qubits().size()
+                    << " qubits, expected " << cases[i].num_qubits << std::endl;
+                return EqualityError;
+            }
+        } catch (const std::exception &e) {
+            std::cerr << "  from_qasm3_wide_gates test : \"" << cases[i].name
+                << "\" was rejected : " << e.what() << std::endl;
+            return EqualityError;
+        }
+    }
+    return Ok;
+}
+
+static int test_from_qasm3_rejects_too_few_params_per_gate(void) {
+    // The count has to be right in both directions: a gate given fewer
+    // parameters than it takes must still be rejected. If the count were read
+    // from the sliced Instruction it would be 0, and "u3(0.5) q[0];" would be
+    // accepted as taking none.
+    return check_rejected("from_qasm3_rejects_too_few_params_per_gate",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "u3(0.5) q[0];\n");
+}
+
+static int test_from_qasm3_rejects_params_on_unparameterized_gate(void) {
+    // The other direction: a gate that takes none must reject one.
+    return check_rejected("from_qasm3_rejects_params_on_unparameterized_gate",
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[1] q;\n"
+        "h(0.5) q[0];\n");
+}
+
+static int test_from_qasm3_empty_program(void) {
+    // A header with no body is a valid, empty circuit.
+    auto circ = QuantumCircuit::from_qasm3(
+        "OPENQASM 3.0;\n"
+        "include \"stdgates.inc\";\n"
+        "qubit[2] q;\n");
+    if (circ.num_qubits() != 2 || circ.num_instructions() != 0) {
+        std::cerr << "  from_qasm3_empty_program test : " << circ.num_qubits()
+            << " qubits and " << circ.num_instructions()
+            << " instructions, expected 2 and 0" << std::endl;
+        return EqualityError;
+    }
+    return Ok;
+}
+
 static int test_to_qasm3_physical_qubits(void) {
     auto circ = QuantumCircuit(156, 0);
     circ.h(21);
@@ -2259,6 +3022,43 @@ int test_circuit(int argc, char** argv) {
     num_failed += RUN_TEST(test_to_qasm3_global_phase_parameter);
     num_failed += RUN_TEST(test_to_qasm3_global_phase_gate);
     num_failed += RUN_TEST(test_to_qasm3_physical_qubits);
+    num_failed += RUN_TEST(test_from_qasm3_basic);
+    num_failed += RUN_TEST(test_from_qasm3_round_trips_multi_regs);
+    num_failed += RUN_TEST(test_from_qasm3_round_trips_parameterized);
+    num_failed += RUN_TEST(test_from_qasm3_round_trips_delay);
+    num_failed += RUN_TEST(test_from_qasm3_delay_units);
+    num_failed += RUN_TEST(test_from_qasm3_round_trips_global_phase);
+    num_failed += RUN_TEST(test_from_qasm3_global_phase_gate);
+    num_failed += RUN_TEST(test_from_qasm3_round_trips_custom_gate_definitions);
+    num_failed += RUN_TEST(test_from_qasm3_physical_qubits);
+    num_failed += RUN_TEST(test_from_qasm3_expression_precedence);
+    num_failed += RUN_TEST(test_from_qasm3_expression_forms);
+    num_failed += RUN_TEST(test_from_qasm3_expression_functions);
+    num_failed += RUN_TEST(test_from_qasm3_barrier_and_reset);
+    num_failed += RUN_TEST(test_from_qasm3_comments_and_whitespace);
+    num_failed += RUN_TEST(test_from_qasm3_reports_line_numbers);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_unknown_gate);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_wrong_qubit_count);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_wrong_param_count);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_missing_params);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_out_of_range_qubit);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_unknown_register);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_undeclared_parameter);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_repeated_qubit);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_unknown_gate_definition);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_control_flow);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_bad_header);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_unterminated);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_second_quantum_register);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_measure_without_target);
+    num_failed += RUN_TEST(test_from_qasm3_measure_arrow_form);
+    num_failed += RUN_TEST(test_from_qasm3_measure_into_second_register);
+    num_failed += RUN_TEST(test_from_qasm3_every_parameterized_gate);
+    num_failed += RUN_TEST(test_from_qasm3_parameterized_gate_round_trip);
+    num_failed += RUN_TEST(test_from_qasm3_wide_gates);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_too_few_params_per_gate);
+    num_failed += RUN_TEST(test_from_qasm3_rejects_params_on_unparameterized_gate);
+    num_failed += RUN_TEST(test_from_qasm3_empty_program);
 #if QISKIT_CPP_HAS_QPY
     num_failed += RUN_TEST(test_to_qpy);
     num_failed += RUN_TEST(test_to_qpy_with_version);

@@ -223,6 +223,118 @@ public:
         return ret;
     }
 
+    /// @brief calculate the square root of this Parameter
+	/// @return a new Parameter sqrt(this)
+    /// @details There is no ``qk_param_sqrt``, so this is ``pow(this, 0.5)``,
+    ///   which is how Qiskit represents a square root in a parameter
+    ///   expression.
+    Parameter sqrt(void) const
+    {
+        Parameter ret;
+        Parameter exponent(0.5);
+        qk_param_pow(ret.qiskit_param_.get(), qiskit_param_.get(), exponent.qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the sine of this Parameter
+	/// @return a new Parameter sin(this)
+    Parameter sin(void) const
+    {
+        Parameter ret;
+        qk_param_sin(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the cosine of this Parameter
+	/// @return a new Parameter cos(this)
+    Parameter cos(void) const
+    {
+        Parameter ret;
+        qk_param_cos(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the tangent of this Parameter
+	/// @return a new Parameter tan(this)
+    Parameter tan(void) const
+    {
+        Parameter ret;
+        qk_param_tan(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the arcsine of this Parameter
+	/// @return a new Parameter asin(this)
+    Parameter asin(void) const
+    {
+        Parameter ret;
+        qk_param_asin(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the arccosine of this Parameter
+	/// @return a new Parameter acos(this)
+    Parameter acos(void) const
+    {
+        Parameter ret;
+        qk_param_acos(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the arctangent of this Parameter
+	/// @return a new Parameter atan(this)
+    Parameter atan(void) const
+    {
+        Parameter ret;
+        qk_param_atan(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the natural logarithm of this Parameter
+	/// @return a new Parameter log(this)
+    Parameter log(void) const
+    {
+        Parameter ret;
+        qk_param_log(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the exponential of this Parameter
+	/// @return a new Parameter exp(this)
+    Parameter exp(void) const
+    {
+        Parameter ret;
+        qk_param_exp(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the absolute value of this Parameter
+	/// @return a new Parameter abs(this)
+    Parameter abs(void) const
+    {
+        Parameter ret;
+        qk_param_abs(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the sign of this Parameter
+	/// @return a new Parameter sign(this)
+    Parameter sign(void) const
+    {
+        Parameter ret;
+        qk_param_sign(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
+    /// @brief calculate the complex conjugate of this Parameter
+	/// @return a new Parameter conj(this)
+    Parameter conjugate(void) const
+    {
+        Parameter ret;
+        qk_param_conjugate(ret.qiskit_param_.get(), qiskit_param_.get());
+        return ret;
+    }
+
     /// @brief Copy parameter from other
     /// @param prm source Parameter
     Parameter &operator=(const Parameter &prm)

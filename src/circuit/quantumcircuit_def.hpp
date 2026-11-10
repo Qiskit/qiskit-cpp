@@ -71,6 +71,7 @@ static Parameter null_param;
 class QuantumCircuit
 {
 	friend class Qasm3Exporter;
+	friend class Qasm3Importer;
 	friend class QpyImporter;
 protected:
 	uint_t num_qubits_;			// number of qubits
@@ -1767,6 +1768,48 @@ public:
 	/// @brief Serialize a QuantumCircuit object as an OpenQASM3 string.
 	/// @return An OpenQASM3 string.
 	std::string to_qasm3(void);
+
+	/// @brief Build a QuantumCircuit from an OpenQASM 3 program.
+	/// @param qasm3 The OpenQASM 3 program text.
+	/// @return The circuit the program describes.
+	/// @throws std::invalid_argument if the program holds anything that cannot
+	///   be imported, naming the line it appears on.
+	/// @details Reads the subset of OpenQASM 3 that ``to_qasm3()`` writes, so a
+	///   circuit can be read back after being exported. Only the gates
+	///   qiskit-cpp knows are accepted -- those in
+	///   ``get_standard_gate_name_mapping()``, plus ``measure``, ``reset``,
+	///   ``barrier`` and ``delay``. Anything else is reported rather than
+	///   skipped, so an unsupported program fails instead of importing as a
+	///   different circuit.
+	/// @note The Qiskit C-API has no OpenQASM entry point (it exposes QPY but
+	///   not QASM3), so unlike ``from_qpy()`` this is parsed here rather than by
+	///   Qiskit itself. Prefer QPY when both ends are under your control: it
+	///   round-trips losslessly and is checked by Qiskit's own reader.
+	/// @note Not every circuit survives a ``to_qasm3()`` round trip exactly,
+	///   because the exporter does not write everything a circuit holds:
+	///   - Several quantum registers are exported as one merged ``qubit[n]``
+	///     register, so they import as one.
+	///   - A transpiled circuit is exported with physical qubit references
+	///     (``$n``) that carry no layout, so ``qubit_map_`` is left empty, as it
+	///     is by ``from_qpy()``.
+	///   - A zero-width classical register is not written by the exporter at
+	///     all, so it cannot be recovered.
+	///   - A delay in picoseconds is exported in nanoseconds; the duration is
+	///     the same but the unit differs.
+	/// @note Control flow is not supported, and cannot be: every
+	///   ``qk_control_flow_*`` and ``qk_expr_*`` function in the C-API is an
+	///   accessor, with no constructors, so a control-flow operation cannot be
+	///   built through it. ``to_qasm3()`` does not emit control flow either.
+	static QuantumCircuit from_qasm3(const std::string &qasm3);
+
+	/// @brief Build a QuantumCircuit from an OpenQASM 3 file.
+	/// @param filename The path of the file to read.
+	/// @return The circuit the file describes.
+	/// @throws std::runtime_error if the file cannot be read.
+	/// @throws std::invalid_argument if the program cannot be imported.
+	/// @details See ``from_qasm3()`` for the subset that is accepted and for
+	///   what does not survive a round trip.
+	static QuantumCircuit import_qasm3(const std::string &filename);
 
 	// qpy
 
