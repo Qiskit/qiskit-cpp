@@ -95,6 +95,11 @@ public:
         shots_ = src.shots_;
         serialization_ = src.serialization_;
     }
+
+    SamplerPub(const nlohmann::ordered_json& input)
+    {
+        from_json(input);
+    }
     ~SamplerPub(){}
 
     /// @brief Return a QuantumCircuit for this sampler pub
@@ -148,7 +153,7 @@ public:
     }
 
     /// @brief Return the total number of shots
-    uint_t shots(void)
+    uint_t shots(void) const
     {
         return shots_;
     }
@@ -207,6 +212,61 @@ public:
             ret.push_back(shots_);
         }
         return ret;
+    }
+
+    /// @brief initialize a pub from  JSON format
+    /// @param input a JSON format sampler pub
+    /// @throws std::invalid_argument if the input is not a sampler pub, or
+    ///   holds a circuit, parameter values or shot count that cannot be read
+    /// @details The circuit is read as the serialization this pub is set to, so
+    ///   call ``set_serialization`` first when reading a pub that does not use
+    ///   the default. ``pub_circuit_serialization(input[0])`` gives the form a
+    ///   payload is actually in.
+    /// @note The parameter values are not checked against the circuit here. A
+    ///   pub whose values do not match its own circuit is reported by
+    ///   ``to_json``, which rechecks the count before anything is submitted.
+    void from_json(const nlohmann::ordered_json& input)
+    {
+        // The shape has to be checked before anything is indexed. nlohmann's
+        // const operator[] with a numeric index throws only for a non-array:
+        // on an array it forwards to std::vector::operator[], so reading past
+        // the end is undefined behaviour rather than an error. Checking here
+        // also means a malformed pub is reported as std::invalid_argument like
+        // every other rejection, instead of as nlohmann's own type_error.
+        if (!input.is_array()) {
+            throw std::invalid_argument(
+                "SamplerPub : a pub must be a JSON array of "
+                "[circuit, parameter_values] with an optional shot count.");
+        }
+        if (input.size() < 2 || input.size() > 3) {
+            std::stringstream message;
+            message << "SamplerPub : a pub must hold 2 or 3 elements, but this one holds "
+                    << input.size() << ".";
+            throw std::invalid_argument(message.str());
+        }
+
+        circuit_ = deserialize_pub_circuit(input[0], serialization_);
+        parameter_values_ = ParameterValues::from_json(input[1]);
+        if (input.size() > 2) {
+            if (!input[2].is_number_unsigned()) {
+                throw std::invalid_argument(
+                    "SamplerPub : the shot count must be a non-negative whole number.");
+            }
+            shots_ = input[2].get<uint_t>();
+        }
+    }
+
+    /// @brief Build an SamplerPub from a JSON format sampler pub.
+    /// @param input a JSON format sampler pub, as written by ``to_json``
+    /// @return the pub the JSON describes
+    /// @throws std::invalid_argument if the input cannot be read
+    /// @details A convenience around ``from_json`` for the common case of
+    ///   reading a pub rather than overwriting an existing one.
+    static SamplerPub from_pub_json(const nlohmann::ordered_json& input)
+    {
+        SamplerPub pub;
+        pub.from_json(input);
+        return pub;
     }
 
 };

@@ -25,11 +25,13 @@ enum TestResult {
 
 // A macro for running a test function. This calls the run function below with
 // the provided function and its name.
-#define RUN_TEST(f) run(#f, f)
+#define RUN_TEST(f) run(#f, f, false)
+
+#define RUN_TEST_EXCEPTION(f) run(#f, f, true)
 
 // A function to run a test function of a given name. This function will also
 // post-process the returned `TestResult` to product a minimal info message for
 // the developer running the test suite.
-int run(const char *name, int (*test_function)(void));
+int run(const char *name, int (*test_function)(void), bool test_raise_except);
 
 #endif//_TEST_COMMON_H_

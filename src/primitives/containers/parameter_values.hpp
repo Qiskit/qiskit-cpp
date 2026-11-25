@@ -17,8 +17,10 @@
 #ifndef __qiskitcpp_primitives_parameter_values_hpp__
 #define __qiskitcpp_primitives_parameter_values_hpp__
 
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
@@ -29,6 +31,7 @@
 
 #include <zlib.h>
 
+#include "primitives/containers/payload_codec.hpp"
 #include "utils/types.hpp"
 
 namespace Qiskit {
@@ -266,7 +269,309 @@ public:
         return encoded;
     }
 
+    /// @brief Read parameter values back from a Qiskit Runtime ndarray payload.
+    /// @param input the ``{"__type__", "__value__"}`` object written by
+    ///   ``to_json``
+    /// @return one list of values per binding set
+    /// @throws std::invalid_argument if the object is not an ndarray payload,
+    ///   or holds an array this cannot represent
+    /// @details The inverse of ``to_json``: the ``__value__`` string is base64
+    ///   decoded, decompressed, and read as a NumPy ``.npy`` array. A 1-D array
+    ///   gives one binding set and a 2-D array one set per row, matching the
+    ///   shapes ``to_json`` writes.
+    /// @note An empty 1-D array comes back as no sets rather than as one empty
+    ///   set. ``to_json`` writes shape ``(0,)`` for both, so the two cannot be
+    ///   told apart; no sets is the form ``set_parameter_values`` stores for a
+    ///   circuit with no parameters.
+    static std::vector<std::vector<double>>
+    from_json(const nlohmann::ordered_json &input)
+    {
+        if (!input.is_object()) {
+            throw std::invalid_argument(
+                "Parameter values : expected an object holding \"__type__\" and \"__value__\".");
+        }
+        if (!input.contains("__type__") || !input["__type__"].is_string()
+            || input["__type__"].get<std::string>() != "ndarray") {
+            throw std::invalid_argument(
+                "Parameter values : \"__type__\" must be \"ndarray\".");
+        }
+        if (!input.contains("__value__") || !input["__value__"].is_string()) {
+            throw std::invalid_argument(
+                "Parameter values : \"__value__\" must be a base64 string.");
+        }
+
+        const std::vector<std::uint8_t> npy = PayloadCodec::decompress(
+            PayloadCodec::base64_decode(input["__value__"].get<std::string>()));
+
+        std::vector<std::size_t> shape;
+        const std::vector<double> flat = from_npy(npy, shape);
+
+        if (shape.size() == 1) {
+            if (shape[0] == 0) {
+                // No values to bind.
+                return std::vector<std::vector<double>>();
+            }
+            return std::vector<std::vector<double>>(1, flat);
+        }
+
+        if (shape.size() == 2) {
+            const std::size_t num_sets = shape[0];
+            const std::size_t num_parameters = shape[1];
+            if (num_sets == 0 || num_parameters == 0) {
+                return std::vector<std::vector<double>>();
+            }
+            std::vector<std::vector<double>> values(num_sets);
+            for (std::size_t i = 0; i < num_sets; i++) {
+                // C order, so each set is a contiguous run of the flat data.
+                values[i].assign(flat.begin() + (i * num_parameters),
+                                 flat.begin() + ((i + 1) * num_parameters));
+            }
+            return values;
+        }
+
+        std::stringstream message;
+        message << "Parameter values : the array has " << shape.size()
+                << " dimensions, but only a 1-D or 2-D array of values can be read.";
+        throw std::invalid_argument(message.str());
+    }
+
+    /// @brief Read an array of doubles from the NumPy ``.npy`` format.
+    /// @param npy the ``.npy`` bytes
+    /// @param shape output for the dimensions of the array
+    /// @return the elements, in C order
+    /// @throws std::invalid_argument if the bytes are not a ``.npy`` array of
+    ///   little-endian doubles in C order
+    /// @details The inverse of ``to_npy``. Accepts format version 1 (a
+    ///   ``uint16`` header length) as well as 2 and 3 (a ``uint32`` one), even
+    ///   though ``to_npy`` only writes version 1, since NumPy switches versions
+    ///   on the header length alone.
+    static std::vector<double> from_npy(const std::vector<std::uint8_t> &npy,
+                                        std::vector<std::size_t> &shape)
+    {
+        const char magic[] = {'\x93', 'N', 'U', 'M', 'P', 'Y'};
+        const std::size_t magic_len = sizeof(magic);
+        if (npy.size() < magic_len + 2
+            || std::memcmp(npy.data(), magic, magic_len) != 0) {
+            throw std::invalid_argument(
+                "Parameter values : the data is not a NumPy .npy array.");
+        }
+
+        const std::uint8_t major = npy[magic_len];
+        std::size_t offset = magic_len + 2; // past the two version bytes
+        std::size_t header_len = 0;
+
+        if (major == 1) {
+            if (npy.size() < offset + 2) {
+                throw std::invalid_argument(
+                    "Parameter values : the .npy header length is truncated.");
+            }
+            header_len = (std::size_t)npy[offset]
+                | ((std::size_t)npy[offset + 1] << 8);
+            offset += 2;
+        } else if (major == 2 || major == 3) {
+            if (npy.size() < offset + 4) {
+                throw std::invalid_argument(
+                    "Parameter values : the .npy header length is truncated.");
+            }
+            header_len = (std::size_t)npy[offset]
+                | ((std::size_t)npy[offset + 1] << 8)
+                | ((std::size_t)npy[offset + 2] << 16)
+                | ((std::size_t)npy[offset + 3] << 24);
+            offset += 4;
+        } else {
+            std::stringstream message;
+            message << "Parameter values : .npy format version " << (int)major
+                    << " is not supported.";
+            throw std::invalid_argument(message.str());
+        }
+
+        if (npy.size() < offset + header_len) {
+            throw std::invalid_argument(
+                "Parameter values : the .npy header is truncated.");
+        }
+        const std::string header((const char *)npy.data() + offset, header_len);
+        offset += header_len;
+
+        // The dtype must be a little-endian double. '|' and '=' are not
+        // accepted for it: a double is never byte-order agnostic, and '=' means
+        // whatever the writing host was, which is not recorded.
+        const std::string descr = header_field(header, "descr");
+        if (descr != "<f8") {
+            throw std::invalid_argument(
+                "Parameter values : the .npy array has dtype \"" + descr
+                + "\", but only \"<f8\" (little-endian double) can be read.");
+        }
+        const std::string fortran_order = header_field(header, "fortran_order");
+        if (fortran_order != "False") {
+            throw std::invalid_argument(
+                "Parameter values : the .npy array is in Fortran order, but only "
+                "C order can be read.");
+        }
+
+        shape = header_shape(header);
+
+        std::size_t count = 1;
+        for (std::size_t i = 0; i < shape.size(); i++) {
+            count *= shape[i];
+        }
+        if (shape.empty()) {
+            // A 0-d array holds one element, which is not a list of parameter
+            // values. Rejected here rather than silently read as one value.
+            throw std::invalid_argument(
+                "Parameter values : the .npy array is zero-dimensional.");
+        }
+
+        const std::size_t available = npy.size() - offset;
+        if (available < count * sizeof(double)) {
+            std::stringstream message;
+            message << "Parameter values : the .npy array declares " << count
+                    << " elements but holds only " << (available / sizeof(double))
+                    << ".";
+            throw std::invalid_argument(message.str());
+        }
+
+        std::vector<double> data(count);
+        for (std::size_t i = 0; i < count; i++) {
+            data[i] = le_to_double(npy.data() + offset + (i * sizeof(double)));
+        }
+        return data;
+    }
+
 protected:
+    /// @brief Read a field out of a ``.npy`` header dictionary.
+    /// @param header the header text
+    /// @param key the key to read, without quotes
+    /// @return the value, with surrounding quotes and whitespace removed
+    /// @throws std::invalid_argument if the key is absent
+    /// @details The header is a Python dict literal. Only the three keys NumPy
+    ///   always writes are needed, and each has a simple scalar value, so the
+    ///   field is located by key rather than by parsing Python.
+    static std::string header_field(const std::string &header,
+                                    const std::string &key)
+    {
+        const std::string quoted = "'" + key + "'";
+        std::size_t at = header.find(quoted);
+        if (at == std::string::npos) {
+            // NumPy writes single quotes, but accept double quotes as well
+            // rather than failing on a header some other writer produced.
+            const std::string alternative = "\"" + key + "\"";
+            at = header.find(alternative);
+            if (at == std::string::npos) {
+                throw std::invalid_argument(
+                    "Parameter values : the .npy header has no \"" + key + "\" field.");
+            }
+            at += alternative.size();
+        } else {
+            at += quoted.size();
+        }
+
+        at = header.find(':', at);
+        if (at == std::string::npos) {
+            throw std::invalid_argument(
+                "Parameter values : the .npy header field \"" + key
+                + "\" has no value.");
+        }
+        at++;
+
+        // The value runs to the next comma that is not inside the shape tuple.
+        const std::size_t end = header.find(',', at);
+        std::string value = header.substr(at, end == std::string::npos
+                                                  ? std::string::npos
+                                                  : end - at);
+        return trim_header_value(value);
+    }
+
+    /// @brief Read the shape tuple out of a ``.npy`` header dictionary.
+    /// @param header the header text
+    /// @return the dimensions
+    /// @throws std::invalid_argument if the shape is absent or malformed
+    static std::vector<std::size_t> header_shape(const std::string &header)
+    {
+        std::size_t at = header.find("'shape'");
+        std::size_t key_len = 7;
+        if (at == std::string::npos) {
+            at = header.find("\"shape\"");
+            if (at == std::string::npos) {
+                throw std::invalid_argument(
+                    "Parameter values : the .npy header has no \"shape\" field.");
+            }
+        }
+        at = header.find('(', at + key_len);
+        if (at == std::string::npos) {
+            throw std::invalid_argument(
+                "Parameter values : the .npy header shape is not a tuple.");
+        }
+        const std::size_t end = header.find(')', at);
+        if (end == std::string::npos) {
+            throw std::invalid_argument(
+                "Parameter values : the .npy header shape is not closed.");
+        }
+
+        std::vector<std::size_t> shape;
+        const std::string inner = header.substr(at + 1, end - at - 1);
+        std::string digits;
+        for (std::size_t i = 0; i <= inner.size(); i++) {
+            const char ch = i < inner.size() ? inner[i] : ',';
+            if (ch >= '0' && ch <= '9') {
+                digits += ch;
+                continue;
+            }
+            if (ch == ',') {
+                // A trailing comma keeps a 1-D shape a Python tuple and leaves
+                // nothing to read, so an empty run is skipped rather than
+                // becoming a zero dimension.
+                if (!digits.empty()) {
+                    shape.push_back((std::size_t)std::strtoull(digits.c_str(), nullptr, 10));
+                    digits.clear();
+                }
+                continue;
+            }
+            if (std::isspace((unsigned char)ch)) {
+                continue;
+            }
+            throw std::invalid_argument(
+                "Parameter values : the .npy header shape holds a non-numeric entry.");
+        }
+        return shape;
+    }
+
+    /// @brief Strip whitespace and quotes from a header value.
+    static std::string trim_header_value(const std::string &value)
+    {
+        std::size_t begin = 0;
+        std::size_t end = value.size();
+        while (begin < end && std::isspace((unsigned char)value[begin])) {
+            begin++;
+        }
+        while (end > begin && std::isspace((unsigned char)value[end - 1])) {
+            end--;
+        }
+        if (end - begin >= 2
+            && (value[begin] == '\'' || value[begin] == '"')
+            && value[end - 1] == value[begin]) {
+            begin++;
+            end--;
+        }
+        return value.substr(begin, end - begin);
+    }
+
+    /// @brief Read a double from its little-endian bytes.
+    /// @param bytes the 8 bytes, least significant first
+    /// @return the value
+    /// @details The inverse of ``double_to_le``. Reassembles through an integer
+    ///   so the result is correct on a big-endian host too, where a plain
+    ///   memcpy would read the bytes in the wrong order.
+    static double le_to_double(const std::uint8_t *bytes)
+    {
+        std::uint64_t bits = 0;
+        for (std::size_t i = 0; i < sizeof(bits); i++) {
+            bits |= ((std::uint64_t)bytes[i]) << (8 * i);
+        }
+        double value = 0.0;
+        std::memcpy(&value, &bits, sizeof(value));
+        return value;
+    }
+
     /// @brief Return the little-endian bytes of a double.
     /// @param value the value to convert
     /// @return its 8 bytes, least significant first

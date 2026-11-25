@@ -166,6 +166,11 @@ public:
         serialization_ = src.serialization_;
     }
 
+    EstimatorPub(const nlohmann::ordered_json& input)
+    {
+        from_json(input);
+    }
+
     ~EstimatorPub() {}
 
     /// @brief Return a QuantumCircuit for this estimator pub.
@@ -348,6 +353,125 @@ public:
             ret.push_back(precision_);
         }
         return ret;
+    }
+
+    /// @brief Initialize this pub from a JSON format estimator pub.
+    /// @param input a JSON format estimator pub, as written by ``to_json``
+    /// @throws std::invalid_argument if the input is not an estimator pub, or
+    ///   holds a circuit, observables, parameter values or precision that
+    ///   cannot be read
+    /// @details The inverse of ``to_json``. The pub is the array
+    ///   ``[circuit, observables, parameter_values]`` with an optional fourth
+    ///   element for the target precision, matching ``EstimatorPubModel`` in the
+    ///   ``ibm-quantum-schemas`` package.
+    ///
+    ///   The circuit is read from whichever form it was serialized in, and
+    ///   ``serialization()`` is set to that form, so a pub re-serialized with
+    ///   ``to_json`` carries its circuit the same way it arrived.
+    /// @note The observables are kept exactly as they arrived rather than
+    ///   rebuilt, so they re-serialize unchanged. They are checked against the
+    ///   qubit count of the circuit that was just read, the same check the
+    ///   constructors apply.
+    /// @note The parameter values are likewise kept as the payload that
+    ///   arrived, so they re-serialize byte for byte. The payload is decoded
+    ///   only to recover ``num_parameter_sets()``, which cannot be read off the
+    ///   encoded form, and to check the values against the circuit.
+    /// @note As with the constructors, a parameterized circuit with no values
+    ///   is accepted here: that is a legal intermediate state, and it is
+    ///   ``to_json`` and submission that require the values. Values that are
+    ///   present must match the circuit's parameter count.
+    /// @note Not every pub survives the round trip unchanged, because the
+    ///   serialized form does not carry everything a pub holds:
+    ///   - A missing fourth element means no explicit precision, so
+    ///     ``has_precision()`` comes back false. ``to_json`` omits the element
+    ///     in that case, so this round-trips.
+    ///   - A single binding set holding no values, which only arises for a
+    ///     circuit with no parameters, comes back as zero sets. Both mean "not
+    ///     a sweep" to a result, so the difference does not change how one is
+    ///     read. See ``ParameterValues::from_json``.
+    ///   - A circuit serialized as OpenQASM 3 is subject to the limits of
+    ///     ``QuantumCircuit::from_qasm3``; QPY, the default, round-trips
+    ///     losslessly. Note that a circuit whose qubit count does not survive
+    ///     will be rejected here, because the observables no longer match its
+    ///     width.
+    void from_json(const nlohmann::ordered_json& input)
+    {
+        if (!input.is_array()) {
+            throw std::invalid_argument(
+                "EstimatorPub : a pub must be a JSON array of "
+                "[circuit, observables, parameter_values].");
+        }
+        if (input.size() < 3 || input.size() > 4) {
+            std::stringstream message;
+            message << "EstimatorPub : a pub must hold 3 or 4 elements, but this one holds "
+                    << input.size() << ".";
+            throw std::invalid_argument(message.str());
+        }
+
+        // Read everything into locals first so that a failure part way through
+        // leaves this pub as it was rather than half overwritten.
+        //
+        // The form is taken from the payload rather than from this pub's own
+        // setting, so that reading a pub does not depend on how the pub it is
+        // read into happens to be configured, and so that re-serializing keeps
+        // the form it arrived in.
+        const CircuitSerialization serialization =
+            pub_circuit_serialization(input[0]);
+        circuit::QuantumCircuit circuit =
+            deserialize_pub_circuit(input[0], serialization);
+
+        const nlohmann::ordered_json observables = input[1];
+        std::string message;
+        if (!validate_observable_json(observables, circuit.num_qubits(), &message)) {
+            throw std::invalid_argument(message);
+        }
+
+        // Kept as the payload that arrived; decoded only to recover the set
+        // count and to check the values against the circuit.
+        const nlohmann::ordered_json values_payload = input[2];
+        uint_t num_parameter_sets = 0;
+        if (!values_payload.is_null()) {
+            const std::vector<std::vector<double>> values =
+                ParameterValues::from_json(values_payload);
+            ParameterValues::validate(values, circuit.num_parameters());
+            num_parameter_sets = values.size();
+        }
+
+        double precision = 0.0;
+        bool has_precision = false;
+        if (input.size() == 4 && !input[3].is_null()) {
+            if (!input[3].is_number()) {
+                throw std::invalid_argument(
+                    "EstimatorPub : the precision must be a number.");
+            }
+            precision = input[3].get<double>();
+            if (!valid_precision(precision)) {
+                throw std::invalid_argument(
+                    "EstimatorPub precision must be finite and non-negative.");
+            }
+            has_precision = true;
+        }
+
+        circuit_ = circuit;
+        observables_ = observables;
+        parameter_values_ = values_payload;
+        num_parameter_sets_ = num_parameter_sets;
+        precision_ = precision;
+        has_precision_ = has_precision;
+        serialization_ = serialization;
+    }
+
+    /// @brief Build an EstimatorPub from a JSON format estimator pub.
+    /// @param input a JSON format estimator pub, as written by ``to_json``
+    /// @return the pub the JSON describes
+    /// @throws std::invalid_argument if the input cannot be read
+    /// @details A convenience around ``from_json`` for the common case of
+    ///   reading a pub rather than overwriting an existing one.
+    static EstimatorPub from_pub_json(const nlohmann::ordered_json& input)
+    {
+        EstimatorPub pub;
+        pub.from_json(input);
+        return pub;
     }
 
 protected:

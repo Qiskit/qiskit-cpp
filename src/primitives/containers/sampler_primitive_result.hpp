@@ -12,10 +12,10 @@
 # that they have been altered from the originals.
 */
 
-// primitive result class
+// sampler primitive result class
 
-#ifndef __qiskitcpp_primitives_result_hpp__
-#define __qiskitcpp_primitives_result_hpp__
+#ifndef __qiskitcpp_sampler_primitives_result_hpp__
+#define __qiskitcpp_sampler_primitives_result_hpp__
 
 #include <nlohmann/json.hpp>
 
@@ -25,14 +25,14 @@
 namespace Qiskit {
 namespace primitives {
 
-/// @class PrimitiveResult
+/// @class SamplerPrimitiveResult
 /// @brief A container for multiple pub results and global metadata. Only SamplerPub is supported.
-class PrimitiveResult {
+class SamplerPrimitiveResult {
 protected:
     std::vector<SamplerPubResult> pub_results_;     // a list of pub results
 public:
     /// @brief Create a new PrimitiveResult
-    PrimitiveResult() {}
+    SamplerPrimitiveResult() {}
 
 
     /// @brief allocate pub results
@@ -73,4 +73,4 @@ public:
 } // namespace Qiskit
 
 
-#endif //__qiskitcpp_primitives_result_hpp__
+#endif //__qiskitcpp_sampler_primitives_result_hpp__

@@ -27,6 +27,7 @@
 #include <nlohmann/json.hpp>
 
 #include "circuit/quantumcircuit.hpp"
+#include "primitives/containers/payload_codec.hpp"
 #include "utils/capi_features.hpp"
 
 #if QISKIT_CPP_HAS_QPY
@@ -153,6 +154,45 @@ public:
 
         return encoded;
     }
+
+    /// @brief Read a circuit back from a Qiskit Runtime QPY circuit payload.
+    /// @param input the ``{"__type__", "__value__"}`` object written by
+    ///   ``to_json``
+    /// @return the circuit the payload holds
+    /// @throws std::invalid_argument if the object is not a QPY circuit
+    ///   payload, or holds anything other than exactly one circuit
+    /// @details The inverse of ``to_json``: the ``__value__`` string is base64
+    ///   decoded, the result is decompressed, and the QPY bytes are read with
+    ///   ``QuantumCircuit::from_qpy``.
+    static circuit::QuantumCircuit from_json(const nlohmann::ordered_json &input)
+    {
+        if (!input.is_object()) {
+            throw std::invalid_argument(
+                "QPY payload : expected an object holding \"__type__\" and \"__value__\".");
+        }
+        if (!input.contains("__type__") || !input["__type__"].is_string()
+            || input["__type__"].get<std::string>() != "QuantumCircuit") {
+            throw std::invalid_argument(
+                "QPY payload : \"__type__\" must be \"QuantumCircuit\".");
+        }
+        if (!input.contains("__value__") || !input["__value__"].is_string()) {
+            throw std::invalid_argument(
+                "QPY payload : \"__value__\" must be a base64 string.");
+        }
+
+        const std::vector<std::uint8_t> qpy = PayloadCodec::decompress(
+            PayloadCodec::base64_decode(input["__value__"].get<std::string>()));
+
+        std::vector<circuit::QuantumCircuit> circuits =
+            circuit::QuantumCircuit::from_qpy(qpy);
+        if (circuits.size() != 1) {
+            std::stringstream message;
+            message << "QPY payload : holds " << circuits.size()
+                    << " circuits, but a PUB circuit must be exactly one.";
+            throw std::invalid_argument(message.str());
+        }
+        return circuits[0];
+    }
 #endif // QISKIT_CPP_HAS_QPY
 
     /// @brief Whether circuits can be serialized as QPY.
@@ -201,6 +241,71 @@ inline nlohmann::ordered_json serialize_pub_circuit(circuit::QuantumCircuit &cir
     }
 #endif
     return circuit.to_qasm3();
+}
+
+/// @brief Return the serialization a PUB circuit element is carried in.
+/// @param input the circuit element of a PUB
+/// @return CircuitSerialization::qpy for a QPY payload object,
+///   CircuitSerialization::qasm3 for an OpenQASM 3 string
+/// @throws std::invalid_argument if the element is neither
+/// @details The two forms are never ambiguous: a QPY payload is a JSON object
+///   and an OpenQASM 3 program is a JSON string. Use this to pick the argument
+///   for ``deserialize_pub_circuit`` when reading a pub whose form is not known
+///   in advance, which is what ``SamplerPub::from_json`` does so that a pub
+///   re-serialized after being read keeps the form it arrived in.
+inline CircuitSerialization
+pub_circuit_serialization(const nlohmann::ordered_json &input)
+{
+    if (input.is_string()) {
+        return CircuitSerialization::qasm3;
+    }
+    if (input.is_object()) {
+        return CircuitSerialization::qpy;
+    }
+    throw std::invalid_argument(
+        "PUB circuit : expected a QPY payload object or an OpenQASM 3 string.");
+}
+
+/// @brief Read a PUB circuit back from the form the caller selects.
+/// @param input the circuit element of a PUB: either the QPY payload object or
+///   the OpenQASM 3 string
+/// @param serialization the form to read ``input`` as
+/// @return the circuit
+/// @throws std::invalid_argument if ``input`` is not in the selected form, or
+///   cannot be read
+/// @details The inverse of ``serialize_pub_circuit``, and takes the
+///   serialization the same way: as the caller's choice rather than as
+///   something inferred. Reading a payload as the wrong form is reported rather
+///   than guessed at, so a pub that does not hold what the caller expected
+///   fails here instead of further on.
+/// @note Call ``pub_circuit_serialization`` first to read a pub whose form is
+///   not known in advance.
+inline circuit::QuantumCircuit
+deserialize_pub_circuit(const nlohmann::ordered_json &input,
+                        const CircuitSerialization serialization)
+{
+    if (serialization == CircuitSerialization::qasm3) {
+        if (!input.is_string()) {
+            throw std::invalid_argument(
+                "PUB circuit : the circuit was to be read as OpenQASM 3, but it is "
+                "not a string.");
+        }
+        return circuit::QuantumCircuit::from_qasm3(input.get<std::string>());
+    }
+
+#if QISKIT_CPP_HAS_QPY
+    if (!input.is_object()) {
+        throw std::invalid_argument(
+            "PUB circuit : the circuit was to be read as a QPY payload, but it is "
+            "not an object.");
+    }
+    return QpyCircuitPayload::from_json(input);
+#else
+    throw std::invalid_argument(
+        "PUB circuit : the circuit was to be read as a QPY payload, but this build "
+        "of qiskit-cpp has no QPY support. Qiskit 2.6.0 or later is required to "
+        "read one.");
+#endif
 }
 
 } // namespace primitives

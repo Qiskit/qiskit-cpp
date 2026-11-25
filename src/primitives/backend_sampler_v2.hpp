@@ -50,7 +50,7 @@ public:
     /// @brief Run and collect samples from each pub.
     /// @pubs An iterable of pub-like objects.
     /// @return PrimitiveJob
-    std::shared_ptr<BasePrimitiveJob> run(std::vector<SamplerPub> pubs)
+    std::shared_ptr<BackendSamplerJob> run(std::vector<SamplerPub> pubs)
     {
         auto job = backend_.run(pubs, shots_);
         return std::make_shared<BackendSamplerJob>(job, pubs);

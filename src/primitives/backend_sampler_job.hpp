@@ -23,6 +23,7 @@
 
 #include "primitives/containers/sampler_pub.hpp"
 #include "primitives/base/base_primitive_job.hpp"
+#include "primitives/containers/sampler_primitive_result.hpp"
 #include "providers/backend.hpp"
 #include "providers/job.hpp"
 
@@ -33,25 +34,37 @@ namespace primitives {
 /// @brief Job class for Backend Sampler primitive.
 class BackendSamplerJob : public BasePrimitiveJob {
 protected:
-    std::shared_ptr<providers::Job> job_ = nullptr;
+    std::vector<SamplerPub> pubs_;
 public:
     /// @brief Create a new BasePrimitiveJob
     /// @param job a job pointer to run pubs
     /// @param pubs a list of pub
-    BackendSamplerJob(std::shared_ptr<providers::Job> job, std::vector<SamplerPub>& pubs) : BasePrimitiveJob(pubs)
+    BackendSamplerJob(std::shared_ptr<providers::Job> job, std::vector<SamplerPub>& pubs) : BasePrimitiveJob(job)
     {
-        job_ = job;
+        pubs_ = pubs;
+    }
+
+    BackendSamplerJob(std::shared_ptr<providers::Job> job, const nlohmann::ordered_json& pubs) : BasePrimitiveJob(job)
+    {
+        for (size_t i = 0; i < pubs.size(); i++) {
+            pubs_.push_back(SamplerPub(pubs[i]));
+        }
     }
 
     BackendSamplerJob(const BackendSamplerJob& other) : BasePrimitiveJob(other)
     {
-        job_ = other.job_;
+        pubs_ = other.pubs_;
     }
 
     ~BackendSamplerJob()
     {
-        if (job_)
-            job_.reset();
+    }
+
+    /// @brief get pubs for this job
+    /// @return a list of pub
+    const std::vector<SamplerPub>& pubs(void) const
+    {
+        return pubs_;
     }
 
     /// @brief Return the status of the job.
@@ -106,7 +119,7 @@ public:
         return true;
     }
 
-    PrimitiveResult result(void) override
+    SamplerPrimitiveResult result(void)
     {
         providers::JobStatus st;
         while (true) {
@@ -116,7 +129,7 @@ public:
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
-        PrimitiveResult result;
+        SamplerPrimitiveResult result;
         if (st == providers::JobStatus::DONE) {
             uint_t num_results = job_->num_results();
             result.allocate(num_results);
@@ -128,6 +141,30 @@ public:
         }
         return result;
     }
+
+    /// @brief take a checkpoint for this job
+    /// @param name filename to store the checkpoint
+    /// @return true if successed
+    bool checkpoint(const std::string& name) override
+    {
+        nlohmann::json checkpoint;
+        checkpoint["job"] = job_->get_info();
+        nlohmann::ordered_json pubs = nlohmann::ordered_json::array();
+
+        for (auto p : pubs_) {
+            pubs.push_back(p.to_json());
+        }
+        checkpoint["pubs"] = pubs;
+
+        std::ofstream file(name);
+        file << checkpoint;
+        file.close();
+
+        // do not release the session to keep alive on QC
+        job_->keep_alive(true);
+        return false;
+    }
+
 };
 
 } // namespace providers

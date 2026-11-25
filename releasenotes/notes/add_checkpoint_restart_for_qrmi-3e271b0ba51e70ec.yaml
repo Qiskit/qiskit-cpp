@@ -1,0 +1,24 @@
+---
+features:
+  - |
+    Adding checkpoint/restart fucntions for QRMI backend service.
+    The application can exit from the process without waiting for the job finish
+    and can wait for the finish in another process.
+    Or applications can obtain results from a checkpoint whenever you want.
+    This may be useful for debugging to get the same result without re-submitting a job
+    to the quantum device
+
+    Following example saves a checkpoint to the file, then the application does not
+    have to wait untile the job is finished.
+    ```cpp
+    auto job = sampler.run({SamplerPub(transpiled_circ)});
+    job->checkpoint(filename);
+    ```
+    Then the job can be restarted from the saved checkpoint in another process
+    by using `QiskitRuntimeService::restart` function as following example
+    ```cpp
+    auto service = QiskitRuntimeService();
+    std::shared_ptr<BackendSamplerJob> job = std::dynamic_pointer_cast<BackendSamplerJob>(service.restart(checkpoint));
+    // result() waits for the job finished (or can obtain results from the older jobs)
+    auto result = job->result();
+    ```

@@ -58,6 +58,17 @@ public:
     {
         return false;
     }
+
+    /// @brief get information for this job in JSON
+    /// @return json format information
+    virtual nlohmann::json get_info(void)
+    {
+        nlohmann::json ret;
+        return ret;
+    }
+
+    /// @brief keep the job alive on the server
+    virtual void keep_alive(bool alive = true) {}
 };
 
 } // namespace providers

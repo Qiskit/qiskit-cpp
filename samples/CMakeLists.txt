@@ -129,5 +129,8 @@ if(QRMI_ROOT OR QISKIT_IBM_RUNTIME_C_ROOT OR SQC_ROOT)
 endif()
 
 if(QRMI_ROOT)
+  add_application(provider_test provider_test.cpp)
+  add_application(checkpoint_test checkpoint_test.cpp)
+  add_application(restart_test restart_test.cpp)
   add_application(estimator_test estimator_test.cpp)
 endif()
