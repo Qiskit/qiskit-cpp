@@ -1,0 +1,116 @@
+---
+features:
+  - |
+    Implemented `SamplerPub::from_json()`, the inverse of `SamplerPub::to_json()`.
+    It was previously declared but empty, so a serialized pub could not be read
+    back. A pub now round-trips:
+
+    ```cpp
+    auto pub = SamplerPub(circuit, 1024);
+    auto payload = pub.to_json();
+
+    SamplerPub restored;
+    restored.from_json(payload);
+    // restored.to_json() == payload
+    ```
+
+    The circuit is read from whichever form it was serialized in, and
+    `serialization()` is set to that form, so a pub re-serialized after being
+    read carries its circuit the same way it arrived. The parameter values are
+    checked against the parameter count of the circuit that came with them, so a
+    pub whose values do not match its own circuit is rejected where it is read
+    rather than later at submission.
+
+    A failed read leaves the pub it was called on unchanged rather than half
+    overwritten.
+  - |
+    Added `SamplerPub::from_pub_json()`, a static convenience that returns a new
+    pub rather than overwriting an existing one.
+  - |
+    Added `EstimatorPub::from_json()` and `EstimatorPub::from_pub_json()`, the
+    inverse of `EstimatorPub::to_json()`, following `SamplerPub::from_json()`.
+    The pub is the array `[circuit, observables, parameter_values]` with an
+    optional fourth element for the target precision.
+
+    The observables and the parameter values are kept exactly as they arrived
+    rather than rebuilt, so they re-serialize unchanged. The observables are
+    checked against the qubit count of the circuit that was just read, the same
+    check the constructors apply.
+
+    The encoded parameter payload is decoded only to recover
+    `num_parameter_sets()`, which cannot be read off the encoded form and which
+    a result needs in order to split the values it receives, and to check the
+    values against the circuit.
+
+    As with the constructors, a parameterized circuit with no values is accepted:
+    that is a legal intermediate state, and it is `to_json()` and submission
+    that require the values.
+  - |
+    Added `QpyCircuitPayload::from_json()`, which reads a circuit back from a
+    Qiskit Runtime QPY circuit payload, and `deserialize_pub_circuit()`, which
+    reads a PUB circuit element in either of the two forms Qiskit Runtime
+    accepts.
+
+    `deserialize_pub_circuit()` takes the serialization as an input, the same
+    way `serialize_pub_circuit()` does, so the caller selects the form:
+
+    ```cpp
+    auto circuit = deserialize_pub_circuit(element, CircuitSerialization::qpy);
+    ```
+
+    Reading a payload as the form it is not in is reported rather than guessed
+    at, so a pub that does not hold what the caller expected fails there instead
+    of further on.
+  - |
+    Added `pub_circuit_serialization()`, which returns the form a PUB circuit
+    element is carried in. The two forms are never ambiguous -- a QPY payload is
+    a JSON object and an OpenQASM 3 program is a JSON string -- so this gives
+    the argument for `deserialize_pub_circuit()` when the form is not known in
+    advance. `SamplerPub::from_json()` uses it, which is why reading a pub does
+    not depend on how the pub it is read into happens to be configured.
+  - |
+    Added `ParameterValues::from_json()`, which reads parameter values back from
+    a Qiskit Runtime ndarray payload, and `ParameterValues::from_npy()`, which
+    reads a NumPy `.npy` array of little-endian doubles. `from_npy()` accepts
+    `.npy` format version 1, 2 and 3, even though `to_npy()` only writes version
+    1, because NumPy chooses the version from the header length alone.
+  - |
+    Added `PayloadCodec` (`primitives/containers/payload_codec.hpp`) with
+    `base64_decode()` and `decompress()`. Both the QPY circuit payload and the
+    ndarray parameter payload are carried as base64-encoded zlib streams, so the
+    two decoding steps are shared rather than duplicated. `decompress()` streams
+    through `inflate` because a zlib stream does not declare its decompressed
+    size, and caps the output at `max_decompressed_size()` so a corrupt or
+    hostile payload cannot be expanded without bound.
+issues:
+  - |
+    `ParameterValues::from_json()` returns zero binding sets for an empty array,
+    not one empty set. `to_json()` writes shape `(0,)` for both, so the two
+    cannot be told apart on the way back; zero sets is the form
+    `SamplerPub::set_parameter_values()` stores for a circuit with no
+    parameters.
+  - |
+    A sampler pub with no explicit shot count has no third element, because
+    `to_json()` omits it for a zero count. `from_json()` accepts a two-element
+    pub and reports `shots()` as 0, so this round-trips. The same holds for an
+    estimator pub with no explicit precision and its fourth element.
+  - |
+    `EstimatorPub::num_parameter_sets()` comes back as 0 rather than 1 for the
+    one case where a single binding set holds no values, which only arises for a
+    circuit with no parameters. Both mean "not a sweep" to a result, so the
+    difference does not change how one is read.
+  - |
+    An estimator pub whose circuit does not survive its round trip at full width
+    is rejected on read rather than silently altered, because the observables no
+    longer match the circuit. This can only happen for a circuit serialized as
+    OpenQASM 3; QPY, the default, preserves the qubit count.
+  - |
+    A circuit serialized as OpenQASM 3 is subject to the limits of
+    `QuantumCircuit::from_qasm3()` on the way back, such as several quantum
+    registers importing as one. QPY is the default where available and
+    round-trips the circuit losslessly.
+  - |
+    Only the decoding direction is shared through `PayloadCodec`. The encoding
+    direction remains duplicated between `QpyCircuitPayload` and
+    `ParameterValues`, which predates this change; the duplication was left
+    alone rather than refactored alongside it.

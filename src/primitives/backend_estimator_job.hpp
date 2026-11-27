@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "primitives/base/base_primitive_job.hpp"
 #include "primitives/containers/estimator_primitive_result.hpp"
 #include "providers/job.hpp"
 
@@ -37,32 +38,32 @@ namespace primitives {
 
 /// @class BackendEstimatorJob
 /// @brief Job class for Backend Estimator primitive.
-class BackendEstimatorJob {
+class BackendEstimatorJob : public BasePrimitiveJob {
 protected:
-    std::shared_ptr<providers::Job> job_ = nullptr;
     std::vector<EstimatorPub> pubs_;
-
 public:
     /// @brief Create a new BackendEstimatorJob.
     /// @param job a job pointer to run pubs.
     /// @param pubs a list of pubs.
-    BackendEstimatorJob(std::shared_ptr<providers::Job> job, std::vector<EstimatorPub>& pubs)
+    BackendEstimatorJob(std::shared_ptr<providers::Job> job, std::vector<EstimatorPub>& pubs) : BasePrimitiveJob(job)
     {
-        job_ = job;
         pubs_ = pubs;
     }
 
-    BackendEstimatorJob(const BackendEstimatorJob& other)
+    BackendEstimatorJob(std::shared_ptr<providers::Job> job, const nlohmann::ordered_json& pubs) : BasePrimitiveJob(job)
     {
-        job_ = other.job_;
+        for (size_t i = 0; i < pubs.size(); i++) {
+            pubs_.push_back(EstimatorPub(pubs[i]));
+        }
+    }
+
+    BackendEstimatorJob(const BackendEstimatorJob& other) : BasePrimitiveJob(other)
+    {
         pubs_ = other.pubs_;
     }
 
     ~BackendEstimatorJob()
     {
-        if (job_) {
-            job_.reset();
-        }
     }
 
     /// @brief get pubs for this job.
@@ -74,7 +75,7 @@ public:
 
     /// @brief Return the status of the job.
     /// @return JobStatus enum.
-    providers::JobStatus status(void)
+    providers::JobStatus status(void) override
     {
         if (!job_) {
             return providers::JobStatus::ERROR;
@@ -84,7 +85,7 @@ public:
 
     /// @brief Return whether the job is actively running.
     /// @return true if job is actively running, otherwise false.
-    bool running(void)
+    bool running(void)  override
     {
         return status() == providers::JobStatus::RUNNING;
     }
@@ -98,28 +99,28 @@ public:
 
     /// @brief Return whether the job has successfully run.
     /// @return true if successfully run, otherwise false.
-    bool done(void)
+    bool done(void) override
     {
         return status() == providers::JobStatus::DONE;
     }
 
     /// @brief Return whether the job has been cancelled.
     /// @return true if job has been cancelled, otherwise false.
-    bool cancelled(void)
+    bool cancelled(void) override
     {
         return status() == providers::JobStatus::CANCELLED;
     }
 
     /// @brief Return whether the job is in a final job state such as DONE or ERROR.
     /// @return true if job is in a final job state, otherwise false.
-    bool in_final_state(void)
+    bool in_final_state(void) override
     {
         return is_final_state(status());
     }
 
     /// @brief Attempt to cancel the job.
     /// @return false because backend cancellation is not implemented.
-    bool cancel(void)
+    bool cancel(void) override
     {
         return false;
     }
@@ -159,6 +160,29 @@ public:
             }
         }
         return result;
+    }
+
+    /// @brief take a checkpoint for this job
+    /// @param name filename to store the checkpoint
+    /// @return true if successed
+    bool checkpoint(const std::string& name) override
+    {
+        nlohmann::json checkpoint;
+        checkpoint["job"] = job_->get_info();
+        nlohmann::ordered_json pubs = nlohmann::ordered_json::array();
+
+        for (auto p : pubs_) {
+            pubs.push_back(p.to_json());
+        }
+        checkpoint["pubs"] = pubs;
+
+        std::ofstream file(name);
+        file << checkpoint;
+        file.close();
+
+        // do not release the session to keep alive on QC
+        job_->keep_alive(true);
+        return false;
     }
 
 protected:

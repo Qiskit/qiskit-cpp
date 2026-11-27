@@ -131,7 +131,7 @@ public:
             return false;
         }
 
-        session_ = std::make_shared<QRMISession>(qrmi_, token.str());
+        session_ = std::make_shared<QRMISession>(qrmi_, token.str(), name_);
         std::cerr << " QRMI session acquired on " << name_ << ", token = " << session_->token() << std::endl;
         return true;
     }
@@ -245,7 +245,7 @@ protected:
         const std::string job_id = id.str();
         std::cerr << " QRMI Job submitted to " << name_ << ", JOB ID = " << job_id << std::endl;
 
-        return std::make_shared<providers::QRMIJob>(qrmi_, job_id, session_);
+        return std::make_shared<providers::QRMIJob>(qrmi_, job_id, program_id, session_);
     }
 };
 

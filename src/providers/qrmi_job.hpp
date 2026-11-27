@@ -50,12 +50,14 @@ class QRMISession {
 protected:
     std::shared_ptr<QrmiQuantumResource> qrmi_;
     std::string token_;
+    std::string backend_name_;
+    bool keep_session_alive_ = false;
 public:
     /// @brief Take ownership of an acquisition.
     /// @param qrmi the resource that was acquired
     /// @param token the acquisition token QRMI returned
-    QRMISession(std::shared_ptr<QrmiQuantumResource> qrmi, const std::string& token)
-        : qrmi_(qrmi), token_(token)
+    QRMISession(std::shared_ptr<QrmiQuantumResource> qrmi, const std::string& token, const std::string& name)
+        : qrmi_(qrmi), token_(token), backend_name_(name)
     {
     }
 
@@ -68,17 +70,30 @@ public:
         if (!qrmi_ || token_.empty()) {
             return;
         }
-        QrmiReturnCode rc = qrmi_resource_release(qrmi_.get(), token_.c_str());
-        if (rc != QRMI_RETURN_CODE_SUCCESS) {
-            // Reported rather than thrown: a destructor must not throw, and a
-            // session left open expires on its own after its max_ttl.
-            std::cerr << qrmi_error_message("could not release the session", rc) << std::endl;
+        if (!keep_session_alive_) {
+            QrmiReturnCode rc = qrmi_resource_release(qrmi_.get(), token_.c_str());
+            if (rc != QRMI_RETURN_CODE_SUCCESS) {
+                // Reported rather than thrown: a destructor must not throw, and a
+                // session left open expires on its own after its max_ttl.
+                std::cerr << qrmi_error_message("could not release the session", rc) << std::endl;
+            }
         }
     }
 
     /// @brief Return the acquisition token.
     /// @return the token QRMI returned when the resource was acquired
     const std::string& token(void) const { return token_; }
+
+    /// @brief Return the backend name
+    /// @return the name of backend
+    const std::string& backend(void) const { return backend_name_; }
+
+    /// @brief set session alive flag
+    /// @details for checkpoint/restart setting this flag = true to keep the session alive on QCS
+    void set_alive(bool alive)
+    {
+        keep_session_alive_ = alive;
+    }
 };
 
 /// @class QRMIJob
@@ -86,6 +101,7 @@ public:
 class QRMIJob : public Job {
 protected:
     std::string job_id_;
+    std::string program_id_;
     std::shared_ptr<QrmiQuantumResource> qrmi_ = nullptr;
     std::shared_ptr<QRMISession> session_ = nullptr;
     nlohmann::ordered_json results_;   // json formatted results (raw output from QRMI)
@@ -103,10 +119,11 @@ public:
     /// @param job an id of the job
     /// @param session the session the job was submitted inside, if any. Held so
     ///   that it stays open for as long as the results may be read.
-    QRMIJob(std::shared_ptr<QrmiQuantumResource> qrmi, const std::string& job,
+    QRMIJob(std::shared_ptr<QrmiQuantumResource> qrmi, const std::string& job, const std::string& prog,
             std::shared_ptr<QRMISession> session = nullptr)
     {
         job_id_ = job;
+        program_id_ = prog;
         qrmi_ = qrmi;
         session_ = session;
         num_results_ = 0;
@@ -116,6 +133,7 @@ public:
     QRMIJob(const QRMIJob& other)
     {
         job_id_ = other.job_id_;
+        program_id_ = other.program_id_;
         qrmi_ = other.qrmi_;
         session_ = other.session_;
         results_ = other.results_;
@@ -222,6 +240,25 @@ public:
     bool cancel(void)
     {
         return stop_task();
+    }
+
+
+    /// @brief get information for this job in JSON
+    /// @return json format information
+    nlohmann::json get_info(void) override
+    {
+        nlohmann::json ret;
+        ret["job_id"] = job_id_;
+        ret["backend"] = session_->backend();
+        ret["token"] = session_->token();
+        ret["program_id"] = program_id_;
+        return ret;
+    }
+
+    /// @brief keep the job alive on the server
+    void keep_alive(bool alive = true) override
+    {
+        session_->set_alive(alive);
     }
 
 protected:

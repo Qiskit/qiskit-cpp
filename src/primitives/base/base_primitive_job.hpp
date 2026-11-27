@@ -17,7 +17,7 @@
 #ifndef __qiskitcpp_primitives_base_primitive_job_def_hpp__
 #define __qiskitcpp_primitives_base_primitive_job_def_hpp__
 
-#include "primitives/containers/primitive_result.hpp"
+#include "providers/job.hpp"
 #include "providers/jobstatus.hpp"
 
 namespace Qiskit {
@@ -27,28 +27,26 @@ namespace primitives {
 /// @brief Primitive job abstract base class.
 class BasePrimitiveJob {
 protected:
-    std::vector<SamplerPub> pubs_;
+    std::shared_ptr<providers::Job> job_ = nullptr;
 public:
     /// @brief Create a new BasePrimitiveJob
     BasePrimitiveJob() {}
 
-    /// @brief Create a new BasePrimitiveJob
-    /// @param pubs list of pub for this job
-    BasePrimitiveJob(std::vector<SamplerPub>& pubs)
+    BasePrimitiveJob(std::shared_ptr<providers::Job> job)
     {
-        pubs_ = pubs;
+        job_ = job;
     }
 
-    /// @brief get pubs for this job
-    /// @return a list of pub
-    const std::vector<SamplerPub>& pubs(void) const
+    BasePrimitiveJob(const BasePrimitiveJob& other)
     {
-        return pubs_;
+        job_ = other.job_;
     }
 
-    /// @brief Return the results of the job.
-    /// @return shared pointer to PrimitiveResult class.
-    virtual PrimitiveResult result(void) = 0;
+    ~BasePrimitiveJob()
+    {
+        if (job_)
+            job_.reset();
+    }
 
     /// @brief Return the status of the job.
     /// @return JobStatus enum.
@@ -72,6 +70,14 @@ public:
 
     /// @brief Attempt to cancel the job.
     virtual bool cancel(void) = 0;
+
+    /// @brief take a checkpoint for this job
+    /// @param name filename to store the checkpoint
+    /// @return true if successed
+    virtual bool checkpoint(const std::string& name)
+    {
+        return false;
+    }
 };
 
 } // namespace primitives
